@@ -1,5 +1,17 @@
 # torchrunx
 
+Install (for development):
+```bash
+conda env create -f conda-lock.yml --prefix ./.venv
+conda activate ./.venv
+pdm install
+```
+
+To update dependencies:
+Modify `environment.yml` (system dependencies) or `pyproject.toml` (Python requirements). Then run `conda-lock` or `pdm lock` respectively. Commit changes to `environment.yml`, `pyproject.toml`, `conda-lock.yml`, and `pdm.lock`.
+
+---
+
 Example code
 
 ```python
