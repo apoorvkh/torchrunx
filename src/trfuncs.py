@@ -30,13 +30,12 @@ def spawnx(config, func, **kwargs):
     
     print(f"Hostname: {hostname}")
     print(f"IP Address: {ip_address}") 
+
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        master_port = s.getsockname()[1]
     
-    open_ports = find_open_ports(config.master_ip, config.master_port_range)
-    print(f"Open ports on {config.master_ip}: {open_ports}")
-    # let's just choose a random one for now
-    
-    port_use = random.choice(open_ports)
-    os.environ["MASTER_PORT"] = port
+    os.environ["MASTER_PORT"] = master_port
     
     for i, (ip_forgn, port_forgn, user) in enumerate(config.ips_port_users):
         client = paramiko.SSHClient()
@@ -49,7 +48,7 @@ def spawnx(config, func, **kwargs):
         
         # stdin, stdout, stderr = client.exec_command(f'echo "{serialized_function}" > my_function.pkl')
         stdin, stdout, stderr = client.exec_command(
-            f'python -m torchrunx "{serialized_function}" {config.num_nodes} {config.num_processes} {ip_address} {port_use} {i}'
+            f'python -m torchrunx "{serialized_function}" {config.num_nodes} {config.num_processes} {ip_address} {master_port} {i}'
             )
         print(stdout.read().decode())
         client.close()
