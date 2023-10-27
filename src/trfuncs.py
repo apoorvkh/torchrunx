@@ -4,6 +4,7 @@ import os
 import socket
 import random
 from typing import List, Tuple
+from contextlib import closing
 
 from multiprocessing import Process, Queue
 
