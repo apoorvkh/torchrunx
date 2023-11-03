@@ -48,7 +48,6 @@ def multinode_spawner(
         
         client.connect(ip_forgn, port_forgn, user) 
         # potentially need either pub key or user name
-
         # stdin, stdout, stderr = client.exec_command(f'echo "{serialized_function}" > my_function.pkl')
         # stdin, stdout, stderr = client.exec_command(
         #     f'python -m torchrunx "{serialized_function}" {num_nodes} {num_processes} {ip_address} {master_port} {i}'

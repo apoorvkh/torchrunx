@@ -15,7 +15,6 @@ def entrypoint(index: int, fn: Callable, *args):
     dist.init_process_group(backend="nccl", world_size=int(os.environ["WORLD_SIZE"]), rank=index)
     return fn(*args)
 
-
 def main(controller_ip: str, controller_port: int):
 
     # TODO initialize communication with controller
