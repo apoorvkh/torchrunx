@@ -1,0 +1,54 @@
+============================= test session starts ==============================
+platform linux -- Python 3.6.8, pytest-7.0.1, pluggy-1.0.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /users/sanand14/torchrunx/tests, configfile: pytest.ini
+============================= test session starts ==============================
+platform linux -- Python 3.6.8, pytest-7.0.1, pluggy-1.0.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /users/sanand14/torchrunx/tests, configfile: pytest.ini
+============================= test session starts ==============================
+platform linux -- Python 3.6.8, pytest-7.0.1, pluggy-1.0.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /users/sanand14/torchrunx/tests, configfile: pytest.ini
+collecting ... collected 3 items
+
+collecting ... collected 3 items
+
+collecting ... collected 3 items
+
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[0] PASSED [ 33%]
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[0] PASSED [ 33%]
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[0] PASSED [ 33%]
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[1] PASSED [ 66%]
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[1] PASSED [ 66%]
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[1] PASSED [ 66%]
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[2] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../users/sanand14/.local/lib/python3.6/site-packages/_pytest/config/__init__.py:1249
+  /users/sanand14/.local/lib/python3.6/site-packages/_pytest/config/__init__.py:1249: PytestConfigWarning: Unknown config option: python_paths
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 3 passed, 1 warning in 1.75s =========================
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[2] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../users/sanand14/.local/lib/python3.6/site-packages/_pytest/config/__init__.py:1249
+  /users/sanand14/.local/lib/python3.6/site-packages/_pytest/config/__init__.py:1249: PytestConfigWarning: Unknown config option: python_paths
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 3 passed, 1 warning in 1.76s =========================
+../../../../users/sanand14/torchrunx/tests/test_dist_slurm.py::test_all_reduce[2] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../users/sanand14/.local/lib/python3.6/site-packages/_pytest/config/__init__.py:1249
+  /users/sanand14/.local/lib/python3.6/site-packages/_pytest/config/__init__.py:1249: PytestConfigWarning: Unknown config option: python_paths
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 3 passed, 1 warning in 1.74s =========================

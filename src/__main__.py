@@ -4,7 +4,7 @@ from typing import Callable
 
 import dill
 import torch.distributed as dist
-import tyro
+# import tyro # what does this do
 from torch.distributed.elastic.multiprocessing import start_processes
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult
 

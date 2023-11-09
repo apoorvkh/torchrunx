@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src import main
+from src.__main__ import main
 
 @patch('src.tyro.cli')
 @patch('src.dill.loads')
