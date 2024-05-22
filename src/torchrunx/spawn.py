@@ -7,6 +7,8 @@ from typing import Callable, List, Tuple
 import dill
 import paramiko
 
+import torch.distributed as dist
+
 
 def multinode_spawner(
     num_nodes: int = 4,
@@ -35,28 +37,52 @@ def multinode_spawner(
     print(f"Hostname: {hostname}")
     print(f"IP Address: {ip_address}") 
 
+    # print(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
+        # print(s)
+        # print(s.getsocketname)
+        # print(s.getsocketname())
         master_port = s.getsockname()[1]
     
-    os.environ["MASTER_PORT"] = master_port
-    
+    os.environ["MASTER_PORT"] = str(master_port)
+
+    # initialize node communication process group
+    world_size = num_nodes * num_processes
+
     for i, (ip_forgn, port_forgn, user) in enumerate(ips_port_users):
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) 
         # so do not need to manually add
         
         client.connect(ip_forgn, port_forgn, user) 
+        client.exec_command(f'source $HOME/torchrunx/.venv/bin/activate; python3 -m torchrunx {num_nodes+1} {i+1} {ip_address} {master_port} > $HOME/torchrunx/log_{i} 2>&1 &')
+
         # potentially need either pub key or user name
         # stdin, stdout, stderr = client.exec_command(f'echo "{serialized_function}" > my_function.pkl')
         # stdin, stdout, stderr = client.exec_command(
         #     f'python -m torchrunx "{serialized_function}" {num_nodes} {num_processes} {ip_address} {master_port} {i}'
         # )
-        stdin, stdout, stderr = client.exec_command(
-            f'python -m torchrunx'
-        )
-        print(stdout.read().decode())
-        client.close()
+        # stdin, stdout, stderr = client.exec_command(
+        #     f'source $HOME/torchrunx/.venv/bin/activate; python3 -m torchrunx'
+        # )
+        #print(stdout.read().decode())
+        #print(stderr.read().decode())
+        #client.close()
+
+    print("spawned nodes")
+
+    dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0) # always zero rank
+    print("init")
+    params = [{'func': serialized_function, 'args': dill.dumps((5,)), 
+               'nodes': num_nodes, 'nprocs': num_processes}]
+    dist.broadcast_object_list(params)
+    print("transmitted params")
+    dist.broadcast_object_list([None, None], src=1) # for now, discards master worker ip/port. In future, maybe save it.
+    print("master transmitted ip/port")
+    dist.destroy_process_group()
+    print("destroyed")
 
 def print_env():
     for key in sorted(os.environ.keys()):

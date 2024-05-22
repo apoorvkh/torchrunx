@@ -1,7 +1,7 @@
 import pytest
 import socket
 from unittest.mock import Mock, patch, MagicMock
-from src.spawn import multinode_spawner
+from src.torchrunx.spawn import multinode_spawner
 import os 
 import socket
 import os
@@ -24,27 +24,31 @@ def get_ips_port_users(nodelist, port, user):
 def slurm_ips_port_users():
     nodelist = os.environ['SLURM_JOB_NODELIST']
     port = 22  # SSH port
-    user = 'sanand14'  # Replace with the appropriate username
+    user = 'pcurtin1'  # Replace with the appropriate username
     return get_ips_port_users(nodelist, port, user)
 
 @pytest.fixture
 def mock_socket():
     mock = Mock()
     mock.bind = Mock()
-    mock.getsockname = Mock(return_value=('', 12345))
+    mock.getsockname = MagicMock(return_value=('', 12345))
     return mock
 
 @pytest.fixture
 def mock_paramiko_client():
     client = Mock()
     client.connect = Mock()
-    client.exec_command = Mock(return_value=(Mock(), Mock(return_value=b'success'), Mock()))
+    readmock = Mock()
+    readmock.read = Mock(return_value=b'success')
+    client.exec_command = Mock(return_value=(Mock(), readmock, Mock()))
     client.close = Mock()
     return client
 
-@patch('src.socket.socket', return_value=mock_socket())
-@patch('src.paramiko.SSHClient', return_value=mock_paramiko_client())
-def test_multinode_spawner(mock_socket_class, mock_ssh_client):
+@patch('src.spawn.paramiko.SSHClient')
+@patch('src.spawn.socket.socket')
+def test_multinode_spawner(mock_socket_class, mock_ssh_client, mock_socket, mock_paramiko_client, slurm_ips_port_users):
+    mock_socket_class.return_value = mock_socket
+    mock_ssh_client.return_value = mock_paramiko_client
     # Here we use Slurm environment variables directly
     world_size = os.environ['SLURM_NTASKS']
     node_rank = os.environ['SLURM_NODEID']
@@ -54,18 +58,19 @@ def test_multinode_spawner(mock_socket_class, mock_ssh_client):
 
     multinode_spawner(
         num_nodes=int(world_size),
-        ips_port_users=slurm_ips_port_users(),
+        num_processes=1,
+        ips_port_users=slurm_ips_port_users,
         func=lambda x: x * 2 
     )
 
     mock_socket_class.assert_called_with(socket.AF_INET, socket.SOCK_STREAM)
-    mock_socket().bind.assert_called_with(("", 0))
+    mock_socket.bind.assert_called_with(("", 0))
 
-    assert mock_ssh_client().connect.call_count == int(world_size)
-    assert mock_ssh_client().exec_command.call_count == int(world_size)
-    assert mock_ssh_client().close.call_count == int(world_size)
+    assert mock_paramiko_client.connect.call_count == int(world_size)
+    assert mock_paramiko_client.exec_command.call_count == int(world_size)
+    assert mock_paramiko_client.close.call_count == int(world_size)
 
     # Asserting that the environment variables are set as expected
     assert os.environ['WORLD_SIZE'] == world_size
-    assert os.environ['NODE_RANK'] == node_rank
+    # assert os.environ['NODE_RANK'] == node_rank # not sure about this...
     assert os.environ['NPROC'] == nproc

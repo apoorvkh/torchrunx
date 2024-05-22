@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=pytest_multinode_spawn_slurm
+#SBATCH --nodes=2
 #SBATCH --ntasks=2
 #SBATCH --mem=4G
 #SBATCH --time=00:10:00

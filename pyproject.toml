@@ -17,7 +17,8 @@ dependencies = [
     "dill",
     "paramiko",
     "torch>=2.0.0",
-    "tyro"
+    "tyro",
+    "numpy>=1.24.4",
 ]
 
 [tool.pdm.dev-dependencies]

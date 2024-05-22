@@ -1,0 +1,43 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 2287559
+##  Job Name : pytest_main_slurm
+##  Nodelist : node1321
+##      CPUs : 2
+##  Mem/Node : 4096 MB
+## Directory : /oscar/home/pcurtin1/torchrunx
+##   Job Started : Mon May 20 04:01:10 PM EDT 2024
+###############################################################################
+============================= test session starts ==============================
+platform linux -- Python 3.8.1, pytest-7.4.0, pluggy-1.3.0 -- /users/pcurtin1/.conda/envs/torchrunx/bin/python3
+cachedir: .pytest_cache
+rootdir: /users/pcurtin1/torchrunx/tests
+configfile: pytest.ini
+plugins: anyio-4.3.0
+============================= test session starts ==============================
+platform linux -- Python 3.8.1, pytest-7.4.0, pluggy-1.3.0 -- /users/pcurtin1/.conda/envs/torchrunx/bin/python3
+cachedir: .pytest_cache
+rootdir: /users/pcurtin1/torchrunx/tests
+configfile: pytest.ini
+plugins: anyio-4.3.0
+collecting ... collected 1 item
+
+collecting ... collected 1 item
+
+../../../../users/pcurtin1/torchrunx/tests/test_main.py::test_main PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../users/pcurtin1/.conda/envs/torchrunx/lib/python3.8/site-packages/torch/nn/modules/transformer.py:20
+  /users/pcurtin1/.conda/envs/torchrunx/lib/python3.8/site-packages/torch/nn/modules/transformer.py:20: UserWarning: Failed to initialize NumPy: numpy.core.multiarray failed to import (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:84.)
+    device: torch.device = torch.device(torch._C._get_default_device()),  # torch.device('cpu'),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 1 passed, 1 warning in 3.23s =========================
+../../../../users/pcurtin1/torchrunx/tests/test_main.py::test_main PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../users/pcurtin1/.conda/envs/torchrunx/lib/python3.8/site-packages/torch/nn/modules/transformer.py:20
+  /users/pcurtin1/.conda/envs/torchrunx/lib/python3.8/site-packages/torch/nn/modules/transformer.py:20: UserWarning: Failed to initialize NumPy: numpy.core.multiarray failed to import (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:84.)
+    device: torch.device = torch.device(torch._C._get_default_device()),  # torch.device('cpu'),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 1 passed, 1 warning in 3.23s =========================
