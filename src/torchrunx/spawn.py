@@ -34,8 +34,8 @@ def multinode_spawner(
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
     
-    print(f"Hostname: {hostname}")
-    print(f"IP Address: {ip_address}") 
+    #print(f"Hostname: {hostname}")
+    #print(f"IP Address: {ip_address}") 
 
     # print(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
 
@@ -57,8 +57,8 @@ def multinode_spawner(
         # so do not need to manually add
         
         client.connect(ip_forgn, port_forgn, user) 
-        client.exec_command(f'source $HOME/torchrunx/.venv/bin/activate; python3 -m torchrunx {num_nodes+1} {i+1} {ip_address} {master_port} > $HOME/torchrunx/log_{i} 2>&1 &')
-
+        client.exec_command(f'source $HOME/torchrunx/.venv/bin/activate; python3 -u -m torchrunx {num_nodes+1} {i+1} {ip_address} {master_port} > $HOME/torchrunx/log_{i}.txt 2>&1 &')
+        client.close()
         # potentially need either pub key or user name
         # stdin, stdout, stderr = client.exec_command(f'echo "{serialized_function}" > my_function.pkl')
         # stdin, stdout, stderr = client.exec_command(
@@ -71,18 +71,25 @@ def multinode_spawner(
         #print(stderr.read().decode())
         #client.close()
 
-    print("spawned nodes")
+    #print("spawned nodes")
 
     dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0) # always zero rank
-    print("init")
-    params = [{'func': serialized_function, 'args': dill.dumps((5,)), 
+    #print("init")
+    params = [{'func': serialized_function, 'args': dill.dumps(tuple()), 
                'nodes': num_nodes, 'nprocs': num_processes}]
     dist.broadcast_object_list(params)
-    print("transmitted params")
+    #print("transmitted params")
     dist.broadcast_object_list([None, None], src=1) # for now, discards master worker ip/port. In future, maybe save it.
-    print("master transmitted ip/port")
-    dist.destroy_process_group()
-    print("destroyed")
+    #print("master transmitted ip/port")
+    #print("Gathering return values...")
+    output = [None for i in range(num_nodes+1)]
+    dist.gather_object({}, output, dst=0)
+    #dist.destroy_process_group()
+    result = {}
+    for d in output:
+        result.update(d)
+    return result
+
 
 def print_env():
     for key in sorted(os.environ.keys()):
