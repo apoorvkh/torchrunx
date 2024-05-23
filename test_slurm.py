@@ -5,6 +5,8 @@ import socket
 import os
 import subprocess
 
+# this is not a pytest test, but a functional test designed to be run on a slurm allocation
+
 def resolve_node_ips(nodelist):
     # Expand the nodelist into individual hostnames
     hostnames = subprocess.check_output(['scontrol', 'show', 'hostnames', nodelist]).decode().strip().split('\n')
@@ -40,6 +42,7 @@ def test_multinode_spawner():
         func=run_all_reduce,
     )
 
+    assert result != {}, "Computation failed"
     for i in range(len(result)):
         assert torch.all(result[i] == result[0]), "Not all tensors equal"
     print(result)

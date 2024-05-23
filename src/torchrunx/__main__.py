@@ -13,22 +13,22 @@ from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, R
 import torchrunx.entry as entry
 
 def main(world_size, rank):
-    # TODO initialize communication with controller
-    # torch.distributed.init_process_group(gloo), ranks >= 1
-    #world_size = int(os.environ['SLURM_JOB_NUM_NODES'])*int(os.environ['SLURM_NPROCS'])
     dist.init_process_group(backend="gloo", world_size=world_size, rank=rank)
-    params = [None]
-    dist.broadcast_object_list(params)
+
+    # receieve parameters from master
+    _params = [None]
+    dist.broadcast_object_list(_params)
     params = params[0]
-    # TODO: get serialized function and arguments
+
     serialized_function: str = params['func']
-    #fn = dill.loads(serialized_function)
+    num_nodes: int =  params['nodes']
+    num_processes: int = params['nprocs']
+    arguments = dill.loads(params['args'])
 
-    # TODO: get node, process, rank information
-    num_nodes: int =  params['nodes']#1
-    num_processes: int = params['nprocs'] # int(os.environ['SLURM_NPROCS']) #
-
+    # broadcast/receive master worker's IP and port
     if rank == 1: 
+        # rank 1 agent is responsible for rank 0 worker, aka the "master worker"
+        # thus grab a port on this agent's node
         master_hostname = socket.gethostname()
         master_ip = socket.gethostbyname(master_hostname)
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
@@ -36,33 +36,28 @@ def main(world_size, rank):
             master_port = s.getsockname()[1]
         master = [master_ip, master_port]
     else:
+        # else, we listen for the broadcast
         master = [None, None]
+
     dist.broadcast_object_list(master, src=1)
 
     master_ip: str = master[0]
     master_port: int = master[1]
-    #rank: int = params[''] #0
 
-    #os.environ["WORLD_SIZE"] = str(num_nodes * num_processes)
-    #print(f"world size: {num_nodes * num_processes}")
-    #os.environ["NODE_RANK"] = str(rank-1)
-    #os.environ["NPROC"] = str(num_processes)
-    #os.environ["MASTER_ADDR"] = master_ip
-    #os.environ["MASTER_PORT"] = str(master_port)
-
-    args = {i: dill.loads(params['args']) for i in range(num_processes)}
-    envs = {i: {"RANK": (rank-1)*num_processes + i, 
-                "LOCAL_RANK": i, 
+    # set arguments and environmental variables for each worker
+    args = {i: arguments for i in range(num_processes)}
+    envs = {i: {"RANK": str((rank-1)*num_processes + i), 
+                "LOCAL_RANK": str(i), 
                 "WORLD_SIZE": str(num_nodes * num_processes),
                 "MASTER_ADDR": master_ip,
-                "MASTER_PORT": str(master_port)} 
-            for i in range(num_processes)} # "MASTER_ADDR": master_ip, "MASTER_PORT": master_port
-
+                "MASTER_PORT": str(master_port)} for i in range(num_processes)}
+    
+    # logging directory
     log_dir = None
     if log_dir is None:
         log_dir = tempfile.mkdtemp() #  f"/users/pcurtin1/torchrunx/log/{rank}/" # 
     
-    #print("Spawning...")
+    # spawn workers
     ctx: MultiprocessContext = start_processes(
         name="distributed_function",
         entrypoint=entry.entrypoint,
@@ -71,17 +66,22 @@ def main(world_size, rank):
         log_dir=log_dir,
         start_method="spawn",
     )
-    #print("Waiting...")
+    
+    # wait for all terminated
     result: RunProcsResult = ctx.wait()
-    #print("All workers terminated. Sending return values to master.")
+    
+    # handle errors, TODO: determine what to do here, e.g. throw error?
     if result.failures:
         print(result.failures)
-    # need to modify the keys in result.return_values to reflect global rank not local
+
+    # gather return values, and send them to master
+    # need to modify the keys in result.return_values to reflect global ranks not local ranks or workers
     return_values = {k + (rank-1)*num_processes: v for k, v in result.return_values.items()}
     dist.gather_object(return_values, dst=0)
-    #dist.all_gather_object([None for i in range(world_size)], result.return_values)
 
 if __name__ == "__main__":
+    # parse arguments, TODO: use argparse
+    # TODO: WORLD_SIZE and RANK variables could be set rather than main having arguments...
     os.environ["MASTER_ADDR"] = sys.argv[3]
     os.environ["MASTER_PORT"] = sys.argv[4]
     main(int(sys.argv[1]), int(sys.argv[2]))

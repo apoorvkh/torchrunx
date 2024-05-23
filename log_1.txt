@@ -1,2 +1,0 @@
-[rank2]:[2024-05-23 16:27:30,549] torch.distributed.elastic.multiprocessing.api: [ERROR] failed (exitcode: 1) local_rank: 0 (pid: 651903) of fn: entrypoint (start_method: spawn)
-{0: ProcessFailure(local_rank=0, pid=651903, exitcode=1, error_file='<N/A>', error_file_data={'message': '<NONE>'}, message='To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html', timestamp=1716496050)}
