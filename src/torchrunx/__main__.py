@@ -1,8 +1,6 @@
 import os, sys, socket
 import tempfile
-from typing import Callable
 from contextlib import closing
-import time
 
 import dill
 import torch.distributed as dist
@@ -18,7 +16,7 @@ def main(world_size, rank):
     # receieve parameters from master
     _params = [None]
     dist.broadcast_object_list(_params)
-    params = params[0]
+    params = _params[0]
 
     serialized_function: str = params['func']
     num_nodes: int =  params['nodes']

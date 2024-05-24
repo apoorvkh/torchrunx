@@ -1,10 +1,5 @@
-import socket, torch
-from torchrunx.spawn import multinode_spawner
-import os 
-import socket
-import os
-import subprocess
-
+import os, datetime, socket, subprocess, torch
+from torchrunx import launch
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
 
 def resolve_node_ips(nodelist):
@@ -26,37 +21,53 @@ def slurm_ips_port_users():
     user = 'pcurtin1'  # Replace with the appropriate username
     return get_ips_port_users(nodelist, port, user)
 
-def test_multinode_spawner():
+def test_launch():
+    print(datetime.datetime.now())
     # Here we use Slurm environment variables directly
-    world_size = os.environ['SLURM_NTASKS']
-    node_rank = os.environ['SLURM_NODEID']
-    nproc = os.environ['SLURM_CPUS_ON_NODE']
-    master_addr = os.environ['SLURM_LAUNCH_NODE_IPADDR']
-    master_port = os.environ.get('MASTER_PORT', '29500')  # Default if not set
-    #print(world_size, node_rank, nproc, master_addr, master_port)
+    world_size = int(os.environ['SLURM_NTASKS'])
+    #node_rank = os.environ['SLURM_NODEID']
+    nproc = int(os.environ['SLURM_CPUS_ON_NODE'])
+    #master_addr = os.environ['SLURM_LAUNCH_NODE_IPADDR']
+    #master_port = os.environ.get('MASTER_PORT', '29500')  # Default if not set
+    print(world_size, nproc)
 
-    result = multinode_spawner(
+    result = launch(
         num_nodes=int(world_size),
-        num_processes=2,
+        num_processes=nproc,
         ips_port_users=slurm_ips_port_users(),
-        func=run_all_reduce,
+        func=simple_matmul,
     )
 
     assert result != {}, "Computation failed"
     for i in range(len(result)):
         assert torch.all(result[i] == result[0]), "Not all tensors equal"
-    print(result)
+    print(result[0])
     print("PASS")
     
 
-def run_all_reduce():
-    import torch
+def simple_matmul():
+    import torch, os
     import torch.distributed as dist
     """ Run collective communication. """
     #group = dist.new_group([0, 1, 2, 3])
-    tensor = torch.rand(100)
-    dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
-    return tensor
+    rank = int(os.environ["RANK"])
+
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+    if rank == 0:
+        w = torch.rand((1000, 1000), device=device) # in_dim, out_dim
+    else:
+        w = torch.zeros((1000, 1000), device=device)
+
+    dist.broadcast(w, 0)
+
+    i = torch.rand((5000, 1000), device=device) # batch, dim
+
+    o = torch.matmul(i, w)
+
+    dist.all_reduce(o, op=dist.ReduceOp.SUM)
+    # note: return must be a cpu tensor...
+    return o.detach().cpu()
 
 if __name__ == "__main__":
-    test_multinode_spawner()
+    test_launch()

@@ -1,12 +1,9 @@
+import dill, torch
+import torch.distributed as dist
+
 def entrypoint(fn: bytes, *args):
-    # idk if these imports need to be in here or outside of here. Outside means that when importing 
-    # torchrunx.entry in torchrunx.__main__ the imports will re-run which should be fine actually
-    import os, dill
-    import torch.distributed as dist
-
     _fn = dill.loads(fn)
-
     # I believe these do not need to be passed, due to them being environmental vars already:
-    #world_size=int(os.environ["WORLD_SIZE"]), rank=int(os.environ["RANK"])
-    dist.init_process_group(backend="gloo")     
+    # initializes both gloo and nccl if possible.
+    dist.init_process_group(backend="gloo|nccl" if torch.cuda.is_available() else "gloo")
     return _fn(*args)
