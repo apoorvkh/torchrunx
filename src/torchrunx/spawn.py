@@ -1,4 +1,4 @@
-import os
+import os, sys
 import socket
 from contextlib import closing
 from functools import partial
@@ -10,7 +10,7 @@ import paramiko
 import torch.distributed as dist
 
 
-def multinode_spawner(
+def launch(
     num_nodes: int = 4,
     num_processes: int = 4, # per node
     timeout: int = 300, # TODO: unused
@@ -24,6 +24,9 @@ def multinode_spawner(
     **kwargs
 ):
     
+    if not dist.is_available():
+        raise RuntimeError("The torch.distributed package is not available.")
+
     # populate kwargs of target function early
     func = partial(func, **kwargs)
     serialized_function = dill.dumps(func)
@@ -50,7 +53,8 @@ def multinode_spawner(
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(ip_forgn, port_forgn, user) 
         # execute agent & disconnect
-        client.exec_command(f'source $HOME/torchrunx/.venv/bin/activate; python3 -u -m torchrunx {num_nodes+1} {i+1} {ip_address} {master_port} > /dev/null 2>&1 &')
+        # uses environment that multinode_spawner was executed in
+        client.exec_command(f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {ip_address} {master_port} > /dev/null 2>&1 &")
         client.close()
 
     # initialize agnet-master process group
