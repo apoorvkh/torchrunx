@@ -1,4 +1,4 @@
-import os, datetime, socket, subprocess, torch
+import os, socket, subprocess, torch
 from torchrunx import launch
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
 
@@ -22,20 +22,20 @@ def slurm_ips_port_users():
     return get_ips_port_users(nodelist, port, user)
 
 def test_launch():
-    print(datetime.datetime.now())
+    #print(datetime.datetime.now())
     # Here we use Slurm environment variables directly
     world_size = int(os.environ['SLURM_NTASKS'])
     #node_rank = os.environ['SLURM_NODEID']
     nproc = int(os.environ['SLURM_CPUS_ON_NODE'])
     #master_addr = os.environ['SLURM_LAUNCH_NODE_IPADDR']
     #master_port = os.environ.get('MASTER_PORT', '29500')  # Default if not set
-    print(world_size, nproc)
+    #print(world_size, nproc)
 
     result = launch(
         num_nodes=int(world_size),
         num_processes=nproc,
         ips_port_users=slurm_ips_port_users(),
-        func=simple_matmul,
+        func=simple_matmul
     )
 
     assert result != {}, "Computation failed"
@@ -55,13 +55,13 @@ def simple_matmul():
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     if rank == 0:
-        w = torch.rand((1000, 1000), device=device) # in_dim, out_dim
+        w = torch.rand((100, 100), device=device) # in_dim, out_dim
     else:
-        w = torch.zeros((1000, 1000), device=device)
+        w = torch.zeros((100, 100), device=device)
 
     dist.broadcast(w, 0)
 
-    i = torch.rand((5000, 1000), device=device) # batch, dim
+    i = torch.rand((500, 100), device=device) # batch, dim
 
     o = torch.matmul(i, w)
 

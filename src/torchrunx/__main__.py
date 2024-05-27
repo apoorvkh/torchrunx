@@ -1,8 +1,5 @@
-import os, sys, socket
+import sys, socket
 import tempfile
-from contextlib import closing
-
-import dill
 import torch.distributed as dist
 # import tyro # what does this do
 from torch.distributed.elastic.multiprocessing import start_processes
@@ -10,28 +7,35 @@ from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, R
 
 import torchrunx.entry as entry
 
-def main(world_size, rank):
-    dist.init_process_group(backend="gloo", world_size=world_size, rank=rank)
+from torchrunx.utils import get_open_port
+from torchrunx.spawn import LaunchConfig
 
-    # receieve parameters from master
+def main(world_size, rank, launcher_ip, launcher_port):
+
+    # create client TCPStore for initializing launcher-agent process group
+    store = dist.TCPStore(launcher_ip, launcher_port, world_size=world_size)
+
+    dist.init_process_group(backend="gloo", world_size=world_size, rank=rank, store=store)
+
+    # receieve parameters from launcher
     _params = [None]
     dist.broadcast_object_list(_params)
-    params = _params[0]
+    config = LaunchConfig.deserialize(_params[0])
 
-    serialized_function: str = params['func']
-    num_nodes: int =  params['nodes']
-    num_processes: int = params['nprocs']
-    arguments = dill.loads(params['args'])
+    serialized_function: str = config.serialized_fn
+    num_nodes: int =  config.num_nodes
+    num_processes: int = config.num_processes
+    backend: str = config.backend
+    #arguments = dill.loads(params['args'])
 
-    # broadcast/receive master worker's IP and port
+    # broadcast/receive launcher worker's IP and port
     if rank == 1: 
         # rank 1 agent is responsible for rank 0 worker, aka the "master worker"
         # thus grab a port on this agent's node
         master_hostname = socket.gethostname()
+
         master_ip = socket.gethostbyname(master_hostname)
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.bind(("", 0))
-            master_port = s.getsockname()[1]
+        master_port = get_open_port()
         master = [master_ip, master_port]
     else:
         # else, we listen for the broadcast
@@ -43,12 +47,11 @@ def main(world_size, rank):
     master_port: int = master[1]
 
     # set arguments and environmental variables for each worker
-    args = {i: arguments for i in range(num_processes)}
+    #args = {i: arguments for i in range(num_processes)}
     envs = {i: {"RANK": str((rank-1)*num_processes + i), 
                 "LOCAL_RANK": str(i), 
-                "WORLD_SIZE": str(num_nodes * num_processes),
-                "MASTER_ADDR": master_ip,
-                "MASTER_PORT": str(master_port)} for i in range(num_processes)}
+                "WORLD_SIZE": str(num_nodes * num_processes)
+                } for i in range(num_processes)}
     
     # logging directory
     log_dir = None
@@ -59,7 +62,7 @@ def main(world_size, rank):
     ctx: MultiprocessContext = start_processes(
         name="distributed_function",
         entrypoint=entry.entrypoint,
-        args={i: (serialized_function, *args[i]) for i in args},
+        args={i: (serialized_function, master_ip, master_port, backend) for i in range(num_processes)}, # backend=None for now
         envs=envs,
         log_dir=log_dir,
         start_method="spawn",
@@ -73,13 +76,10 @@ def main(world_size, rank):
         print(result.failures)
 
     # gather return values, and send them to master
-    # need to modify the keys in result.return_values to reflect global ranks not local ranks or workers
+    # need to modify the keys in result.return_values to reflect global ranks not local ranks of workers
     return_values = {k + (rank-1)*num_processes: v for k, v in result.return_values.items()}
     dist.gather_object(return_values, dst=0)
 
 if __name__ == "__main__":
     # parse arguments, TODO: use argparse
-    # TODO: WORLD_SIZE and RANK variables could be set rather than main having arguments...
-    os.environ["MASTER_ADDR"] = sys.argv[3]
-    os.environ["MASTER_PORT"] = sys.argv[4]
-    main(int(sys.argv[1]), int(sys.argv[2]))
+    main(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3], int(sys.argv[4]))

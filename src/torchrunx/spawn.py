@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os, sys
 import socket
-from contextlib import closing
 from functools import partial
 from typing import Callable, List, Tuple
+
+from torchrunx.utils import get_open_port
 
 import dill
 import paramiko
@@ -10,16 +13,27 @@ import paramiko
 import torch.distributed as dist
 
 
+class LaunchConfig:
+
+    def __init__(self: LaunchConfig, fn: Callable, num_nodes: int, num_processes: int, backend: str) -> None:
+        self.serialized_fn = dill.dumps(fn)
+        self.num_nodes = num_nodes
+        self.num_processes = num_processes
+        self.backend = backend
+
+    def serialize(self: LaunchConfig) -> bytes:
+        return dill.dumps(self)
+
+    @staticmethod
+    def deserialize(serialized_config: bytes) -> LaunchConfig:
+        return dill.loads(serialized_config) 
+
 def launch(
     num_nodes: int = 4,
     num_processes: int = 4, # per node
-    timeout: int = 300, # TODO: unused
-    max_retries: int = 3, # TODO: unused
-    master_ip : str = '127.0.0.1', # TODO: should this be an argument? unused
-    master_port_range : Tuple[int, int] = (20, 1024), # TODO: unused
-    log_file: str = 'parallel_processing.log', # TODO: unused
-    ips_port_users: List[Tuple[str, int, str]] = [], # TODO: unused
-    messaging : str = "gloo", # TODO: unused
+    log_file: str = 'parallel_processing.log', # TODO: use
+    ips_port_users: List[Tuple[str, int, str]] = [],
+    backend : str = None, # TODO: check valid option passed
     func: Callable = None,
     **kwargs
 ):
@@ -29,22 +43,20 @@ def launch(
 
     # populate kwargs of target function early
     func = partial(func, **kwargs)
-    serialized_function = dill.dumps(func)
+    #serialized_function = dill.dumps(func)
 
-    # determine IP and an open port to run agent-master group from
+    # determine IP and an open port to run agent-launcher group from
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
 
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
-        master_port = s.getsockname()[1]
+    launcher_port = get_open_port()
 
-    # set some environmental variables. TODO: only WORLD_SIZE, MASTER_PORT/ADDR required?
+    # set some environmental variables. TODO: none of these env vars needed?
     os.environ["WORLD_SIZE"] = str(num_nodes * num_processes)
     os.environ["NODE_RANK"] = "0"
     os.environ["NPROC"] = str(num_processes)
-    os.environ["MASTER_ADDR"] = master_ip
-    os.environ["MASTER_PORT"] = str(master_port)
+    #os.environ["MASTER_ADDR"] = master_ip
+    #os.environ["MASTER_PORT"] = str(master_port)
 
     # start agents on each node
     for i, (ip_forgn, port_forgn, user) in enumerate(ips_port_users):
@@ -54,18 +66,21 @@ def launch(
         client.connect(ip_forgn, port_forgn, user) 
         # execute agent & disconnect
         # uses environment that multinode_spawner was executed in
-        client.exec_command(f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {ip_address} {master_port} > /dev/null 2>&1 &")
+        client.exec_command(f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {ip_address} {launcher_port} > /dev/null 2>&1 &")
         client.close()
 
-    # initialize agnet-master process group
-    dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0)
+    # create TCPStore for group initialization.
+    launcher_store = dist.TCPStore(hostname, launcher_port, world_size=num_nodes*num_processes, is_master=True)
+
+    # initialize agent-launcher process group
+    dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0, store=launcher_store)
     
     # populate and broadcast agent parameters
-    params = [{'func': serialized_function, 'args': dill.dumps(tuple()), 
-               'nodes': num_nodes, 'nprocs': num_processes}]
+    config = LaunchConfig(func, num_nodes, num_processes, backend)
+    params = [config.serialize()]
     dist.broadcast_object_list(params)
     
-    # participate in synchronization between agents, which is irrelevant to the master
+    # participate in synchronization between agents, which is irrelevant to the launcher
     dist.broadcast_object_list([None, None], src=1)
 
     # wait for return values
