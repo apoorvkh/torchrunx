@@ -22,23 +22,13 @@ def slurm_ips_port_users():
     return get_ips_port_users(nodelist, port, user)
 
 def test_launch():
-    #print(datetime.datetime.now())
-    # Here we use Slurm environment variables directly
-    world_size = int(os.environ['SLURM_NTASKS'])
-    #node_rank = os.environ['SLURM_NODEID']
-    nproc = int(os.environ['SLURM_CPUS_ON_NODE'])
-    #master_addr = os.environ['SLURM_LAUNCH_NODE_IPADDR']
-    #master_port = os.environ.get('MASTER_PORT', '29500')  # Default if not set
-    #print(world_size, nproc)
-
     result = launch(
-        num_nodes=int(world_size),
-        num_processes=nproc,
+        num_nodes=int(os.environ["SLURM_NNODES"]),
+        num_processes=int(os.environ["SLURM_NTASKS_PER_NODE"]),
         ips_port_users=slurm_ips_port_users(),
         func=simple_matmul
     )
 
-    assert result != {}, "Computation failed"
     for i in range(len(result)):
         assert torch.all(result[i] == result[0]), "Not all tensors equal"
     print(result[0])
@@ -46,7 +36,7 @@ def test_launch():
     
 
 def simple_matmul():
-    import torch, os
+    import torch, os, time
     import torch.distributed as dist
     """ Run collective communication. """
     #group = dist.new_group([0, 1, 2, 3])
@@ -66,6 +56,13 @@ def simple_matmul():
     o = torch.matmul(i, w)
 
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
+
+    # if rank == 1:
+    #     time.sleep(12)
+    #     assert False, "some error, idk"
+    # else:
+    #     time.sleep(16)
+
     # note: return must be a cpu tensor...
     return o.detach().cpu()
 

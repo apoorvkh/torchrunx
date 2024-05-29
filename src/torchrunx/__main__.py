@@ -8,13 +8,13 @@ from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, R
 import torchrunx.entry as entry
 
 from torchrunx.utils import get_open_port
-from torchrunx.spawn import LaunchConfig
+from torchrunx.spawn import LaunchConfig, AgentStatus
 
 def main(world_size, rank, launcher_ip, launcher_port):
 
     # create client TCPStore for initializing launcher-agent process group
-    store = dist.TCPStore(launcher_ip, launcher_port, world_size=world_size)
-
+    store = dist.TCPStore(launcher_ip, launcher_port)
+    #print("got store, trying setup")
     dist.init_process_group(backend="gloo", world_size=world_size, rank=rank, store=store)
 
     # receieve parameters from launcher
@@ -67,13 +67,36 @@ def main(world_size, rank, launcher_ip, launcher_port):
         log_dir=log_dir,
         start_method="spawn",
     )
-    
+
+    while True:
+
+        # determine status of this agent, five-second timeout
+        result = ctx.wait(5)
+        status = AgentStatus(result)
+        
+        # grab statuses of other agents
+        statuses: list[AgentStatus] = [None] * world_size
+        dist.all_gather_object(statuses, status)
+
+        # if any workers on any agent have failed
+        if any(map(lambda s: s.is_failed(), statuses)):
+            # terminate local workers and exit
+            ctx.close()
+            return
+        
+        # else, check if everything's done
+        if all(map(lambda s: s.is_done(), statuses)):
+            # we can exit loop and gather return values
+            break
+
+        # otherwise, continue...
+
     # wait for all terminated
-    result: RunProcsResult = ctx.wait()
+    #result: RunProcsResult = ctx.wait()
     
     # handle errors, TODO: determine what to do here, e.g. throw error?
-    if result.failures:
-        print(result.failures)
+    #if result.failures:
+    #    print(result.failures)
 
     # gather return values, and send them to master
     # need to modify the keys in result.return_values to reflect global ranks not local ranks of workers

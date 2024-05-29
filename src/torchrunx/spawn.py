@@ -4,6 +4,7 @@ import os, sys
 import socket
 from functools import partial
 from typing import Callable, List, Tuple
+from enum import Enum
 
 from torchrunx.utils import get_open_port
 
@@ -11,7 +12,7 @@ import dill
 import paramiko
 
 import torch.distributed as dist
-
+from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
 class LaunchConfig:
 
@@ -27,6 +28,39 @@ class LaunchConfig:
     @staticmethod
     def deserialize(serialized_config: bytes) -> LaunchConfig:
         return dill.loads(serialized_config) 
+
+class Status(Enum):
+    RUNNING = 1
+    DONE = 2
+    FAILED = 3
+
+class AgentStatus:
+
+    def __init__(self: AgentStatus, result: RunProcsResult, dummy = False):
+
+        if dummy:
+            self.status = Status.DONE
+            self.failures = None    
+            return
+
+        self.failures = None
+        if result is None:
+            self.status = Status.RUNNING
+        elif result.is_failed():
+            self.status = Status.FAILED
+            self.failures = result.failures
+        else:
+            self.status = Status.DONE
+
+    def is_failed(self):
+        return self.status == Status.FAILED
+    
+    def is_done(self):
+        return self.status == Status.DONE
+    
+    def __repr__(self):
+        return str(self.__dict__)
+
 
 def launch(
     num_nodes: int = 4,
@@ -70,18 +104,36 @@ def launch(
         client.close()
 
     # create TCPStore for group initialization.
-    launcher_store = dist.TCPStore(hostname, launcher_port, world_size=num_nodes*num_processes, is_master=True)
+    launcher_store = dist.TCPStore(hostname, launcher_port, is_master=True)
 
     # initialize agent-launcher process group
     dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0, store=launcher_store)
-    
     # populate and broadcast agent parameters
     config = LaunchConfig(func, num_nodes, num_processes, backend)
     params = [config.serialize()]
     dist.broadcast_object_list(params)
-    
     # participate in synchronization between agents, which is irrelevant to the launcher
     dist.broadcast_object_list([None, None], src=1)
+    dummy_launch_status = AgentStatus(None, True)
+    while True:
+        # keep checking all agents...
+        statuses: list[AgentStatus] = [None] * (num_nodes + 1)
+        dist.all_gather_object(statuses, dummy_launch_status)
+
+        # if any workers on any agent have failed
+        if any(map(lambda s: s.is_failed(), statuses)):
+            # terminate - the agents should also be exiting
+            e = ""
+            for i, s in enumerate(filter(lambda s: s.is_failed(), statuses)):
+                for k, v in s.failures.items():
+                    e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
+                    e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+            raise RuntimeError(e)
+        
+        # else, check if everything's done
+        if all(map(lambda s: s.is_done(), statuses)):
+            # we can exit loop and gather return values
+            break
 
     # wait for return values
     output = [None for i in range(num_nodes+1)]
@@ -91,6 +143,4 @@ def launch(
     result = {}
     for d in output:
         result.update(d)
-    # TODO: handle errors in agents, for now:
-    assert result != {}, "All workers failed to execute"
     return result
