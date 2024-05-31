@@ -3,14 +3,14 @@ import tempfile
 import torch.distributed as dist
 # import tyro # what does this do
 from torch.distributed.elastic.multiprocessing import start_processes
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 
 import torchrunx.entry as entry
 
 from torchrunx.utils import get_open_port
 from torchrunx.spawn import LaunchConfig, AgentStatus
 
-def main(world_size, rank, launcher_ip, launcher_port):
+def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
 
     # create client TCPStore for initializing launcher-agent process group
     store = dist.TCPStore(launcher_ip, launcher_port)
@@ -20,12 +20,14 @@ def main(world_size, rank, launcher_ip, launcher_port):
     # receieve parameters from launcher
     _params = [None]
     dist.broadcast_object_list(_params)
-    config = LaunchConfig.deserialize(_params[0])
+    config: LaunchConfig = _params[0]
 
-    serialized_function: str = config.serialized_fn
-    num_nodes: int =  config.num_nodes
-    num_processes: int = config.num_processes
-    backend: str = config.backend
+    serialized_function = config.serialized_fn
+    worker_world_size = config.world_size
+    #num_nodes =  config.num_nodes
+    worker_ranks = config.node_worker_ranks[rank-1]
+    num_workers = len(worker_ranks)
+    backend = config.backend
     #arguments = dill.loads(params['args'])
 
     # broadcast/receive launcher worker's IP and port
@@ -48,10 +50,10 @@ def main(world_size, rank, launcher_ip, launcher_port):
 
     # set arguments and environmental variables for each worker
     #args = {i: arguments for i in range(num_processes)}
-    envs = {i: {"RANK": str((rank-1)*num_processes + i), 
+    envs = {i: {"RANK": str(worker_ranks[i]), 
                 "LOCAL_RANK": str(i), 
-                "WORLD_SIZE": str(num_nodes * num_processes)
-                } for i in range(num_processes)}
+                "WORLD_SIZE": str(worker_world_size)
+                } for i in range(num_workers)}
     
     # logging directory
     log_dir = None
@@ -62,7 +64,7 @@ def main(world_size, rank, launcher_ip, launcher_port):
     ctx: MultiprocessContext = start_processes(
         name="distributed_function",
         entrypoint=entry.entrypoint,
-        args={i: (serialized_function, master_ip, master_port, backend) for i in range(num_processes)}, # backend=None for now
+        args={i: (serialized_function, master_ip, master_port, backend) for i in range(num_workers)},
         envs=envs,
         log_dir=log_dir,
         start_method="spawn",
@@ -100,7 +102,7 @@ def main(world_size, rank, launcher_ip, launcher_port):
 
     # gather return values, and send them to master
     # need to modify the keys in result.return_values to reflect global ranks not local ranks of workers
-    return_values = {k + (rank-1)*num_processes: v for k, v in result.return_values.items()}
+    return_values = {worker_ranks[k]: v for k, v in result.return_values.items()}
     dist.gather_object(return_values, dst=0)
 
 if __name__ == "__main__":
