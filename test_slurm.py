@@ -23,10 +23,10 @@ def slurm_ips_port_users():
 
 def test_launch():
     result = launch(
-        num_nodes=int(os.environ["SLURM_NNODES"]),
-        num_processes=int(os.environ["SLURM_NTASKS_PER_NODE"]),
-        ips_port_users=slurm_ips_port_users(),
-        func=simple_matmul
+        simple_matmul,
+        resolve_node_ips(os.environ['SLURM_JOB_NODELIST']),
+        workers_per_node=[1, 2],
+        #num_workers=int(os.environ["SLURM_NTASKS_PER_NODE"])
     )
 
     for i in range(len(result)):
@@ -36,12 +36,10 @@ def test_launch():
     
 
 def simple_matmul():
-    import torch, os, time
+    import torch, os
     import torch.distributed as dist
-    """ Run collective communication. """
-    #group = dist.new_group([0, 1, 2, 3])
-    rank = int(os.environ["RANK"])
 
+    rank = int(os.environ["RANK"])
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     if rank == 0:
@@ -52,18 +50,9 @@ def simple_matmul():
     dist.broadcast(w, 0)
 
     i = torch.rand((500, 100), device=device) # batch, dim
-
     o = torch.matmul(i, w)
 
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
-
-    # if rank == 1:
-    #     time.sleep(12)
-    #     assert False, "some error, idk"
-    # else:
-    #     time.sleep(16)
-
-    # note: return must be a cpu tensor...
     return o.detach().cpu()
 
 if __name__ == "__main__":
