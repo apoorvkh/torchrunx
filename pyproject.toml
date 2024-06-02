@@ -1,43 +1,37 @@
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-[tool.pdm.build]
-package-dir = "src"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "torchrunx"
 version = "0.1.0"
+authors = [
+    {name = "Apoorv Khandelwal", email = "mail@apoorvkh.com"},
+    {name = "Peter Curtin", email = "peter_curtin@brown.edu"},
+]
 description = ""
 readme = "README.md"
-requires-python = ">=3.8.1"
 license = {text = "MIT"}
-authors = []
+requires-python = ">=3.8.1"
 dependencies = [
     "dill",
     "paramiko",
     "torch>=2.0.0",
-    "tyro",
-    "numpy>=1.24.4",
 ]
 
-[tool.pdm.dev-dependencies]
-dev = [
-    "pytest==7.4.0",
-    "ruff==0.1.3",
-]
+[project.optional-dependencies]
+dev = ["ruff", "pytest", "build", "twine"]
 
-[tool.ruff]
-select = ["E", "F", "I"]
-line-length = 100
-src = ["src"]
-target-version = "py38"
+[tool.pixi.project]
+channels = ["nvidia/label/cuda-11.7.0", "conda-forge"]
+platforms = ["linux-64"]
 
-[tool.ruff.isort]
-known-first-party = ["src"]
+[tool.pixi.environments]
+default = { features = ["dev"], solve-group = "default" }
 
-[tool.ruff.per-file-ignores]
-"__init__.py" = ["F401"]
+[tool.pixi.dependencies]
+python = "3.8.1"
+cuda = "11.7.0"
 
-[tool.pytest.ini_options]
-testpaths = "tests"
+[tool.pixi.pypi-dependencies]
+torchrunx = { path = ".", editable = true }
