@@ -1,48 +1,7 @@
 # torchrunx
 
-Install (for development):
-```bash
-conda env create -f conda-lock.yml --prefix ./.venv
-conda activate ./.venv
-pdm install
-```
+For development:
 
-To update dependencies:
-Modify `environment.yml` (system dependencies) or `pyproject.toml` (Python requirements). Then run `conda-lock` or `pdm lock` respectively. Commit changes to `environment.yml`, `pyproject.toml`, `conda-lock.yml`, and `pdm.lock`.
-
----
-
-Example code
-
-```python
-def find_max_batch_size_worker(
-    data_args: DataArguments,
-    model_args: ModelArguments,
-    training_args: TrainingArguments,
-) -> int:
-    hf_training_args = training_args.to_huggingface(cls=MaxBatchSizeArguments)
-    trainer = build_trainer(
-        data_args=data_args,
-        model_args=model_args,
-        hf_training_args=hf_training_args,
-    )
-    trainer.accelerator.free_memory = lambda *args: None
-    return find_max_batch_size(trainer)
-
-
-@step(bind=True, cacheable=True, version="001")
-def find_max_batch_size_step(
-    self,
-    system_specs: SystemSpecifications,
-    data_args: DataArguments,
-    model_args: ModelArguments,
-    training_args: TrainingArguments,
-) -> int:
-    return run_distributed(
-        find_max_batch_size_worker,
-        args=(data_args, model_args, training_args),
-        # log_dir=self.work_dir,
-        num_nodes=system_specs.num_nodes,
-        num_procs=system_specs.gpus_per_node,
-    )[0]
-```
+1. [Install pixi](https://pixi.sh/latest/#installation)
+2. `pixi install`
+3. `pixi shell`

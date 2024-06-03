@@ -2,7 +2,11 @@ import sys, socket
 import tempfile
 import torch.distributed as dist
 # import tyro # what does this do
+<<<<<<< pixi
+from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
+=======
 from torch.distributed.elastic.multiprocessing import start_processes
+>>>>>>> peter-edits
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 
 import torchrunx.entry as entry
@@ -66,7 +70,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         entrypoint=entry.entrypoint,
         args={i: (serialized_function, master_ip, master_port, backend) for i in range(num_workers)},
         envs=envs,
-        log_dir=log_dir,
+        logs_specs=DefaultLogsSpecs(log_dir=log_dir),
         start_method="spawn",
     )
 
