@@ -5,6 +5,7 @@ import socket
 from functools import partial
 from typing import Callable
 from enum import Enum
+from datetime import timedelta
 
 from torchrunx.utils import get_open_port
 
@@ -118,7 +119,7 @@ def launch(
     # create TCPStore for group initialization.
     launcher_store = dist.TCPStore(hostname, launcher_port, is_master=True)
     # initialize agent-launcher process group
-    dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0, store=launcher_store)
+    dist.init_process_group(backend="gloo", world_size=num_nodes+1, rank=0, store=launcher_store, timeout=timedelta(seconds=30))
     # populate and broadcast agent parameters
     config = LaunchConfig(func, world_size, node_worker_ranks, backend)
     params = [config]
