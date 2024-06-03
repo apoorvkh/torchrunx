@@ -4,6 +4,7 @@ import torch.distributed as dist
 # import tyro # what does this do
 from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
+from datetime import timedelta
 
 import torchrunx.entry as entry
 
@@ -15,7 +16,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     # create client TCPStore for initializing launcher-agent process group
     store = dist.TCPStore(launcher_ip, launcher_port)
     #print("got store, trying setup")
-    dist.init_process_group(backend="gloo", world_size=world_size, rank=rank, store=store)
+    dist.init_process_group(backend="gloo", world_size=world_size, rank=rank, store=store, timeout=timedelta(seconds=30))
 
     # receieve parameters from launcher
     _params = [None]
