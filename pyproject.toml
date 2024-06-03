@@ -17,6 +17,7 @@ dependencies = [
     "dill",
     "paramiko",
     "torch>=2.0.0",
+    "numpy",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +33,7 @@ default = { features = ["dev"], solve-group = "default" }
 [tool.pixi.dependencies]
 python = "3.8.1"
 cuda = "11.7.0"
+numpy = ">=1.24.4,<1.25"
 
 [tool.pixi.pypi-dependencies]
 torchrunx = { path = ".", editable = true }
