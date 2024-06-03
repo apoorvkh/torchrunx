@@ -2,7 +2,11 @@ import sys, socket
 import tempfile
 import torch.distributed as dist
 # import tyro # what does this do
+<<<<<<< pixi
 from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
+=======
+from torch.distributed.elastic.multiprocessing import start_processes
+>>>>>>> peter-edits
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 
 import torchrunx.entry as entry
