@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import sys, getpass, time
+import sys, getpass
 import socket
 from functools import partial
 from typing import Callable
 from enum import Enum
 from datetime import timedelta
 
-from torchrunx.utils import get_open_port
+from torchrunx.utils import get_open_port, ssh_exec
 
 import dill
-import paramiko
 
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
@@ -106,15 +105,7 @@ def launch(
     #os.environ["MASTER_PORT"] = str(master_port)
 
     # start agents on each node
-    for i, ip_forgn in enumerate(node_ips):
-        # connect via SSH
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(ip_forgn, ssh_port, user) 
-        # execute agent & disconnect
-        # uses environment that multinode_spawner was executed in
-        client.exec_command(f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {ip_address} {launcher_port} > /dev/null 2>&1 &")
-        client.close()
+    start_agents(node_ips, num_nodes, ip_address, launcher_port, ssh_port, user)
 
     # create TCPStore for group initialization.
     launcher_store = dist.TCPStore(hostname, launcher_port, is_master=True)
@@ -163,7 +154,7 @@ def launch(
     try:
         dist.gather_object({}, output, dst=0)
     except:
-        kill_agents(agent_pids, ip_forgn, ssh_port, user)
+        kill_agents(agent_pids, node_ips, ssh_port, user)
         # TODO: can we extract more info for this error?
         raise RuntimeError("One or more agents encountered an error.")
     
@@ -173,13 +164,11 @@ def launch(
         result.update(d)
     return result
 
-def kill_agents(pids: list[int], ips: list[str], ssh_port: int, user: str) -> None:
-    for pid, ip_forgn in zip(pids, ips):
-        # connect via SSH
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(ip_forgn, ssh_port, user) 
-        # execute agent & disconnect
-        # uses environment that multinode_spawner was executed in
-        client.exec_command(f"kill {pid} > /dev/null 2>&1 &")
-        client.close()
+def start_agents(node_ips, num_nodes, launcher_ip, launcher_port, ssh_port, user):
+    for i, ip_forgn in enumerate(node_ips):
+        ssh_exec(f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port} > /dev/null 2>&1 &", 
+                 ip_forgn, ssh_port, user)
+
+def kill_agents(pids: list[int], node_ips: list[str], ssh_port: int, user: str) -> None:
+    for pid, ip_forgn in zip(pids, node_ips):
+        ssh_exec(f"kill {pid} > /dev/null 2>&1 &", ip_forgn, ssh_port, user)
