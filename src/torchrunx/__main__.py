@@ -70,17 +70,21 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         logs_specs=DefaultLogsSpecs(log_dir=log_dir),
         start_method="spawn",
     )
-
+    done = False
     while True:
 
         # determine status of this agent, five-second timeout
-        result = ctx.wait(5)
+        if not done:
+            result = ctx.wait(5)
         status = AgentStatus(result)
-        
+        done = status.is_done()
         # grab statuses of other agents
         statuses: list[AgentStatus] = [None] * world_size
-        dist.all_gather_object(statuses, status)
-
+        try:
+            dist.all_gather_object(statuses, status)
+        except:
+            ctx.close()
+            return
         # if any workers on any agent have failed
         if any(map(lambda s: s.is_failed(), statuses)):
             # terminate local workers and exit
@@ -94,15 +98,6 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
 
         # otherwise, continue...
 
-    # wait for all terminated
-    #result: RunProcsResult = ctx.wait()
-    
-    # handle errors, TODO: determine what to do here, e.g. throw error?
-    #if result.failures:
-    #    print(result.failures)
-
-    # gather return values, and send them to master
-    # need to modify the keys in result.return_values to reflect global ranks not local ranks of workers
     return_values = {worker_ranks[k]: v for k, v in result.return_values.items()}
     dist.gather_object(return_values, dst=0)
 
