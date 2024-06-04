@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os, sys, getpass
+import sys, getpass, time
 import socket
 from functools import partial
 from typing import Callable
@@ -137,9 +137,9 @@ def launch(
         if any(map(lambda s: s.is_failed(), statuses)):
             # terminate - the agents should also be exiting
             e = ""
-            for i, s in enumerate(filter(lambda s: s.is_failed(), statuses)):
+            for i, s in filter(lambda s: s[1].is_failed(), enumerate(statuses)):
                 for k, v in s.failures.items():
-                    e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
+                    e += f"Node {i-1}, local worker {k} exited with error: {v.message['message']}\n"
                     e += f"{v.message['extraInfo']['py_callstack']}\n\n"
             raise RuntimeError(e)
         
