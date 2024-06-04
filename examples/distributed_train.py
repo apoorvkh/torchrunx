@@ -1,14 +1,8 @@
 import os, subprocess, socket
-
-import torch.distributed
-import torch.distributed
-#import torch.distributed as dist
-#import torch.multiprocessing as mp
-
 from torchrunx import launch
 
 def worker():
-    import torch, contextlib, io, os
+    import torch
 
     class TwoLinLayerNet(torch.nn.Module):
         def __init__(self):
