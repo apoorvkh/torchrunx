@@ -126,12 +126,22 @@ def launch(
     dist.broadcast_object_list(params)
     # participate in synchronization between agents, which is irrelevant to the launcher
     dist.broadcast_object_list([None, None], src=1)
+    # gather pids of agents, in case they need to be manually terminated
+    _pids = [None] * (num_nodes + 1)
+    dist.gather_object(None, _pids)
+    agent_pids = _pids[1:]
     # start monitoring loop
     dummy_launch_status = AgentStatus(None, True)
     while True:
         # keep checking all agents...
         statuses: list[AgentStatus] = [None] * (num_nodes + 1)
-        dist.all_gather_object(statuses, dummy_launch_status)
+        try:
+            dist.all_gather_object(statuses, dummy_launch_status)
+        except:
+            # kill all agents (most should be dead but some could be hanging)
+            kill_agents(agent_pids, node_ips, ssh_port, user)
+            # TODO: can we extract more info for this error?
+            raise RuntimeError("One or more agents encountered an error.")
 
         # if any workers on any agent have failed
         if any(map(lambda s: s.is_failed(), statuses)):
@@ -150,10 +160,26 @@ def launch(
 
     # wait for return values
     output = [None for i in range(num_nodes+1)]
-    dist.gather_object({}, output, dst=0)
+    try:
+        dist.gather_object({}, output, dst=0)
+    except:
+        kill_agents(agent_pids, ip_forgn, ssh_port, user)
+        # TODO: can we extract more info for this error?
+        raise RuntimeError("One or more agents encountered an error.")
     
     # gather return values in {worker_rank: worker_return_value} format, and return
     result = {}
     for d in output:
         result.update(d)
     return result
+
+def kill_agents(pids: list[int], ips: list[str], ssh_port: int, user: str) -> None:
+    for pid, ip_forgn in zip(pids, ips):
+        # connect via SSH
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(ip_forgn, ssh_port, user) 
+        # execute agent & disconnect
+        # uses environment that multinode_spawner was executed in
+        client.exec_command(f"kill {pid} > /dev/null 2>&1 &")
+        client.close()

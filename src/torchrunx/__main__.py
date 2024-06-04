@@ -1,4 +1,4 @@
-import sys, socket
+import sys, socket, os, time
 import tempfile
 import torch.distributed as dist
 # import tyro # what does this do
@@ -48,6 +48,9 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
 
     master_ip: str = master[0]
     master_port: int = master[1]
+
+    # send process pid to launcher
+    dist.gather_object(os.getpid())
 
     # set arguments and environmental variables for each worker
     #args = {i: arguments for i in range(num_processes)}
