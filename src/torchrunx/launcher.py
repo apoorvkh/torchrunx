@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import sys
 import getpass
 import socket
@@ -8,26 +9,18 @@ from typing import Callable
 from enum import Enum
 from datetime import timedelta
 
-from torchrunx.utils import get_open_port, ssh_exec
-
-import cloudpickle
+from torchrunx.utils import Serializable, get_open_port, ssh_exec
 
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
 
-class LaunchConfig:
-    def __init__(
-        self: LaunchConfig,
-        fn: Callable,
-        world_size: int,
-        node_worker_ranks: list[list[int]],
-        backend: str,
-    ) -> None:
-        self.serialized_fn = cloudpickle.dumps(fn)
-        self.world_size = world_size
-        self.node_worker_ranks = node_worker_ranks
-        self.backend = backend
+@dataclass
+class LaunchConfig(Serializable):
+    fn: Callable
+    world_size: int
+    node_worker_ranks: list[list[int]]
+    backend: str
 
 
 class Status(Enum):
@@ -37,7 +30,7 @@ class Status(Enum):
 
 
 class AgentStatus:
-    def __init__(self: AgentStatus, result: RunProcsResult, dummy=False):
+    def __init__(self, result: RunProcsResult, dummy=False):
         if dummy:
             self.status = Status.DONE
             self.failures = None
@@ -136,7 +129,7 @@ def launch(
     )
     # populate and broadcast agent parameters
     config = LaunchConfig(func, world_size, node_worker_ranks, backend)
-    params = [config]
+    params = [config.serialized]
     dist.broadcast_object_list(params)
     # participate in synchronization between agents, which is irrelevant to the launcher
     dist.broadcast_object_list([None, None], src=1)

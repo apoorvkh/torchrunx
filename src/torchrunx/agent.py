@@ -8,15 +8,29 @@ from torch.distributed.elastic.multiprocessing import start_processes, DefaultLo
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
 from datetime import timedelta
 
-from torchrunx.utils import get_open_port
+from torchrunx.utils import Serializable, get_open_port
 from torchrunx.launcher import LaunchConfig, AgentStatus
 
-import pickle
+from dataclasses import dataclass
+from typing import Callable
 import torch
 
 
-def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args):
-    _fn = pickle.loads(fn)
+@dataclass
+class WorkerArgs(Serializable):
+    function: Callable
+    master_ip: str
+    master_port: int
+    backend: str
+
+
+def entrypoint(serialized_worker_args: bytes, *args):
+    worker_args = WorkerArgs.from_serialized(serialized_worker_args)
+
+    fn = worker_args.function
+    master_ip = worker_args.master_ip
+    master_port = worker_args.master_port
+    backend = worker_args.backend
 
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
@@ -31,7 +45,7 @@ def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args)
     dist.init_process_group(
         backend=backend, world_size=world_size, rank=rank, store=store
     )
-    return _fn(*args)
+    return fn(*args)
 
 
 def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
@@ -49,14 +63,12 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     # receieve parameters from launcher
     _params = [None]
     dist.broadcast_object_list(_params)
-    config: LaunchConfig = _params[0]
+    config = LaunchConfig.from_serialized(_params[0])
 
-    serialized_function = config.serialized_fn
     worker_world_size = config.world_size
     # num_nodes =  config.num_nodes
     worker_ranks = config.node_worker_ranks[rank - 1]
     num_workers = len(worker_ranks)
-    backend = config.backend
     # arguments = pickle.loads(params['args'])
 
     # broadcast/receive launcher worker's IP and port
@@ -96,13 +108,15 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     if log_dir is None:
         log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
 
+    worker_args = WorkerArgs(function=config.fn, master_ip=master_ip, master_port=master_port, backend=config.backend)
+    serialized_worker_args = worker_args.serialized
+
     # spawn workers
     ctx: MultiprocessContext = start_processes(
         name="distributed_function",
         entrypoint=entrypoint,
         args={
-            i: (serialized_function, master_ip, master_port, backend)
-            for i in range(num_workers)
+            i: (serialized_worker_args,) for i in range(num_workers)
         },
         envs=envs,
         logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
