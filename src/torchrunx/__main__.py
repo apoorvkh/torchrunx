@@ -9,7 +9,7 @@ from datetime import timedelta
 import torchrunx.entry as entry
 
 from torchrunx.utils import get_open_port
-from torchrunx.spawn import LaunchConfig, AgentStatus
+from torchrunx.launch import LaunchConfig, AgentStatus
 
 def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
 
