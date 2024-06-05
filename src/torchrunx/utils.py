@@ -1,4 +1,5 @@
-import socket, paramiko
+import socket
+import fabric
 from contextlib import closing
 
 def get_open_port():
@@ -8,11 +9,6 @@ def get_open_port():
     return port
 
 def ssh_exec(command, ip, ssh_port, user):
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    # connect via SSH
-    client.connect(ip, ssh_port, user)
-    # execute command
-    client.exec_command(command)
-    # close connection
-    client.close()
+    c = fabric.Connection(host=ip, user=user, port=ssh_port)
+    c.run(command)
+    c.close()
