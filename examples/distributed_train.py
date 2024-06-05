@@ -1,5 +1,8 @@
-import os, subprocess, socket
+import os
+import subprocess
+import socket
 from torchrunx import launch
+
 
 def worker():
     import torch
@@ -28,21 +31,25 @@ def worker():
         output = ddp_model(inp)
         loss = output[0] + output[1]
         loss.sum().backward()
-    
-    
+
 
 def resolve_node_ips(nodelist):
     # Expand the nodelist into individual hostnames
-    hostnames = subprocess.check_output(['scontrol', 'show', 'hostnames', nodelist]).decode().strip().split('\n')
+    hostnames = (
+        subprocess.check_output(["scontrol", "show", "hostnames", nodelist])
+        .decode()
+        .strip()
+        .split("\n")
+    )
     # Resolve each hostname to an IP address
     ips = [socket.gethostbyname(hostname) for hostname in hostnames]
     return ips
 
 
 if __name__ == "__main__":
-
-    launch(worker, 
-           resolve_node_ips(os.environ['SLURM_JOB_NODELIST']),
-           num_workers=int(os.environ["SLURM_NTASKS_PER_NODE"]),
-           backend='nccl')
-    
+    launch(
+        worker,
+        resolve_node_ips(os.environ["SLURM_JOB_NODELIST"]),
+        num_workers=int(os.environ["SLURM_NTASKS_PER_NODE"]),
+        backend="nccl",
+    )
