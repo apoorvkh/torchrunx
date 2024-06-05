@@ -1,6 +1,8 @@
-import sys, socket, os, time
+import socket
+import os
 import tempfile
 import torch.distributed as dist
+
 # import tyro # what does this do
 from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
@@ -9,8 +11,8 @@ from datetime import timedelta
 from torchrunx.utils import get_open_port
 from torchrunx.launcher import LaunchConfig, AgentStatus
 
-import dill, torch, os
-import torch.distributed as dist
+import dill
+import torch
 
 
 def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args):
@@ -19,21 +21,30 @@ def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args)
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
     world_size = int(os.environ["WORLD_SIZE"])
-    store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)
+    store = dist.TCPStore(
+        master_ip, master_port, world_size=world_size, is_master=is_master
+    )
 
     if backend is None:
         backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
     rank = int(os.environ["RANK"])
-    dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
+    dist.init_process_group(
+        backend=backend, world_size=world_size, rank=rank, store=store
+    )
     return _fn(*args)
 
 
 def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
-
     # create client TCPStore for initializing launcher-agent process group
     store = dist.TCPStore(launcher_ip, launcher_port)
-    #print("got store, trying setup")
-    dist.init_process_group(backend="gloo", world_size=world_size, rank=rank, store=store, timeout=timedelta(seconds=30))
+    # print("got store, trying setup")
+    dist.init_process_group(
+        backend="gloo",
+        world_size=world_size,
+        rank=rank,
+        store=store,
+        timeout=timedelta(seconds=30),
+    )
 
     # receieve parameters from launcher
     _params = [None]
@@ -42,14 +53,14 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
 
     serialized_function = config.serialized_fn
     worker_world_size = config.world_size
-    #num_nodes =  config.num_nodes
-    worker_ranks = config.node_worker_ranks[rank-1]
+    # num_nodes =  config.num_nodes
+    worker_ranks = config.node_worker_ranks[rank - 1]
     num_workers = len(worker_ranks)
     backend = config.backend
-    #arguments = dill.loads(params['args'])
+    # arguments = dill.loads(params['args'])
 
     # broadcast/receive launcher worker's IP and port
-    if rank == 1: 
+    if rank == 1:
         # rank 1 agent is responsible for rank 0 worker, aka the "master worker"
         # thus grab a port on this agent's node
         master_hostname = socket.gethostname()
@@ -70,29 +81,35 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     dist.gather_object(os.getpid())
 
     # set arguments and environmental variables for each worker
-    #args = {i: arguments for i in range(num_processes)}
-    envs = {i: {"RANK": str(worker_ranks[i]), 
-                "LOCAL_RANK": str(i), 
-                "WORLD_SIZE": str(worker_world_size)
-                } for i in range(num_workers)}
-    
+    # args = {i: arguments for i in range(num_processes)}
+    envs = {
+        i: {
+            "RANK": str(worker_ranks[i]),
+            "LOCAL_RANK": str(i),
+            "WORLD_SIZE": str(worker_world_size),
+        }
+        for i in range(num_workers)
+    }
+
     # logging directory
     log_dir = None
     if log_dir is None:
-        log_dir = tempfile.mkdtemp() #  f"/users/pcurtin1/torchrunx/log/{rank}/" # 
-    
+        log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
+
     # spawn workers
     ctx: MultiprocessContext = start_processes(
         name="distributed_function",
         entrypoint=entrypoint,
-        args={i: (serialized_function, master_ip, master_port, backend) for i in range(num_workers)},
+        args={
+            i: (serialized_function, master_ip, master_port, backend)
+            for i in range(num_workers)
+        },
         envs=envs,
         logs_specs=DefaultLogsSpecs(log_dir=log_dir),
         start_method="spawn",
     )
     done = False
     while True:
-
         # determine status of this agent, five-second timeout
         if not done:
             result = ctx.wait(5)
@@ -110,7 +127,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
             # terminate local workers and exit
             ctx.close()
             return
-        
+
         # else, check if everything's done
         if all(map(lambda s: s.is_done(), statuses)):
             # we can exit loop and gather return values
