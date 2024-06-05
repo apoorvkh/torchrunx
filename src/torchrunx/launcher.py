@@ -10,7 +10,7 @@ from datetime import timedelta
 
 from torchrunx.utils import get_open_port, ssh_exec
 
-import dill
+import cloudpickle
 
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
@@ -24,7 +24,7 @@ class LaunchConfig:
         node_worker_ranks: list[list[int]],
         backend: str,
     ) -> None:
-        self.serialized_fn = dill.dumps(fn)
+        self.serialized_fn = cloudpickle.dumps(fn)
         self.world_size = world_size
         self.node_worker_ranks = node_worker_ranks
         self.backend = backend
@@ -101,7 +101,7 @@ def launch(
 
     # populate kwargs of target function early
     func = partial(func, **kwargs)
-    # serialized_function = dill.dumps(func)
+    # serialized_function = cloudpickle.dumps(func)
 
     # determine IP and an open port to run agent-launcher group from
     hostname = socket.gethostname()

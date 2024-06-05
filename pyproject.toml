@@ -14,7 +14,7 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.8.1"
 dependencies = [
-    "dill",
+    "cloudpickle>=3.0.0",
     "fabric>=3.0.0",
     "torch>=2.0.0",
     "numpy",

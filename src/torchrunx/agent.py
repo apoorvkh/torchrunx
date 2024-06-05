@@ -11,12 +11,12 @@ from datetime import timedelta
 from torchrunx.utils import get_open_port
 from torchrunx.launcher import LaunchConfig, AgentStatus
 
-import dill
+import pickle
 import torch
 
 
 def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args):
-    _fn = dill.loads(fn)
+    _fn = pickle.loads(fn)
 
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
@@ -57,7 +57,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     worker_ranks = config.node_worker_ranks[rank - 1]
     num_workers = len(worker_ranks)
     backend = config.backend
-    # arguments = dill.loads(params['args'])
+    # arguments = pickle.loads(params['args'])
 
     # broadcast/receive launcher worker's IP and port
     if rank == 1:
