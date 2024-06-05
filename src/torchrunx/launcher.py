@@ -46,7 +46,12 @@ class AgentStatus:
         self.failures = None
         if result is None:
             self.status = Status.RUNNING
-        elif result.is_failed():
+            return
+        
+        self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
+        self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
+
+        if result.is_failed():
             self.status = Status.FAILED
             self.failures = result.failures
         else:
@@ -167,6 +172,16 @@ def launch(
             # we can exit loop and gather return values
             break
 
+    # print stdouts
+    r = 0
+    for node, status in enumerate(statuses[1:]):
+        for worker in status.stdouts:
+            if status.stdouts[worker] != "":
+                print(f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}")
+            if status.stderrs[worker] != "":
+                print(f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}")
+            r += 1
+
     # wait for return values
     output = [None for i in range(num_nodes + 1)]
     try:
@@ -186,7 +201,7 @@ def launch(
 def start_agents(node_ips, num_nodes, launcher_ip, launcher_port, ssh_port, user):
     for i, ip_forgn in enumerate(node_ips):
         ssh_exec(
-            f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port} > /dev/null 2>&1 &",
+            f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port} > $HOME/torchrunx/log_{i}.txt 2>&1 &",
             ip_forgn,
             ssh_port,
             user,

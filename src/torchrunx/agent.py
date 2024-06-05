@@ -5,7 +5,7 @@ import torch.distributed as dist
 
 # import tyro # what does this do
 from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
 from datetime import timedelta
 
 from torchrunx.utils import get_open_port
@@ -105,7 +105,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
             for i in range(num_workers)
         },
         envs=envs,
-        logs_specs=DefaultLogsSpecs(log_dir=log_dir),
+        logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
         start_method="spawn",
     )
     done = False
