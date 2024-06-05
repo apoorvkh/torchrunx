@@ -91,15 +91,19 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/f1/c9/326611aa83e16b13b6db4dbb73b5455c668159a003c4c2f0c3bcb2ddabaf/cffi-1.16.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/3d/09/d82fe4a34c5f0585f9ea1df090e2a71eb9bb1e469723053e1ee9f57c16f3/charset_normalizer-3.3.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c9/26/4668c980f63a04c697bac26559c1a2a3a2d0730dc3d0f88b87ed7abf76ca/cryptography-42.0.7-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/d5/50/83c593b07763e1161326b3b8c6686f0f4b0f24d5526546bee538c89837d6/decorator-5.1.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/7a/cef76fd8438a42f96db64ddaa85280485a9c395e7df3db8158cfec1eee34/dill-0.3.8-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/26/87/f238c0670b94533ac0353a4e2a1a771a0cc73277b88bff23d3ae35a256c1/docutils-0.20.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/01/90/79fe92dd413a9cab314ef5c591b5aa9b9ba787ae4cadab75055b0ae00b33/exceptiongroup-1.2.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/d6/1f/e99e23ee01847147fa194e8d41cfcf2535a2dbfcb51414c541cadb15c5d7/fabric-3.2.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/41/24/0b023b6537dfc9bae2c779353998e3e99ac7dfff4222fc6126650e93c3f3/filelock-3.14.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ba/a3/16e9fe32187e9c8bc7f9b7bcd9728529faa725231a0c96f2f98714ff2fc5/fsspec-2024.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e5/3e/741d8c82801c347547f8a2a06aa57dbb1992be9e948df2ea0eda2c8b79e8/idna-3.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/2d/0a/679461c511447ffaf176567d5c496d1de27cbe34a87df6677d7171b2fbd4/importlib_metadata-7.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/75/06/4df55e1b7b112d183f65db9503bff189e97179b256e1ea450a3c365241e0/importlib_resources-6.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ef/a6/62565a6e1cf69e10f5727360368e451d4b7f58beeac6173dc9db836a5b46/iniconfig-2.0.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0a/66/7f8c48009c72d73bc6bbe6eb87ac838d6a526146f7dab14af671121eb379/invoke-2.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7f/66/b15ce62552d84bbfcec9a4873ab79d993a1dd4edb922cbfccae192bd5b5f/jaraco.classes-3.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/40/11b7bc1898cf1dcb87ccbe09b39f5088634ac78bb25f3383ff541c2b40aa/jaraco.context-5.3.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c3/ac/d0bf0d37a9f95f69a5efc5685d9166ee34a664d3cd29a9c139989512fe14/jaraco.functools-4.0.1-py3-none-any.whl
@@ -148,6 +152,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/d5/50/55c2a06057cfa092e6ed3305aa587b117734c3d8dc8fddcc1661b5660d83/twine-5.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e1/4d/d612de852a0bc64a64418e1cef25fe1914c5b1611e34cc271ed7e36174c8/typing_extensions-4.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a2/73/a68704750a7679d0b6d3ad7aa8d4da8e14e151ae82e6fee774e6e0d05ec8/urllib3-2.2.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ef/c6/56e718e2c58a4078518c14d97e531ef1e9e8a5c1ddafdc0d264a92be1a1a/wrapt-1.16.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/82/1a/ac67760425f2477b1da593b347db66d474130747e6e5285d08c7f2d5884a/zipp-3.19.1-py3-none-any.whl
       - pypi: .
 packages:
@@ -160,7 +165,6 @@ packages:
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
   md5: d7c89558ba9fa0495403155b64376d81
   license: None
-  purls: []
   size: 2562
   timestamp: 1578324546067
 - kind: conda
@@ -179,7 +183,6 @@ packages:
   - openmp_impl 9999
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
   size: 23621
   timestamp: 1650670423406
 - kind: pypi
@@ -254,7 +257,6 @@ packages:
   sha256: 979af0932b2a5a26112044891a2d79e402e5ae8166f50fa48b8ebae47c0a2d65
   md5: 847c3c2905cc467cea52c24f9cfa8080
   license: ISC
-  purls: []
   size: 156035
   timestamp: 1717311767102
 - kind: pypi
@@ -317,7 +319,6 @@ packages:
   - cuda-toolkit >=11.7.0
   arch: x86_64
   platform: linux
-  purls: []
   size: 1450
   timestamp: 1656529602952
 - kind: conda
@@ -329,7 +330,6 @@ packages:
   md5: 4dcb96960cea4c603b6ef5b33d062ff5
   arch: x86_64
   platform: linux
-  purls: []
   size: 1223929
   timestamp: 1650428244011
 - kind: conda
@@ -349,7 +349,6 @@ packages:
   - cuda-sanitizer-api >=11.7.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 1479
   timestamp: 1656529461635
 - kind: conda
@@ -366,7 +365,6 @@ packages:
   - cuda-nvprune >=11.7.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 1462
   timestamp: 1656529473118
 - kind: conda
@@ -378,7 +376,6 @@ packages:
   md5: 98cd5a3ad5ef4a928e89437608c364e4
   arch: x86_64
   platform: linux
-  purls: []
   size: 199483
   timestamp: 1650834099084
 - kind: conda
@@ -393,7 +390,6 @@ packages:
   - cuda-cudart >=11.7.60
   arch: x86_64
   platform: linux
-  purls: []
   size: 1032258
   timestamp: 1650834100255
 - kind: conda
@@ -405,7 +401,6 @@ packages:
   md5: 7e35d1b055085ba22d44a04e4076d3a9
   arch: x86_64
   platform: linux
-  purls: []
   size: 162802
   timestamp: 1649212986334
 - kind: conda
@@ -417,7 +412,6 @@ packages:
   md5: 574fcb4cadd50dcd079fe25cfb670e12
   arch: x86_64
   platform: linux
-  purls: []
   size: 24044607
   timestamp: 1649213592867
 - kind: conda
@@ -429,7 +423,6 @@ packages:
   md5: 1c55be2750344cf5a174992356279e20
   arch: x86_64
   platform: linux
-  purls: []
   size: 290614
   timestamp: 1649212827286
 - kind: conda
@@ -441,7 +434,6 @@ packages:
   md5: 1b154edaadb2c5bf27521c17508f729c
   arch: x86_64
   platform: linux
-  purls: []
   size: 5188153
   timestamp: 1655213605854
 - kind: conda
@@ -453,7 +445,6 @@ packages:
   md5: 8087cac045651ecef5f4e35a5dc73042
   arch: x86_64
   platform: linux
-  purls: []
   size: 90906
   timestamp: 1655213446631
 - kind: conda
@@ -465,7 +456,6 @@ packages:
   md5: da85cb513904259eb327a0deff44c83e
   arch: x86_64
   platform: linux
-  purls: []
   size: 17306
   timestamp: 1650834099778
 - kind: conda
@@ -477,7 +467,6 @@ packages:
   md5: 4a56a961da9312c45eef7a923867c09a
   arch: x86_64
   platform: linux
-  purls: []
   size: 5031913
   timestamp: 1649217411560
 - kind: conda
@@ -500,7 +489,6 @@ packages:
   - libnvjpeg >=11.7.2.34
   arch: x86_64
   platform: linux
-  purls: []
   size: 1532
   timestamp: 1656529485123
 - kind: conda
@@ -525,7 +513,6 @@ packages:
   - libnvjpeg-dev >=11.7.2.34
   arch: x86_64
   platform: linux
-  purls: []
   size: 1555
   timestamp: 1656529497700
 - kind: conda
@@ -537,7 +524,6 @@ packages:
   md5: 0f93a278e1db683ceb5459d987c9dea1
   arch: x86_64
   platform: linux
-  purls: []
   size: 172923
   timestamp: 1649213042047
 - kind: conda
@@ -549,7 +535,6 @@ packages:
   md5: 20207c732b326a47481797775873ef5e
   arch: x86_64
   platform: linux
-  purls: []
   size: 119141042
   timestamp: 1655213189533
 - kind: conda
@@ -563,7 +548,6 @@ packages:
   - nsight-compute >=2022.2.0.13
   arch: x86_64
   platform: linux
-  purls: []
   size: 1443
   timestamp: 1656529509384
 - kind: conda
@@ -575,7 +559,6 @@ packages:
   md5: 5d6319b9cae2d0d2e54923cbe96df471
   arch: x86_64
   platform: linux
-  purls: []
   size: 44771777
   timestamp: 1651657202137
 - kind: conda
@@ -587,7 +570,6 @@ packages:
   md5: af154b6fb0f634db8b81440ef90ee562
   arch: x86_64
   platform: linux
-  purls: []
   size: 33039793
   timestamp: 1649213490405
 - kind: conda
@@ -599,7 +581,6 @@ packages:
   md5: ba930fa5f7a29c3c5f987074d1cc495f
   arch: x86_64
   platform: linux
-  purls: []
   size: 83313
   timestamp: 1649212178820
 - kind: conda
@@ -611,7 +592,6 @@ packages:
   md5: ad7c62c4078f954e049255b8ee3291a6
   arch: x86_64
   platform: linux
-  purls: []
   size: 4540250
   timestamp: 1649213856717
 - kind: conda
@@ -623,7 +603,6 @@ packages:
   md5: 18363ee0fcca6914b3510e98e2fa5860
   arch: x86_64
   platform: linux
-  purls: []
   size: 66461
   timestamp: 1649212794028
 - kind: conda
@@ -635,7 +614,6 @@ packages:
   md5: 6b2a357a01dc1a8f4191b0c38f36d5b3
   arch: x86_64
   platform: linux
-  purls: []
   size: 18144796
   timestamp: 1649211864503
 - kind: conda
@@ -649,7 +627,6 @@ packages:
   - cuda-nvrtc >=11.7.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 17755280
   timestamp: 1649211875853
 - kind: conda
@@ -661,7 +638,6 @@ packages:
   md5: 6976dd2f242bbf3faf324a4889690c95
   arch: x86_64
   platform: linux
-  purls: []
   size: 59374
   timestamp: 1649212889078
 - kind: conda
@@ -676,7 +652,6 @@ packages:
   - cuda-nvprof
   arch: x86_64
   platform: linux
-  purls: []
   size: 119873153
   timestamp: 1649214460122
 - kind: conda
@@ -690,7 +665,6 @@ packages:
   - cuda-libraries >=11.7.0
   arch: x86_64
   platform: linux
-  purls: []
   size: 1430
   timestamp: 1656529544177
 - kind: conda
@@ -702,7 +676,6 @@ packages:
   md5: 0fead82ef8c41e08d65843d3d74fe34e
   arch: x86_64
   platform: linux
-  purls: []
   size: 17556154
   timestamp: 1649214155195
 - kind: conda
@@ -721,7 +694,6 @@ packages:
   - cuda-tools >=11.7.0
   arch: x86_64
   platform: linux
-  purls: []
   size: 1469
   timestamp: 1656529579362
 - kind: conda
@@ -737,7 +709,6 @@ packages:
   - gds-tools >=1.3.0.44
   arch: x86_64
   platform: linux
-  purls: []
   size: 1449
   timestamp: 1656529567537
 - kind: conda
@@ -755,9 +726,27 @@ packages:
   - cuda-nvvp >=11.7.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 1476
   timestamp: 1656529555717
+- kind: pypi
+  name: decorator
+  version: 5.1.1
+  url: https://files.pythonhosted.org/packages/d5/50/83c593b07763e1161326b3b8c6686f0f4b0f24d5526546bee538c89837d6/decorator-5.1.1-py3-none-any.whl
+  sha256: b8c3f85900b9dc423225913c5aace94729fe1fa9763b38939a95226f02d37186
+  requires_python: '>=3.5'
+- kind: pypi
+  name: deprecated
+  version: 1.2.14
+  url: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
+  sha256: 6fac8b097794a90302bdbb17b9b815e732d3c4720583ff1b198499d78470466c
+  requires_dist:
+  - wrapt<2,>=1.10
+  - tox ; extra == 'dev'
+  - pytest ; extra == 'dev'
+  - pytest-cov ; extra == 'dev'
+  - bump2version<1 ; extra == 'dev'
+  - sphinx<2 ; extra == 'dev'
+  requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*'
 - kind: pypi
   name: dill
   version: 0.3.8
@@ -781,6 +770,17 @@ packages:
   requires_dist:
   - pytest>=6 ; extra == 'test'
   requires_python: '>=3.7'
+- kind: pypi
+  name: fabric
+  version: 3.2.2
+  url: https://files.pythonhosted.org/packages/d6/1f/e99e23ee01847147fa194e8d41cfcf2535a2dbfcb51414c541cadb15c5d7/fabric-3.2.2-py3-none-any.whl
+  sha256: 91c47c0be68b14936c88b34da8a1f55e5710fd28397dac5d4ff2e21558113a6f
+  requires_dist:
+  - invoke>=2.0
+  - paramiko>=2.4
+  - decorator>=5
+  - deprecated>=1.2
+  - pytest>=7 ; extra == 'pytest'
 - kind: pypi
   name: filelock
   version: 3.14.0
@@ -914,7 +914,6 @@ packages:
   - libcufile >=1.3.0.44
   arch: x86_64
   platform: linux
-  purls: []
   size: 41628234
   timestamp: 1656528515966
 - kind: pypi
@@ -980,6 +979,12 @@ packages:
   url: https://files.pythonhosted.org/packages/ef/a6/62565a6e1cf69e10f5727360368e451d4b7f58beeac6173dc9db836a5b46/iniconfig-2.0.0-py3-none-any.whl
   sha256: b6a85871a79d2e3b22d2d1b94ac2824226a63c6b741c88f7ae975f18b6778374
   requires_python: '>=3.7'
+- kind: pypi
+  name: invoke
+  version: 2.2.0
+  url: https://files.pythonhosted.org/packages/0a/66/7f8c48009c72d73bc6bbe6eb87ac838d6a526146f7dab14af671121eb379/invoke-2.2.0-py3-none-any.whl
+  sha256: 6ea924cc53d4f78e3d98bc436b08069a03077e6f85ad1ddaa8a116d7dad15820
+  requires_python: '>=3.6'
 - kind: pypi
   name: jaraco-classes
   version: 3.4.0
@@ -1108,7 +1113,6 @@ packages:
   - binutils_impl_linux-64 2.40
   license: GPL-3.0-only
   license_family: GPL
-  purls: []
   size: 707934
   timestamp: 1716583433869
 - kind: conda
@@ -1130,7 +1134,6 @@ packages:
   - liblapack 3.9.0 22_linux64_openblas
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
   size: 14537
   timestamp: 1712542250081
 - kind: conda
@@ -1150,7 +1153,6 @@ packages:
   - liblapacke 3.9.0 22_linux64_openblas
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
   size: 14438
   timestamp: 1712542270166
 - kind: conda
@@ -1162,7 +1164,6 @@ packages:
   md5: 12db71df5ad476eca4c1e5ba59e5bd82
   arch: x86_64
   platform: linux
-  purls: []
   size: 314450443
   timestamp: 1649213079084
 - kind: conda
@@ -1176,7 +1177,6 @@ packages:
   - libcublas >=11.10.1.25
   arch: x86_64
   platform: linux
-  purls: []
   size: 324267418
   timestamp: 1649213249394
 - kind: conda
@@ -1188,7 +1188,6 @@ packages:
   md5: 92c539005489bb48dac1173c09559fe6
   arch: x86_64
   platform: linux
-  purls: []
   size: 98107830
   timestamp: 1649215036926
 - kind: conda
@@ -1202,7 +1201,6 @@ packages:
   - libcufft >=10.7.2.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 205997732
   timestamp: 1649215083810
 - kind: conda
@@ -1214,7 +1212,6 @@ packages:
   md5: bf3550b0ab35a211752c2018c9fd192a
   arch: x86_64
   platform: linux
-  purls: []
   size: 552448
   timestamp: 1656528513646
 - kind: conda
@@ -1228,7 +1225,6 @@ packages:
   - libcufile >=1.3.0.44
   arch: x86_64
   platform: linux
-  purls: []
   size: 12791788
   timestamp: 1656528532807
 - kind: conda
@@ -1240,7 +1236,6 @@ packages:
   md5: 00e467aec3d8e12f82bb994e434c685c
   arch: x86_64
   platform: linux
-  purls: []
   size: 52796544
   timestamp: 1649213456498
 - kind: conda
@@ -1254,7 +1249,6 @@ packages:
   - libcurand >=10.2.10.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 53180004
   timestamp: 1649213486008
 - kind: conda
@@ -1266,7 +1260,6 @@ packages:
   md5: 4448aa4e3d7464625d372b280c41728e
   arch: x86_64
   platform: linux
-  purls: []
   size: 93511094
   timestamp: 1649215013905
 - kind: conda
@@ -1280,7 +1273,6 @@ packages:
   - libcusolver >=11.3.5.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 65246418
   timestamp: 1649215087514
 - kind: conda
@@ -1292,7 +1284,6 @@ packages:
   md5: d08e053b281fcd900a088fb2f2eaacb9
   arch: x86_64
   platform: linux
-  purls: []
   size: 155592022
   timestamp: 1649213972450
 - kind: conda
@@ -1306,7 +1297,6 @@ packages:
   - libcusparse >=11.7.3.50
   arch: x86_64
   platform: linux
-  purls: []
   size: 315781272
   timestamp: 1649214045356
 - kind: conda
@@ -1322,7 +1312,6 @@ packages:
   - libgcc-ng >=7.3.0
   - libstdcxx-ng >=7.3.0
   license: Custom
-  purls: []
   size: 48003
   timestamp: 1584559351227
 - kind: conda
@@ -1341,7 +1330,6 @@ packages:
   - libgomp 13.2.0 h77fa898_7
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
-  purls: []
   size: 775806
   timestamp: 1715016057793
 - kind: conda
@@ -1357,7 +1345,6 @@ packages:
   - libgfortran5 13.2.0 hca663fb_7
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
-  purls: []
   size: 24314
   timestamp: 1715016272844
 - kind: conda
@@ -1375,7 +1362,6 @@ packages:
   - libgfortran-ng 13.2.0
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
-  purls: []
   size: 1441361
   timestamp: 1715016068766
 - kind: conda
@@ -1391,7 +1377,6 @@ packages:
   - _libgcc_mutex 0.1 conda_forge
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
-  purls: []
   size: 422336
   timestamp: 1715015995979
 - kind: conda
@@ -1411,7 +1396,6 @@ packages:
   - liblapacke 3.9.0 22_linux64_openblas
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
   size: 14471
   timestamp: 1712542277696
 - kind: conda
@@ -1423,7 +1407,6 @@ packages:
   md5: 0450f6bb03d24424334573ba05687130
   arch: x86_64
   platform: linux
-  purls: []
   size: 124218053
   timestamp: 1647673432276
 - kind: conda
@@ -1437,7 +1420,6 @@ packages:
   - libnpp >=11.7.3.21
   arch: x86_64
   platform: linux
-  purls: []
   size: 121327534
   timestamp: 1647673495804
 - kind: conda
@@ -1449,7 +1431,6 @@ packages:
   md5: f2b4df286504479597a82a83bc3458e0
   arch: x86_64
   platform: linux
-  purls: []
   size: 2448233
   timestamp: 1649213785605
 - kind: conda
@@ -1463,7 +1444,6 @@ packages:
   - libnvjpeg >=11.7.2.34
   arch: x86_64
   platform: linux
-  purls: []
   size: 2126625
   timestamp: 1649213787489
 - kind: conda
@@ -1482,7 +1462,6 @@ packages:
   - openblas >=0.3.27,<0.3.28.0a0
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
   size: 5598747
   timestamp: 1712364444346
 - kind: conda
@@ -1497,7 +1476,6 @@ packages:
   - libgcc-ng >=12
   - libzlib >=1.2.13,<2.0.0a0
   license: Unlicense
-  purls: []
   size: 859858
   timestamp: 1713367435849
 - kind: conda
@@ -1511,7 +1489,6 @@ packages:
   md5: 53ebd4c833fa01cb2c6353e99f905406
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
-  purls: []
   size: 3837704
   timestamp: 1715016117360
 - kind: conda
@@ -1529,7 +1506,6 @@ packages:
   - zlib 1.2.13 *_6
   license: Zlib
   license_family: Other
-  purls: []
   size: 61571
   timestamp: 1716874066944
 - kind: pypi
@@ -1607,7 +1583,6 @@ packages:
   depends:
   - libgcc-ng >=12
   license: X11 AND BSD-3-Clause
-  purls: []
   size: 887465
   timestamp: 1715194722503
 - kind: pypi
@@ -1651,7 +1626,6 @@ packages:
   md5: b82bd48611bbcdb30dba23710dad5d60
   arch: x86_64
   platform: linux
-  purls: []
   size: 485381969
   timestamp: 1655214757556
 - kind: conda
@@ -1771,7 +1745,6 @@ packages:
   - libgcc-ng >=12
   license: OpenSSL
   license_family: Apache
-  purls: []
   size: 1956010
   timestamp: 1694461292959
 - kind: pypi
@@ -1895,7 +1868,6 @@ packages:
   constrains:
   - python_abi * *_cp38
   license: PSF
-  purls: []
   size: 60989193
   timestamp: 1580309998972
 - kind: conda
@@ -1913,7 +1885,6 @@ packages:
   - pypy <0a0
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
   size: 4018
   timestamp: 1624472039876
 - kind: conda
@@ -1930,7 +1901,6 @@ packages:
   - ncurses >=6.3,<7.0a0
   license: GPL-3.0-only
   license_family: GPL
-  purls: []
   size: 281456
   timestamp: 1679532220005
 - kind: pypi
@@ -2014,7 +1984,6 @@ packages:
   - ncurses >=6.4.20240210,<7.0a0
   - readline >=8.2,<9.0a0
   license: Unlicense
-  purls: []
   size: 848611
   timestamp: 1713367461306
 - kind: pypi
@@ -2039,7 +2008,6 @@ packages:
   - libzlib >=1.2.13,<2.0.0a0
   license: TCL
   license_family: BSD
-  purls: []
   size: 3318875
   timestamp: 1699202167581
 - kind: pypi
@@ -2080,10 +2048,10 @@ packages:
   name: torchrunx
   version: 0.1.0
   path: .
-  sha256: a96dc44b470316e9e081bf3165a7f609fa9cd4c7716510c4b21542f381b3ca49
+  sha256: 9619c036fc624e2c11b57da0eac045d9d99062a775935e7c1abd5c8cf27eb1ea
   requires_dist:
   - dill
-  - paramiko
+  - fabric>=3.0.0
   - torch>=2.0.0
   - numpy
   - ruff ; extra == 'dev'
@@ -2146,6 +2114,12 @@ packages:
   - pysocks!=1.5.7,<2.0,>=1.5.6 ; extra == 'socks'
   - zstandard>=0.18.0 ; extra == 'zstd'
   requires_python: '>=3.8'
+- kind: pypi
+  name: wrapt
+  version: 1.16.0
+  url: https://files.pythonhosted.org/packages/ef/c6/56e718e2c58a4078518c14d97e531ef1e9e8a5c1ddafdc0d264a92be1a1a/wrapt-1.16.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  sha256: 941988b89b4fd6b41c3f0bfb20e92bd23746579736b7343283297c4c8cbae68f
+  requires_python: '>=3.6'
 - kind: conda
   name: xz
   version: 5.2.6
@@ -2157,7 +2131,6 @@ packages:
   depends:
   - libgcc-ng >=12
   license: LGPL-2.1 and GPL-2.0
-  purls: []
   size: 418368
   timestamp: 1660346797927
 - kind: pypi
@@ -2199,6 +2172,5 @@ packages:
   - libzlib 1.2.13 h4ab18f5_6
   license: Zlib
   license_family: Other
-  purls: []
   size: 92883
   timestamp: 1716874088980
