@@ -8,7 +8,7 @@ from torch.distributed.elastic.multiprocessing import start_processes, DefaultLo
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
 from datetime import timedelta
 
-from torchrunx.utils import Serializable, get_open_port
+from torchrunx.utils import Serializable, get_open_port, broadcast, gather, all_gather
 from torchrunx.launcher import LaunchConfig, AgentStatus
 
 from dataclasses import dataclass
@@ -61,15 +61,11 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     )
 
     # receieve parameters from launcher
-    _params = [None]
-    dist.broadcast_object_list(_params)
-    config = LaunchConfig.from_serialized(_params[0])
+    config: LaunchConfig = broadcast(object=None, src=0)
 
     worker_world_size = config.world_size
-    # num_nodes =  config.num_nodes
     worker_ranks = config.node_worker_ranks[rank - 1]
     num_workers = len(worker_ranks)
-    # arguments = pickle.loads(params['args'])
 
     # broadcast/receive launcher worker's IP and port
     if rank == 1:
@@ -79,18 +75,15 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
 
         master_ip = socket.gethostbyname(master_hostname)
         master_port = get_open_port()
-        master = [master_ip, master_port]
+        master = (master_ip, master_port)
     else:
         # else, we listen for the broadcast
-        master = [None, None]
+        master = (None, None)
 
-    dist.broadcast_object_list(master, src=1)
-
-    master_ip: str = master[0]
-    master_port: int = master[1]
+    master_ip, master_port = broadcast(object=master, src=1)
 
     # send process pid to launcher
-    dist.gather_object(os.getpid())
+    gather(object=os.getpid(), dst=0)
 
     # set arguments and environmental variables for each worker
     # args = {i: arguments for i in range(num_processes)}
@@ -130,9 +123,9 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         status = AgentStatus(result)
         done = status.is_done()
         # grab statuses of other agents
-        statuses: list[AgentStatus] = [None] * world_size
+        statuses: list[AgentStatus]
         try:
-            dist.all_gather_object(statuses, status)
+            statuses = all_gather(object=status)
         except:
             ctx.close()
             return
@@ -150,4 +143,4 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         # otherwise, continue...
 
     return_values = {worker_ranks[k]: v for k, v in result.return_values.items()}
-    dist.gather_object(return_values, dst=0)
+    gather(object=return_values, dst=0)

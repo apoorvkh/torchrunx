@@ -35,10 +35,10 @@ def slurm_ips_port_users():
 
 def test_launch():
     result = launch(
-        simple_matmul,
-        resolve_node_ips(os.environ["SLURM_JOB_NODELIST"]),
-        # workers_per_node=[1, 2],
-        num_workers=int(os.environ["SLURM_NTASKS_PER_NODE"]),
+        func=simple_matmul,
+        func_kwargs={},
+        hostnames=resolve_node_ips(os.environ["SLURM_JOB_NODELIST"]),
+        workers_per_host=int(os.environ["SLURM_NTASKS_PER_NODE"]),
     )
 
     for i in range(len(result)):

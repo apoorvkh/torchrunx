@@ -1,15 +1,17 @@
 from __future__ import annotations
+from typing import Literal, Any
+import itertools
 
 from dataclasses import dataclass
+import os
 import sys
-import getpass
 import socket
 from functools import partial
 from typing import Callable
 from enum import Enum
 from datetime import timedelta
 
-from torchrunx.utils import Serializable, get_open_port, ssh_exec
+from torchrunx.utils import Serializable, get_open_port, execute_ssh_command, broadcast, gather, all_gather
 
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
@@ -20,7 +22,7 @@ class LaunchConfig(Serializable):
     fn: Callable
     world_size: int
     node_worker_ranks: list[list[int]]
-    backend: str
+    backend: Literal["mpi", "gloo", "nccl", "ucc"] | None
 
 
 class Status(Enum):
@@ -40,7 +42,7 @@ class AgentStatus:
         if result is None:
             self.status = Status.RUNNING
             return
-        
+
         self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
         self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
 
@@ -62,145 +64,140 @@ class AgentStatus:
 
 def launch(
     func: Callable,
-    node_ips: list[str],
-    num_workers: int = 4,  # per node
-    log_file: str = "parallel_processing.log",  # TODO: use
-    user=getpass.getuser(),
-    ssh_port=22,
-    backend: str = None,
-    workers_per_node: list[int] = [],  # overrides num_workers
-    **kwargs,
+    func_kwargs: dict[str, Any],
+    #
+    hostnames: list[str] = ["localhost"],
+    workers_per_host: int | list[int] | None = 1,
+    visible_devices_per_host: list[list[int]] | None = None,
+    #
+    ssh_config_file: str | os.PathLike | None = None,
+    backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
+    log_dir: str = "parallel_processing.log",  # TODO: use
 ):
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
 
-    if backend not in ["gloo", "nccl", "gloo|nccl", None]:
-        raise ValueError(
-            f"backend must be one of 'gloo', 'nccl', 'gloo|nccl', or None (default, automatically determined), but '{backend}' was provided"
-        )
+    # parse arguments
 
-    num_nodes = len(node_ips)
+    num_nodes = len(hostnames)
 
-    if workers_per_node != [] and len(workers_per_node) != num_nodes:
-        raise ValueError(
-            f"Number of nodes must match between node_ips and workers_per_node. Got {len(node_ips)=} and {len(workers_per_node)=}."
-        )
+    if workers_per_host is not None and isinstance(workers_per_host, int):
+        workers_per_host = [workers_per_host] * num_nodes
 
-    node_worker_ranks: list[list[int]] = []
-    c = 0
-    for n in range(num_nodes):
-        node_workers = num_workers if workers_per_node == [] else workers_per_node[n]
-        node_worker_ranks.append(list(range(c, c + node_workers)))
-        c += node_workers
+    if visible_devices_per_host is not None:
+        workers_per_host = [len(indices) for indices in visible_devices_per_host]
 
-    world_size = (
-        num_nodes * num_workers if workers_per_node == [] else sum(workers_per_node)
-    )
+    assert workers_per_host is not None
+    assert len(workers_per_host) == num_nodes
 
-    # populate kwargs of target function early
-    func = partial(func, **kwargs)
-    # serialized_function = cloudpickle.dumps(func)
-
-    # determine IP and an open port to run agent-launcher group from
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
-
+    launcher_hostname = socket.gethostname()
+    launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
 
-    # set some environmental variables. TODO: none of these env vars needed?
-    # os.environ["WORLD_SIZE"] = str(num_nodes * num_workers)
-    # os.environ["NODE_RANK"] = "0"
-    # os.environ["NPROC"] = str(num_workers)
-    # os.environ["MASTER_ADDR"] = master_ip
-    # os.environ["MASTER_PORT"] = str(master_port)
-
     # start agents on each node
-    start_agents(node_ips, num_nodes, ip_address, launcher_port, ssh_port, user)
+    for i, hostname in enumerate(hostnames):
+        execute_ssh_command(
+            command=f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port}",
+            hostname=hostname,
+            ssh_config_file=ssh_config_file,
+        )
 
-    # create TCPStore for group initialization.
-    launcher_store = dist.TCPStore(hostname, launcher_port, is_master=True)
-    # initialize agent-launcher process group
+    # initialize launcher–agent process group
+    # ranks = (launcher, agent_0, ..., agent_{num_nodes-1})
+
+    world_size = num_nodes + 1
+
     dist.init_process_group(
         backend="gloo",
-        world_size=num_nodes + 1,
+        world_size=world_size,
         rank=0,
-        store=launcher_store,
+        store=dist.TCPStore(launcher_hostname, launcher_port, is_master=True),  # pyright: ignore[reportPrivateImportUsage]
         timeout=timedelta(seconds=30),
     )
-    # populate and broadcast agent parameters
-    config = LaunchConfig(func, world_size, node_worker_ranks, backend)
-    params = [config.serialized]
-    dist.broadcast_object_list(params)
-    # participate in synchronization between agents, which is irrelevant to the launcher
-    dist.broadcast_object_list([None, None], src=1)
-    # gather pids of agents, in case they need to be manually terminated
-    _pids = [None] * (num_nodes + 1)
-    dist.gather_object(None, _pids)
-    agent_pids = _pids[1:]
+
+    # build LaunchConfig
+    cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
+    worker_global_ranks = [
+        list(range(cumulative_workers[n], cumulative_workers[n + 1]))
+        for n in range(num_nodes)
+    ]
+
+    config = LaunchConfig(
+        fn=partial(func, **func_kwargs),
+        world_size=cumulative_workers[-1],
+        node_worker_ranks=worker_global_ranks,
+        backend=backend
+    )
+
+    # broadcast agent parameters
+    broadcast(object=config, src=0)  # LaunchConfig
+    broadcast(object=(None, None), src=1)  # master_ip, master_port
+    agent_pids: list[int] = gather(object=None, dst=0)  # pyright: ignore[reportAssignmentType]
+    print(agent_pids)
+    agent_pids = agent_pids[1:]
+
     # start monitoring loop
     dummy_launch_status = AgentStatus(None, True)
     while True:
-        # keep checking all agents...
-        statuses: list[AgentStatus] = [None] * (num_nodes + 1)
         try:
-            dist.all_gather_object(statuses, dummy_launch_status)
+            agent_statuses = all_gather(object=dummy_launch_status)
         except:
             # kill all agents (most should be dead but some could be hanging)
-            kill_agents(agent_pids, node_ips, ssh_port, user)
+            for pid, ip_forgn in zip(agent_pids, hostnames):
+                execute_ssh_command(
+                    command=f"kill {pid}",
+                    hostname=ip_forgn,
+                    ssh_config_file=ssh_config_file,
+                )
             # TODO: can we extract more info for this error?
             raise RuntimeError("One or more agents encountered an error.")
 
-        # if any workers on any agent have failed
-        if any(map(lambda s: s.is_failed(), statuses)):
+        if any([s.is_failed() for s in agent_statuses]):
             # terminate - the agents should also be exiting
             e = ""
-            for i, s in filter(lambda s: s[1].is_failed(), enumerate(statuses)):
-                for k, v in s.failures.items():
-                    e += f"Node {i-1}, local worker {k} exited with error: {v.message['message']}\n"
-                    e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+            for i, s in enumerate(agent_statuses):
+                if s.is_failed():
+                    for k, v in s.failures.items():
+                        e += f"Node {i-1}, local worker {k} exited with error: {v.message['message']}\n"
+                        e += f"{v.message['extraInfo']['py_callstack']}\n\n"
             raise RuntimeError(e)
 
         # else, check if everything's done
-        if all(map(lambda s: s.is_done(), statuses)):
+        if all(map(lambda s: s.is_done(), agent_statuses)):
             # we can exit loop and gather return values
             break
 
     # print stdouts and stderrs
     r = 0
-    for node, status in enumerate(statuses[1:]):
+    for node, status in enumerate(agent_statuses[1:]):
         for worker in status.stdouts:
             if status.stdouts[worker] != "":
-                print(f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}")
+                print(
+                    f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}",
+                    file=sys.stdout,
+                )
             if status.stderrs[worker] != "":
-                print(f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}", file=sys.stderr)
+                print(
+                    f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}",
+                    file=sys.stderr,
+                )
             r += 1
 
     # wait for return values
-    output = [None for i in range(num_nodes + 1)]
     try:
-        dist.gather_object({}, output, dst=0)
+        outputs = gather(object={}, dst=0)
     except:
-        kill_agents(agent_pids, node_ips, ssh_port, user)
+        for pid, ip_forgn in zip(agent_pids, hostnames):
+            execute_ssh_command(
+                command=f"kill {pid}",
+                hostname=ip_forgn,
+                ssh_config_file=ssh_config_file,
+            )
         # TODO: can we extract more info for this error?
         raise RuntimeError("One or more agents encountered an error.")
 
     # gather return values in {worker_rank: worker_return_value} format, and return
     result = {}
-    for d in output:
+    for d in outputs:
         result.update(d)
     return result
-
-
-def start_agents(node_ips, num_nodes, launcher_ip, launcher_port, ssh_port, user):
-    for i, ip_forgn in enumerate(node_ips):
-        ssh_exec(
-            f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port} > /dev/null 2>&1 &",
-            ip_forgn,
-            ssh_port,
-            user,
-        )
-
-
-def kill_agents(pids: list[int], node_ips: list[str], ssh_port: int, user: str) -> None:
-    for pid, ip_forgn in zip(pids, node_ips):
-        ssh_exec(f"kill {pid} > /dev/null 2>&1 &", ip_forgn, ssh_port, user)
