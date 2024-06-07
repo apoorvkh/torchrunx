@@ -194,7 +194,7 @@ def launch(
 def start_agents(node_ips, num_nodes, launcher_ip, launcher_port, ssh_port, user):
     for i, ip_forgn in enumerate(node_ips):
         ssh_exec(
-            f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port} > $HOME/torchrunx/log_{i}.txt 2>&1 &",
+            f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port} > /dev/null 2>&1 &",
             ip_forgn,
             ssh_port,
             user,
