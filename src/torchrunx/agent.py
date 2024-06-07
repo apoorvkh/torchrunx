@@ -31,6 +31,7 @@ def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args)
     dist.init_process_group(
         backend=backend, world_size=world_size, rank=rank, store=store
     )
+    print(os.environ)
     return _fn(*args)
 
 
@@ -58,6 +59,9 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     num_workers = len(worker_ranks)
     backend = config.backend
     # arguments = pickle.loads(params['args'])
+
+    # update environment with vars from launcher
+    os.environ.update(config.env)
 
     # broadcast/receive launcher worker's IP and port
     if rank == 1:

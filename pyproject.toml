@@ -33,6 +33,7 @@ default = { features = ["dev"], solve-group = "default" }
 [tool.pixi.dependencies]
 python = "3.8.1"
 cuda = "11.7.0"
+python-dotenv = ">=1.0.1,<1.1"
 
 [tool.pixi.pypi-dependencies]
 torchrunx = { path = ".", editable = true }

@@ -8,7 +8,7 @@ from typing import Callable
 from enum import Enum
 from datetime import timedelta
 
-from torchrunx.utils import get_open_port, ssh_exec
+from torchrunx.utils import get_open_port, ssh_exec, get_env
 
 import cloudpickle
 
@@ -23,11 +23,13 @@ class LaunchConfig:
         world_size: int,
         node_worker_ranks: list[list[int]],
         backend: str,
+        env_filepath: str = None
     ) -> None:
         self.serialized_fn = cloudpickle.dumps(fn)
         self.world_size = world_size
         self.node_worker_ranks = node_worker_ranks
         self.backend = backend
+        self.env = get_env(env_filepath)
 
 
 class Status(Enum):
@@ -76,6 +78,7 @@ def launch(
     ssh_port=22,
     backend: str = None,
     workers_per_node: list[int] = [],  # overrides num_workers
+    env_filepath: str = None,
     **kwargs,
 ):
     if not dist.is_available():
@@ -135,7 +138,7 @@ def launch(
         timeout=timedelta(seconds=30),
     )
     # populate and broadcast agent parameters
-    config = LaunchConfig(func, world_size, node_worker_ranks, backend)
+    config = LaunchConfig(func, world_size, node_worker_ranks, backend, env_filepath)
     params = [config]
     dist.broadcast_object_list(params)
     # participate in synchronization between agents, which is irrelevant to the launcher
