@@ -23,7 +23,7 @@ class LaunchConfig:
         world_size: int,
         node_worker_ranks: list[list[int]],
         backend: str,
-        env_filepath: str = None
+        env_filepath: str = None,
     ) -> None:
         self.serialized_fn = cloudpickle.dumps(fn)
         self.world_size = world_size
@@ -49,7 +49,7 @@ class AgentStatus:
         if result is None:
             self.status = Status.RUNNING
             return
-        
+
         self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
         self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
 
@@ -180,9 +180,13 @@ def launch(
     for node, status in enumerate(statuses[1:]):
         for worker in status.stdouts:
             if status.stdouts[worker] != "":
-                print(f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}")
+                print(
+                    f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}"
+                )
             if status.stderrs[worker] != "":
-                print(f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}")
+                print(
+                    f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}"
+                )
             r += 1
 
     # wait for return values
