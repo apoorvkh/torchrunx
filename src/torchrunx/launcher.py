@@ -46,7 +46,12 @@ class AgentStatus:
         self.failures = None
         if result is None:
             self.status = Status.RUNNING
-        elif result.is_failed():
+            return
+        
+        self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
+        self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
+
+        if result.is_failed():
             self.status = Status.FAILED
             self.failures = result.failures
         else:
@@ -166,6 +171,16 @@ def launch(
         if all(map(lambda s: s.is_done(), statuses)):
             # we can exit loop and gather return values
             break
+
+    # print stdouts
+    r = 0
+    for node, status in enumerate(statuses[1:]):
+        for worker in status.stdouts:
+            if status.stdouts[worker] != "":
+                print(f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}")
+            if status.stderrs[worker] != "":
+                print(f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}")
+            r += 1
 
     # wait for return values
     output = [None for i in range(num_nodes + 1)]
