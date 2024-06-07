@@ -31,7 +31,6 @@ def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args)
     dist.init_process_group(
         backend=backend, world_size=world_size, rank=rank, store=store
     )
-    print(os.environ)
     return _fn(*args)
 
 
