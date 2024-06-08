@@ -93,10 +93,9 @@ def launch(
     agent_pids = launcher_group.recv_agent_process_ids()
 
     # start monitoring loop
-    dummy_launch_status = AgentStatus(None, True)
     while True:
         try:
-            agent_statuses = launcher_group.all_gather_agent_statuses(status=dummy_launch_status)
+            agent_statuses = launcher_group.all_gather_agent_statuses(status=None)
         except:
             # kill all agents (most should be dead but some could be hanging)
             for pid, ip_forgn in zip(agent_pids, hostnames):

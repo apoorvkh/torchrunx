@@ -40,12 +40,7 @@ class Status(Enum):
 
 
 class AgentStatus:
-    def __init__(self, result: RunProcsResult, dummy=False):
-        if dummy:
-            self.status = Status.DONE
-            self.failures = None
-            return
-
+    def __init__(self, result: RunProcsResult):
         self.failures = None
         if result is None:
             self.status = Status.RUNNING
@@ -83,7 +78,7 @@ def execute_ssh_command(
     with fabric.Connection(
         host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
     ) as conn:
-        conn.run(f"{command} >> /users/akhand10/torchrunx/log.txt 2>&1 &")
+        conn.run(f"{command} >> /dev/null 2>&1 &")
 
 
 @dataclass
@@ -177,8 +172,8 @@ class LauncherAgentGroup:
             ip, port = None, None
         return self._broadcast(object=(ip, port), src=1)
 
-    def all_gather_agent_statuses(self, status: AgentStatus) -> list[AgentStatus]:
-        return self._all_gather(object=status)
+    def all_gather_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
+        return self._all_gather(object=status)[1:]
 
     def send_return_values(self, return_values: dict[int, Any]) -> None:
         assert self.rank > 0
