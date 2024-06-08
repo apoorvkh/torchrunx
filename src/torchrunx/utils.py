@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import datetime
+import ipaddress
 import os
 import socket
+import subprocess
 from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
@@ -72,13 +74,30 @@ def get_open_port() -> int:
     return port
 
 
-def execute_ssh_command(
+def is_localhost(hostname_or_ip: str) -> bool:
+    # check if host is "loopback" address (i.e. designated to send to self)
+    try:
+        ip = ipaddress.ip_address(hostname_or_ip)
+    except ValueError:
+        ip = ipaddress.ip_address(socket.gethostbyname(hostname_or_ip))
+    if ip.is_loopback:
+        return True
+    # else compare local interface addresses between host and localhost
+    host_addrs = [addr[4][0] for addr in socket.getaddrinfo(str(ip), None)]
+    localhost_addrs = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
+    return len(set(host_addrs) & set(localhost_addrs)) > 0
+
+
+def execute_command(
     command: str, hostname: str, ssh_config_file: str | os.PathLike | None = None
 ) -> None:
-    with fabric.Connection(
-        host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
-    ) as conn:
-        conn.run(f"{command} >> /dev/null 2>&1 &")
+    if is_localhost(hostname):
+        subprocess.Popen(command.split(" "), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        with fabric.Connection(
+            host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
+        ) as conn:
+            conn.run(f"{command} >> /dev/null 2>&1 &")
 
 
 @dataclass
