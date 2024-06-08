@@ -132,7 +132,7 @@ def launch(
             for i, s in enumerate(agent_statuses):
                 if s.is_failed():
                     for k, v in s.failures.items():
-                        e += f"Node {i-1}, local worker {k} exited with error: {v.message['message']}\n"
+                        e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
                         e += f"{v.message['extraInfo']['py_callstack']}\n\n"
             raise RuntimeError(e)
 
@@ -143,7 +143,7 @@ def launch(
 
     # print stdouts and stderrs
     r = 0
-    for node, status in enumerate(agent_statuses[1:]):
+    for node, status in enumerate(agent_statuses):
         for worker in status.stdouts:
             if status.stdouts[worker] != "":
                 print(
