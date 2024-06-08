@@ -3,6 +3,7 @@ from __future__ import annotations
 import itertools
 import os
 import socket
+import subprocess
 import sys
 from functools import partial
 from typing import Any, Callable, Literal
@@ -22,6 +23,7 @@ def launch(
     func_kwargs: dict[str, Any],
     hostnames: list[str] = ["localhost"],
     workers_per_host: int | list[int] | None = 1,
+    use_slurm: bool = False,
     visible_devices_per_host: list[list[int]] | None = None,  # TODO
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
@@ -32,12 +34,30 @@ def launch(
 
     # parse arguments
 
+    if use_slurm:
+        assert "SLURM_JOB_ID" in os.environ
+        hostnames = (
+            subprocess.check_output(
+                ["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]]
+            )
+            .decode()
+            .strip()
+            .split("\n")
+        )
+        if "SLURM_JOB_GPUS" in os.environ:
+            # is it possible to allocate uneven GPUs across nodes?
+            workers_per_host = len(os.environ["SLURM_JOB_GPUS"].split(","))
+        else:
+            # should we assume that we plan to do one worker per CPU?
+            workers_per_host = int(os.environ["SLURM_CPUS_ON_NODE"])
+
     num_hosts = len(hostnames)
 
     if workers_per_host is not None and isinstance(workers_per_host, int):
         workers_per_host = [workers_per_host] * num_hosts
 
     if visible_devices_per_host is not None:
+        # TODO: slurm case
         workers_per_host = [len(indices) for indices in visible_devices_per_host]
 
     assert workers_per_host is not None
