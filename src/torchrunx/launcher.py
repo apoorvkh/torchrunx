@@ -13,7 +13,7 @@ import torch.distributed as dist
 from .utils import (
     LaunchConfig,
     LauncherAgentGroup,
-    execute_ssh_command,
+    execute_command,
     get_open_port,
 )
 
@@ -71,7 +71,7 @@ def launch(
 
     # start agents on each node
     for i, hostname in enumerate(hostnames):
-        execute_ssh_command(
+        execute_command(
             command=(
                 f"{sys.executable} -u -m torchrunx "
                 f"--world-size {world_size} "
@@ -118,7 +118,7 @@ def launch(
         except:
             # kill all agents (most should be dead but some could be hanging)
             for pid, ip_forgn in zip(agent_pids, hostnames):
-                execute_ssh_command(
+                execute_command(
                     command=f"kill {pid}",
                     hostname=ip_forgn,
                     ssh_config_file=ssh_config_file,
@@ -162,7 +162,7 @@ def launch(
         outputs = launcher_group.recv_return_values()
     except:
         for pid, ip_forgn in zip(agent_pids, hostnames):
-            execute_ssh_command(
+            execute_command(
                 command=f"kill {pid}",
                 hostname=ip_forgn,
                 ssh_config_file=ssh_config_file,
