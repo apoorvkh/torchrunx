@@ -1,65 +1,21 @@
 from __future__ import annotations
-from typing import Literal, Any
+
 import itertools
-
-from dataclasses import dataclass
 import os
-import sys
 import socket
+import sys
 from functools import partial
-from typing import Callable
-from enum import Enum
-from datetime import timedelta
-
-from torchrunx.utils import Serializable, get_open_port, execute_ssh_command, broadcast, gather, all_gather
+from typing import Any, Callable, Literal
 
 import torch.distributed as dist
-from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
-
-@dataclass
-class LaunchConfig(Serializable):
-    fn: Callable
-    world_size: int
-    node_worker_ranks: list[list[int]]
-    backend: Literal["mpi", "gloo", "nccl", "ucc"] | None
-
-
-class Status(Enum):
-    RUNNING = 1
-    DONE = 2
-    FAILED = 3
-
-
-class AgentStatus:
-    def __init__(self, result: RunProcsResult, dummy=False):
-        if dummy:
-            self.status = Status.DONE
-            self.failures = None
-            return
-
-        self.failures = None
-        if result is None:
-            self.status = Status.RUNNING
-            return
-
-        self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
-        self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
-
-        if result.is_failed():
-            self.status = Status.FAILED
-            self.failures = result.failures
-        else:
-            self.status = Status.DONE
-
-    def is_failed(self):
-        return self.status == Status.FAILED
-
-    def is_done(self):
-        return self.status == Status.DONE
-
-    def __repr__(self):
-        return str(self.__dict__)
+from torchrunx.utils import (
+    AgentStatus,
+    LaunchConfig,
+    LauncherAgentGroup,
+    execute_ssh_command,
+    get_open_port,
+)
 
 
 def launch(
@@ -90,6 +46,8 @@ def launch(
     assert workers_per_host is not None
     assert len(workers_per_host) == num_nodes
 
+    world_size = num_nodes + 1
+
     launcher_hostname = socket.gethostname()
     launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
@@ -97,7 +55,7 @@ def launch(
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_ssh_command(
-            command=f"{sys.executable} -u -m torchrunx {num_nodes+1} {i+1} {launcher_ip} {launcher_port}",
+            command=f"{sys.executable} -u -m torchrunx {world_size} {i+1} {launcher_ip} {launcher_port}",
             hostname=hostname,
             ssh_config_file=ssh_config_file,
         )
@@ -105,42 +63,36 @@ def launch(
     # initialize launcher–agent process group
     # ranks = (launcher, agent_0, ..., agent_{num_nodes-1})
 
-    world_size = num_nodes + 1
-
-    dist.init_process_group(
-        backend="gloo",
+    launcher_group = LauncherAgentGroup(
         world_size=world_size,
         rank=0,
-        store=dist.TCPStore(launcher_hostname, launcher_port, is_master=True),  # pyright: ignore[reportPrivateImportUsage]
-        timeout=timedelta(seconds=30),
+        launcher_hostname=launcher_hostname,
+        launcher_port=launcher_port,
     )
 
     # build LaunchConfig
     cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
     worker_global_ranks = [
-        list(range(cumulative_workers[n], cumulative_workers[n + 1]))
-        for n in range(num_nodes)
+        list(range(cumulative_workers[n], cumulative_workers[n + 1])) for n in range(num_nodes)
     ]
 
     config = LaunchConfig(
         fn=partial(func, **func_kwargs),
         world_size=cumulative_workers[-1],
         node_worker_ranks=worker_global_ranks,
-        backend=backend
+        backend=backend,
     )
 
-    # broadcast agent parameters
-    broadcast(object=config, src=0)  # LaunchConfig
-    broadcast(object=(None, None), src=1)  # master_ip, master_port
-    agent_pids: list[int] = gather(object=None, dst=0)  # pyright: ignore[reportAssignmentType]
-    print(agent_pids)
-    agent_pids = agent_pids[1:]
+    # communicate parameters with agents
+    launcher_group.send_launch_config(config)
+    _ = launcher_group.sync_main_agent_ip_port()
+    agent_pids = launcher_group.recv_agent_process_ids()
 
     # start monitoring loop
     dummy_launch_status = AgentStatus(None, True)
     while True:
         try:
-            agent_statuses = all_gather(object=dummy_launch_status)
+            agent_statuses = launcher_group.all_gather_agent_statuses(status=dummy_launch_status)
         except:
             # kill all agents (most should be dead but some could be hanging)
             for pid, ip_forgn in zip(agent_pids, hostnames):
@@ -185,7 +137,7 @@ def launch(
 
     # wait for return values
     try:
-        outputs = gather(object={}, dst=0)
+        outputs = launcher_group.recv_return_values()
     except:
         for pid, ip_forgn in zip(agent_pids, hostnames):
             execute_ssh_command(

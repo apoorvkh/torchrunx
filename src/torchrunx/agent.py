@@ -1,19 +1,14 @@
-import socket
 import os
 import tempfile
-import torch.distributed as dist
-
-# import tyro # what does this do
-from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
-from datetime import timedelta
-
-from torchrunx.utils import Serializable, get_open_port, broadcast, gather, all_gather
-from torchrunx.launcher import LaunchConfig, AgentStatus
-
 from dataclasses import dataclass
 from typing import Callable
+
 import torch
+import torch.distributed as dist
+from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs, start_processes
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+
+from torchrunx.utils import AgentStatus, LauncherAgentGroup, Serializable
 
 
 @dataclass
@@ -35,55 +30,31 @@ def entrypoint(serialized_worker_args: bytes, *args):
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
     world_size = int(os.environ["WORLD_SIZE"])
-    store = dist.TCPStore(
-        master_ip, master_port, world_size=world_size, is_master=is_master
-    )
+    store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)
 
     if backend is None:
         backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
     rank = int(os.environ["RANK"])
-    dist.init_process_group(
-        backend=backend, world_size=world_size, rank=rank, store=store
-    )
+    dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
     return fn(*args)
 
 
 def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
-    # create client TCPStore for initializing launcher-agent process group
-    store = dist.TCPStore(launcher_ip, launcher_port)
-    # print("got store, trying setup")
-    dist.init_process_group(
-        backend="gloo",
+    launcher_group = LauncherAgentGroup(
         world_size=world_size,
         rank=rank,
-        store=store,
-        timeout=timedelta(seconds=30),
+        launcher_hostname=launcher_ip,
+        launcher_port=launcher_port,
     )
 
     # receieve parameters from launcher
-    config: LaunchConfig = broadcast(object=None, src=0)
-
+    config = launcher_group.recv_launch_config()
     worker_world_size = config.world_size
     worker_ranks = config.node_worker_ranks[rank - 1]
     num_workers = len(worker_ranks)
 
-    # broadcast/receive launcher worker's IP and port
-    if rank == 1:
-        # rank 1 agent is responsible for rank 0 worker, aka the "master worker"
-        # thus grab a port on this agent's node
-        master_hostname = socket.gethostname()
-
-        master_ip = socket.gethostbyname(master_hostname)
-        master_port = get_open_port()
-        master = (master_ip, master_port)
-    else:
-        # else, we listen for the broadcast
-        master = (None, None)
-
-    master_ip, master_port = broadcast(object=master, src=1)
-
-    # send process pid to launcher
-    gather(object=os.getpid(), dst=0)
+    main_agent_ip, main_agent_port = launcher_group.sync_main_agent_ip_port()
+    launcher_group.send_process_id()
 
     # set arguments and environmental variables for each worker
     # args = {i: arguments for i in range(num_processes)}
@@ -101,16 +72,19 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     if log_dir is None:
         log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
 
-    worker_args = WorkerArgs(function=config.fn, master_ip=master_ip, master_port=master_port, backend=config.backend)
+    worker_args = WorkerArgs(
+        function=config.fn,
+        master_ip=main_agent_ip,
+        master_port=main_agent_port,
+        backend=config.backend,
+    )
     serialized_worker_args = worker_args.serialized
 
     # spawn workers
     ctx: MultiprocessContext = start_processes(
         name="distributed_function",
         entrypoint=entrypoint,
-        args={
-            i: (serialized_worker_args,) for i in range(num_workers)
-        },
+        args={i: (serialized_worker_args,) for i in range(num_workers)},
         envs=envs,
         logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
         start_method="spawn",
@@ -122,25 +96,21 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
             result = ctx.wait(5)
         status = AgentStatus(result)
         done = status.is_done()
-        # grab statuses of other agents
-        statuses: list[AgentStatus]
+
         try:
-            statuses = all_gather(object=status)
+            statuses = launcher_group.all_gather_agent_statuses(status=status)
         except:
             ctx.close()
             return
-        # if any workers on any agent have failed
+
         if any(map(lambda s: s.is_failed(), statuses)):
             # terminate local workers and exit
             ctx.close()
             return
 
-        # else, check if everything's done
         if all(map(lambda s: s.is_done(), statuses)):
             # we can exit loop and gather return values
             break
 
-        # otherwise, continue...
-
     return_values = {worker_ranks[k]: v for k, v in result.return_values.items()}
-    gather(object=return_values, dst=0)
+    launcher_group.send_return_values(return_values=return_values)

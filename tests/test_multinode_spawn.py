@@ -1,9 +1,10 @@
-import pytest
-import socket
-from unittest.mock import Mock, patch, MagicMock
-from src.torchrunx.spawn import multinode_spawner
 import os
+import socket
 import subprocess
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from src.torchrunx.spawn import multinode_spawner
 
 
 def resolve_node_ips(nodelist):

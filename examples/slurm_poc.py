@@ -1,8 +1,11 @@
 import os
 import socket
 import subprocess
+
 import torch
+
 from torchrunx import launch
+
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
 
 
@@ -48,8 +51,9 @@ def test_launch():
 
 
 def simple_matmul():
-    import torch
     import os
+
+    import torch
     import torch.distributed as dist
 
     rank = int(os.environ["RANK"])

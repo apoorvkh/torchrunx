@@ -1,6 +1,6 @@
-from . import agent
 import sys
 
+from . import agent
 
 if __name__ == "__main__":
     # parse arguments, TODO: use argparse

@@ -36,3 +36,10 @@ cuda = "11.7.0"
 
 [tool.pixi.pypi-dependencies]
 torchrunx = { path = ".", editable = true }
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
