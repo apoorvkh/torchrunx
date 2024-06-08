@@ -1,44 +1,18 @@
 import os
-import socket
-import subprocess
+
 import torch
+import torch.distributed as dist
+
 from torchrunx import launch
+
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
-
-
-def resolve_node_ips(nodelist):
-    # Expand the nodelist into individual hostnames
-    hostnames = (
-        subprocess.check_output(["scontrol", "show", "hostnames", nodelist])
-        .decode()
-        .strip()
-        .split("\n")
-    )
-    # Resolve each hostname to an IP address
-    ips = [socket.gethostbyname(hostname) for hostname in hostnames]
-    return ips
-
-
-def get_ips_port_users(nodelist, port, user):
-    ips = resolve_node_ips(nodelist)
-    # Pair each IP with the specified port and user
-    ips_port_users = [(ip, port, user) for ip in ips]
-    return ips_port_users
-
-
-def slurm_ips_port_users():
-    nodelist = os.environ["SLURM_JOB_NODELIST"]
-    port = 22  # SSH port
-    user = "pcurtin1"  # Replace with the appropriate username
-    return get_ips_port_users(nodelist, port, user)
 
 
 def test_launch():
     result = launch(
-        simple_matmul,
-        resolve_node_ips(os.environ["SLURM_JOB_NODELIST"]),
-        # workers_per_node=[1, 2],
-        num_workers=int(os.environ["SLURM_NTASKS_PER_NODE"]),
+        func=simple_matmul,
+        func_kwargs={},
+        use_slurm=True,
     )
 
     for i in range(len(result)):
@@ -48,10 +22,6 @@ def test_launch():
 
 
 def simple_matmul():
-    import torch
-    import os
-    import torch.distributed as dist
-
     rank = int(os.environ["RANK"])
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
