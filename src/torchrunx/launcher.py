@@ -21,11 +21,9 @@ from torchrunx.utils import (
 def launch(
     func: Callable,
     func_kwargs: dict[str, Any],
-    #
     hostnames: list[str] = ["localhost"],
     workers_per_host: int | list[int] | None = 1,
-    visible_devices_per_host: list[list[int]] | None = None,
-    #
+    visible_devices_per_host: list[list[int]] | None = None,  # TODO
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
     log_dir: str = "parallel_processing.log",  # TODO: use
@@ -35,18 +33,18 @@ def launch(
 
     # parse arguments
 
-    num_nodes = len(hostnames)
+    num_hosts = len(hostnames)
 
     if workers_per_host is not None and isinstance(workers_per_host, int):
-        workers_per_host = [workers_per_host] * num_nodes
+        workers_per_host = [workers_per_host] * num_hosts
 
     if visible_devices_per_host is not None:
         workers_per_host = [len(indices) for indices in visible_devices_per_host]
 
     assert workers_per_host is not None
-    assert len(workers_per_host) == num_nodes
+    assert len(workers_per_host) == num_hosts
 
-    world_size = num_nodes + 1
+    world_size = num_hosts + 1
 
     launcher_hostname = socket.gethostname()
     launcher_ip = socket.gethostbyname(launcher_hostname)
@@ -55,13 +53,19 @@ def launch(
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_ssh_command(
-            command=f"{sys.executable} -u -m torchrunx {world_size} {i+1} {launcher_ip} {launcher_port}",
+            command=(
+                f"{sys.executable} -u -m torchrunx "
+                f"--world-size {world_size} "
+                f"--rank {i+1} "
+                f"--launcher-ip {launcher_ip} "
+                f"--launcher-port {launcher_port}"
+            ),
             hostname=hostname,
             ssh_config_file=ssh_config_file,
         )
 
     # initialize launcher–agent process group
-    # ranks = (launcher, agent_0, ..., agent_{num_nodes-1})
+    # ranks = (launcher, agent_0, ..., agent_{num_hosts-1})
 
     launcher_group = LauncherAgentGroup(
         world_size=world_size,
@@ -73,7 +77,7 @@ def launch(
     # build LaunchConfig
     cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
     worker_global_ranks = [
-        list(range(cumulative_workers[n], cumulative_workers[n + 1])) for n in range(num_nodes)
+        list(range(cumulative_workers[n], cumulative_workers[n + 1])) for n in range(num_hosts)
     ]
 
     config = LaunchConfig(
