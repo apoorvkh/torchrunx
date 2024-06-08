@@ -9,8 +9,7 @@ from typing import Any, Callable, Literal
 
 import torch.distributed as dist
 
-from torchrunx.utils import (
-    AgentStatus,
+from .utils import (
     LaunchConfig,
     LauncherAgentGroup,
     execute_ssh_command,

@@ -1,14 +1,14 @@
 import os
 import tempfile
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Literal
 
 import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs, start_processes
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
 
-from torchrunx.utils import AgentStatus, LauncherAgentGroup, Serializable
+from .utils import AgentStatus, LauncherAgentGroup, Serializable
 
 
 @dataclass
@@ -16,7 +16,7 @@ class WorkerArgs(Serializable):
     function: Callable
     master_ip: str
     master_port: int
-    backend: str
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None]
 
 
 def entrypoint(serialized_worker_args: bytes, *args):
