@@ -51,7 +51,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
     return fn(*args)
 
 
-def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
+def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_dir: str):
     launcher_group = LauncherAgentGroup(
         world_size=world_size,
         rank=rank,
@@ -72,11 +72,6 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[rank - 1]
     num_workers = len(worker_global_ranks)
-
-    # logging directory
-    log_dir = None
-    if log_dir is None:
-        log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
 
     serialized_worker_args = WorkerArgs(
         function=launcher_payload.fn,

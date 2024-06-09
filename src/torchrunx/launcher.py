@@ -29,7 +29,7 @@ def launch(
     visible_devices_per_host: list[list[int]] | None = None,  # TODO
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
-    log_dir: str = "parallel_processing.log",  # TODO: use
+    log_dir: str = "./logs",
 ):
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
@@ -71,6 +71,8 @@ def launch(
     launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
 
+    log_dir = os.path.abspath(log_dir)
+
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_command(
@@ -79,7 +81,8 @@ def launch(
                 f"--world-size {world_size} "
                 f"--rank {i+1} "
                 f"--launcher-ip {launcher_ip} "
-                f"--launcher-port {launcher_port}"
+                f"--launcher-port {launcher_port} "
+                f"--log-dir {log_dir}"
             ),
             hostname=hostname,
             ssh_config_file=ssh_config_file,
