@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import socket
 import tempfile
 from dataclasses import dataclass
 from typing import Callable, Literal
@@ -12,7 +13,7 @@ from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs, start_pr
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult, Std
 from typing_extensions import Self
 
-from .utils import AgentStatus, LauncherAgentGroup
+from .utils import AgentPayload, AgentStatus, LauncherAgentGroup, LauncherPayload, get_open_port
 
 
 @dataclass
@@ -58,44 +59,53 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         launcher_port=launcher_port,
     )
 
-    # receieve parameters from launcher
-    config = launcher_group.recv_launch_config()
-    worker_world_size = config.world_size
-    worker_ranks = config.node_worker_ranks[rank - 1]
-    num_workers = len(worker_ranks)
+    payload = AgentPayload(
+        ip=socket.gethostbyname(socket.gethostname()),
+        port=get_open_port(),
+        process_id=os.getpid(),
+    )
 
-    main_agent_ip, main_agent_port = launcher_group.sync_main_agent_ip_port()
-    launcher_group.send_process_id()
+    all_payloads = launcher_group.sync_payloads(payload=payload)
 
-    # set arguments and environmental variables for each worker
-    # args = {i: arguments for i in range(num_processes)}
-    envs = {
-        i: {
-            "RANK": str(worker_ranks[i]),
-            "LOCAL_RANK": str(i),
-            "WORLD_SIZE": str(worker_world_size),
-        }
-        for i in range(num_workers)
-    }
+    launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
+    function = launcher_payload.fn
+    worker_world_size = launcher_payload.worker_world_size
+    worker_global_ranks = launcher_payload.worker_global_ranks[rank - 1]
+    num_workers = len(worker_global_ranks)
+    backend = launcher_payload.backend
+
+    main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
+    main_agent_ip = main_agent_payload.ip
+    main_agent_port = main_agent_payload.port
 
     # logging directory
     log_dir = None
     if log_dir is None:
         log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
 
-    worker_args = WorkerArgs(
-        function=config.fn,
+    serialized_worker_args = WorkerArgs(
+        function=function,
         master_ip=main_agent_ip,
         master_port=main_agent_port,
-        backend=config.backend,
-    )
-    serialized_worker_args = worker_args.to_bytes()
+        backend=backend,
+    ).to_bytes()
+
+    args = {i: (serialized_worker_args,) for i in range(num_workers)}
+
+    envs = {
+        i: {
+            "RANK": str(worker_global_ranks[i]),
+            "LOCAL_RANK": str(i),
+            "WORLD_SIZE": str(worker_world_size),
+        }
+        for i in range(num_workers)
+    }
 
     # spawn workers
     ctx: MultiprocessContext = start_processes(  # pyright: ignore[reportAssignmentType]
         name="distributed_function",
         entrypoint=entrypoint,
-        args={i: (serialized_worker_args,) for i in range(num_workers)},
+        args=args,
         envs=envs,
         logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
         start_method="spawn",
@@ -106,7 +116,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     while True:
         if result is None:
             result = ctx.wait(5)
-            status = AgentStatus.from_result(result=result, worker_ranks=worker_ranks)
+            status = AgentStatus.from_result(result=result, worker_global_ranks=worker_global_ranks)
 
         try:
             agent_statuses = launcher_group.sync_agent_statuses(status=status)

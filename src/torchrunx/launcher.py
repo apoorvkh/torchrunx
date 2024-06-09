@@ -10,7 +10,14 @@ from typing import Any, Callable, Literal
 
 import torch.distributed as dist
 
-from .utils import AgentStatus, LaunchConfig, LauncherAgentGroup, execute_command, get_open_port
+from .utils import (
+    AgentPayload,
+    AgentStatus,
+    LauncherAgentGroup,
+    LauncherPayload,
+    execute_command,
+    get_open_port,
+)
 
 
 def launch(
@@ -88,23 +95,20 @@ def launch(
         launcher_port=launcher_port,
     )
 
-    # build LaunchConfig
     cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
     worker_global_ranks = [
         list(range(cumulative_workers[n], cumulative_workers[n + 1])) for n in range(num_hosts)
     ]
 
-    config = LaunchConfig(
+    payload = LauncherPayload(
         fn=partial(func, **func_kwargs),
-        world_size=cumulative_workers[-1],
-        node_worker_ranks=worker_global_ranks,
+        worker_world_size=cumulative_workers[-1],
+        worker_global_ranks=worker_global_ranks,
         backend=backend,
     )
 
-    # communicate parameters with agents
-    launcher_group.send_launch_config(config)
-    _ = launcher_group.sync_main_agent_ip_port()
-    agent_pids = launcher_group.recv_agent_process_ids()
+    agent_payloads: list[AgentPayload] = launcher_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
+    agent_pids = [p.process_id for p in agent_payloads]
 
     # start monitoring loop
     while True:
