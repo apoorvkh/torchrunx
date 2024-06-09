@@ -17,6 +17,13 @@ from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
 
 
+def get_open_port() -> int:
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        port = s.getsockname()[1]
+    return port
+
+
 def is_localhost(hostname_or_ip: str) -> bool:
     # check if host is "loopback" address (i.e. designated to send to self)
     try:
@@ -41,13 +48,6 @@ def execute_command(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
             conn.run(f"{command} >> /dev/null 2>&1 &")
-
-
-def get_open_port() -> int:
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
-        port = s.getsockname()[1]
-    return port
 
 
 @dataclass
@@ -120,20 +120,21 @@ class AgentStatus:
 
     @classmethod
     def from_result(cls, result: RunProcsResult | None, worker_global_ranks: list[int]) -> Self:
-        if result is not None:
-            return cls(
-                running=False,
-                failed=result.is_failed(),
-                return_values={worker_global_ranks[k]: v for k, v in result.return_values.items()},
-                failures={worker_global_ranks[k]: v for k, v in result.failures.items()},
-                stderrs={
-                    worker_global_ranks[k]: open(s, "r").read() for k, s in result.stderrs.items()
-                },
-                stdouts={
-                    worker_global_ranks[k]: open(s, "r").read() for k, s in result.stdouts.items()
-                },
-            )
-        return cls()
+        if result is None:
+            return cls()
+
+        return cls(
+            running=False,
+            failed=result.is_failed(),
+            return_values={worker_global_ranks[k]: v for k, v in result.return_values.items()},
+            failures={worker_global_ranks[k]: v for k, v in result.failures.items()},
+            stderrs={
+                worker_global_ranks[k]: open(s, "r").read() for k, s in result.stderrs.items()
+            },
+            stdouts={
+                worker_global_ranks[k]: open(s, "r").read() for k, s in result.stdouts.items()
+            },
+        )
 
     def is_running(self) -> bool:
         return self.running
