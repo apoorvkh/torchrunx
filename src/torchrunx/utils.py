@@ -6,25 +6,15 @@ import os
 import socket
 import subprocess
 from contextlib import closing
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
 import cloudpickle
 import fabric
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
+from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
-
-
-class Serializable:
-    @property
-    def serialized(self) -> bytes:
-        return cloudpickle.dumps(self)
-
-    @classmethod
-    def from_serialized(cls, serialized: bytes) -> Self:
-        return cloudpickle.loads(serialized)
 
 
 @dataclass
@@ -32,39 +22,39 @@ class LaunchConfig:
     fn: Callable
     world_size: int
     node_worker_ranks: list[list[int]]
-    backend: Literal["mpi", "gloo", "nccl", "ucc"] | None
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None]
 
 
-class Status(Enum):
-    RUNNING = 1
-    DONE = 2
-    FAILED = 3
-
-
+@dataclass
 class AgentStatus:
-    def __init__(self, result: RunProcsResult):
-        self.failures = None
-        if result is None:
-            self.status = Status.RUNNING
-            return
+    running: bool = True
+    failed: bool = False
+    return_values: dict[int, Any] = field(default_factory=dict)
+    failures: dict[int, ProcessFailure] = field(default_factory=dict)
+    stdouts: dict[int, str] = field(default_factory=dict)
+    stderrs: dict[int, str] = field(default_factory=dict)
 
-        self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
-        self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
+    @classmethod
+    def from_result(cls, result: RunProcsResult | None, worker_ranks: list[int]) -> Self:
+        if result is not None:
+            return cls(
+                running=False,
+                failed = result.is_failed(),
+                return_values = {worker_ranks[k]: v for k, v in result.return_values.items()},
+                failures = {worker_ranks[k]: v for k, v in result.failures.items()},
+                stderrs = {worker_ranks[k]: open(s, "r").read() for k, s in result.stderrs.items()},
+                stdouts = {worker_ranks[k]: open(s, "r").read() for k, s in result.stdouts.items()},
+            )
+        return cls()
 
-        if result.is_failed():
-            self.status = Status.FAILED
-            self.failures = result.failures
-        else:
-            self.status = Status.DONE
+    def is_running(self) -> bool:
+        return self.running
 
-    def is_failed(self):
-        return self.status == Status.FAILED
+    def is_failed(self) -> bool:
+        return self.failed
 
-    def is_done(self):
-        return self.status == Status.DONE
-
-    def __repr__(self):
-        return str(self.__dict__)
+    def is_done(self) -> bool:
+        return not self.running and not self.failed
 
 
 def get_open_port() -> int:
@@ -191,13 +181,5 @@ class LauncherAgentGroup:
             ip, port = None, None
         return self._broadcast(object=(ip, port), src=1)
 
-    def all_gather_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
+    def sync_agent_statuses(self, status: AgentStatus) -> list[AgentStatus]:
         return self._all_gather(object=status)[1:]
-
-    def send_return_values(self, return_values: dict[int, Any]) -> None:
-        assert self.rank > 0
-        self._gather(object=return_values, dst=0)
-
-    def recv_return_values(self) -> dict[int, Any]:
-        assert self.rank == 0
-        return self._gather(object={}, dst=0)  # pyright: ignore[reportReturnType]

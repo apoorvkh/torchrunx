@@ -10,12 +10,7 @@ from typing import Any, Callable, Literal
 
 import torch.distributed as dist
 
-from .utils import (
-    LaunchConfig,
-    LauncherAgentGroup,
-    execute_command,
-    get_open_port,
-)
+from .utils import AgentStatus, LaunchConfig, LauncherAgentGroup, execute_command, get_open_port
 
 
 def launch(
@@ -114,7 +109,7 @@ def launch(
     # start monitoring loop
     while True:
         try:
-            agent_statuses = launcher_group.all_gather_agent_statuses(status=None)
+            agent_statuses = launcher_group.sync_agent_statuses(status=AgentStatus())
         except:
             # kill all agents (most should be dead but some could be hanging)
             for pid, ip_forgn in zip(agent_pids, hostnames):
@@ -130,48 +125,33 @@ def launch(
             # terminate - the agents should also be exiting
             e = ""
             for i, s in enumerate(agent_statuses):
-                if s.is_failed():
+                if s is not None and s.is_failed():
                     for k, v in s.failures.items():
                         e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
                         e += f"{v.message['extraInfo']['py_callstack']}\n\n"
             raise RuntimeError(e)
 
         # else, check if everything's done
-        if all(map(lambda s: s.is_done(), agent_statuses)):
+        if all([s.is_done() for s in agent_statuses]):
             # we can exit loop and gather return values
             break
 
     # print stdouts and stderrs
-    r = 0
     for node, status in enumerate(agent_statuses):
-        for worker in status.stdouts:
-            if status.stdouts[worker] != "":
+        for worker_rank in status.stdouts.keys():
+            if status.stdouts[worker_rank]:
                 print(
-                    f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}",
+                    f"Node {node}, global worker rank {worker_rank} stdout:\n{status.stdouts[worker_rank]}",
                     file=sys.stdout,
                 )
-            if status.stderrs[worker] != "":
+            if status.stderrs[worker_rank]:
                 print(
-                    f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}",
+                    f"Node {node}, global worker rank {worker_rank} stderr:\n{status.stderrs[worker_rank]}",
                     file=sys.stderr,
                 )
-            r += 1
-
-    # wait for return values
-    try:
-        outputs = launcher_group.recv_return_values()
-    except:
-        for pid, ip_forgn in zip(agent_pids, hostnames):
-            execute_command(
-                command=f"kill {pid}",
-                hostname=ip_forgn,
-                ssh_config_file=ssh_config_file,
-            )
-        # TODO: can we extract more info for this error?
-        raise RuntimeError("One or more agents encountered an error.")
 
     # gather return values in {worker_rank: worker_return_value} format, and return
-    result = {}
-    for d in outputs:
-        result.update(d)
-    return result
+    returns = {}
+    for d in agent_statuses:
+        returns.update(d.return_values)
+    return returns

@@ -1,26 +1,37 @@
+from __future__ import annotations
+
 import os
 import tempfile
 from dataclasses import dataclass
 from typing import Callable, Literal
 
+import cloudpickle
 import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs, start_processes
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult, Std
+from typing_extensions import Self
 
-from .utils import AgentStatus, LauncherAgentGroup, Serializable
+from .utils import AgentStatus, LauncherAgentGroup
 
 
 @dataclass
-class WorkerArgs(Serializable):
+class WorkerArgs:
     function: Callable
     master_ip: str
     master_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
 
+    def to_bytes(self) -> bytes:
+        return cloudpickle.dumps(self)
+
+    @classmethod
+    def from_bytes(cls, serialized: bytes) -> Self:
+        return cloudpickle.loads(serialized)
+
 
 def entrypoint(serialized_worker_args: bytes, *args):
-    worker_args = WorkerArgs.from_serialized(serialized_worker_args)
+    worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
     fn = worker_args.function
     master_ip = worker_args.master_ip
@@ -78,10 +89,10 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         master_port=main_agent_port,
         backend=config.backend,
     )
-    serialized_worker_args = worker_args.serialized
+    serialized_worker_args = worker_args.to_bytes()
 
     # spawn workers
-    ctx: MultiprocessContext = start_processes(
+    ctx: MultiprocessContext = start_processes(  # pyright: ignore[reportAssignmentType]
         name="distributed_function",
         entrypoint=entrypoint,
         args={i: (serialized_worker_args,) for i in range(num_workers)},
@@ -89,28 +100,21 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
         start_method="spawn",
     )
-    done = False
+
+    status = AgentStatus()
+    result: RunProcsResult | None = None
     while True:
-        # determine status of this agent, five-second timeout
-        if not done:
+        if result is None:
             result = ctx.wait(5)
-        status = AgentStatus(result)
-        done = status.is_done()
+            status = AgentStatus.from_result(result=result, worker_ranks=worker_ranks)
 
         try:
-            statuses = launcher_group.all_gather_agent_statuses(status=status)
+            agent_statuses = launcher_group.sync_agent_statuses(status=status)
+            if any([s.is_failed() for s in agent_statuses]):
+                raise RuntimeError()
         except:
             ctx.close()
             return
 
-        if any(map(lambda s: s.is_failed(), statuses)):
-            # terminate local workers and exit
-            ctx.close()
-            return
-
-        if all(map(lambda s: s.is_done(), statuses)):
-            # we can exit loop and gather return values
+        if all([s.is_done() for s in agent_statuses]):
             break
-
-    return_values = {worker_ranks[k]: v for k, v in result.return_values.items()}
-    launcher_group.send_return_values(return_values=return_values)
