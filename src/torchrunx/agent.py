@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import os
 import socket
-import tempfile
 from dataclasses import dataclass
 from typing import Callable, Literal
 
 import cloudpickle
 import torch
 import torch.distributed as dist
-from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs, start_processes
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult, Std
+from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
 from typing_extensions import Self
 
 from .utils import AgentPayload, AgentStatus, LauncherAgentGroup, LauncherPayload, get_open_port
@@ -42,7 +41,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
     world_size = int(os.environ["WORLD_SIZE"])
-    store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)
+    store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
 
     if backend is None:
         backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
@@ -104,24 +103,20 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
 
     try:
         ctx.start()
+
+        status = AgentStatus()
+        while True:
+            if status.is_running():
+                status = AgentStatus.from_result(
+                    result=ctx.wait(5), worker_global_ranks=worker_global_ranks
+                )
+
+            agent_statuses = launcher_group.sync_agent_statuses(status=status)
+
+            if any(s.is_failed() for s in agent_statuses):
+                raise RuntimeError()
+            elif all(s.is_done() for s in agent_statuses):
+                break
     except Exception:
         ctx.close()
         raise
-
-    status = AgentStatus()
-    result: RunProcsResult | None = None
-    while True:
-        if result is None:
-            result = ctx.wait(5)
-            status = AgentStatus.from_result(result=result, worker_global_ranks=worker_global_ranks)
-
-        try:
-            agent_statuses = launcher_group.sync_agent_statuses(status=status)
-            if any([s.is_failed() for s in agent_statuses]):
-                raise RuntimeError()
-        except:
-            ctx.close()
-            return
-
-        if all([s.is_done() for s in agent_statuses]):
-            break

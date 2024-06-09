@@ -5,6 +5,7 @@ import os
 import socket
 import subprocess
 import sys
+from collections import ChainMap
 from functools import partial
 from typing import Any, Callable, Literal
 
@@ -117,19 +118,17 @@ def launch(
     while True:
         try:
             agent_statuses = launcher_group.sync_agent_statuses(status=AgentStatus())
-        except:
-            # kill all agents (most should be dead but some could be hanging)
-            for pid, ip_forgn in zip(agent_pids, hostnames):
+        except Exception:
+            # force kill all agents
+            for agent_pid, agent_hostname in zip(agent_pids, hostnames):
                 execute_command(
-                    command=f"kill {pid}",
-                    hostname=ip_forgn,
+                    command=f"kill {agent_pid}",
+                    hostname=agent_hostname,
                     ssh_config_file=ssh_config_file,
                 )
-            # TODO: can we extract more info for this error?
-            raise RuntimeError("One or more agents encountered an error.")
+            raise
 
-        if any([s.is_failed() for s in agent_statuses]):
-            # terminate - the agents should also be exiting
+        if any(s.is_failed() for s in agent_statuses):
             e = ""
             for i, s in enumerate(agent_statuses):
                 if s is not None and s.is_failed():
@@ -137,10 +136,7 @@ def launch(
                         e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
                         e += f"{v.message['extraInfo']['py_callstack']}\n\n"
             raise RuntimeError(e)
-
-        # else, check if everything's done
-        if all([s.is_done() for s in agent_statuses]):
-            # we can exit loop and gather return values
+        elif all(s.is_done() for s in agent_statuses):
             break
 
     # print stdouts and stderrs
@@ -157,8 +153,5 @@ def launch(
                     file=sys.stderr,
                 )
 
-    # gather return values in {worker_rank: worker_return_value} format, and return
-    returns = {}
-    for d in agent_statuses:
-        returns.update(d.return_values)
-    return returns
+    return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
+    return return_values
