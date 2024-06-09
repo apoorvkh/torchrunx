@@ -66,17 +66,12 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     )
 
     all_payloads = launcher_group.sync_payloads(payload=payload)
-
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
-    function = launcher_payload.fn
+    main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
+
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[rank - 1]
     num_workers = len(worker_global_ranks)
-    backend = launcher_payload.backend
-
-    main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
-    main_agent_ip = main_agent_payload.ip
-    main_agent_port = main_agent_payload.port
 
     # logging directory
     log_dir = None
@@ -84,10 +79,10 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
         log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
 
     serialized_worker_args = WorkerArgs(
-        function=function,
-        master_ip=main_agent_ip,
-        master_port=main_agent_port,
-        backend=backend,
+        function=launcher_payload.fn,
+        master_ip=main_agent_payload.ip,
+        master_port=main_agent_payload.port,
+        backend=launcher_payload.backend,
     ).to_bytes()
 
     args = {i: (serialized_worker_args,) for i in range(num_workers)}
