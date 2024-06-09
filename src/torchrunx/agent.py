@@ -92,7 +92,8 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
     }
 
     # spawn workers
-    ctx: MultiprocessContext = start_processes(  # pyright: ignore[reportAssignmentType]
+
+    ctx = MultiprocessContext(
         name="distributed_function",
         entrypoint=entrypoint,
         args=args,
@@ -100,6 +101,12 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
         logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
         start_method="spawn",
     )
+
+    try:
+        ctx.start()
+    except Exception:
+        ctx.close()
+        raise
 
     status = AgentStatus()
     result: RunProcsResult | None = None
