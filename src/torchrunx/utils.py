@@ -6,65 +6,15 @@ import os
 import socket
 import subprocess
 from contextlib import closing
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
 import cloudpickle
 import fabric
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
+from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
-
-
-class Serializable:
-    @property
-    def serialized(self) -> bytes:
-        return cloudpickle.dumps(self)
-
-    @classmethod
-    def from_serialized(cls, serialized: bytes) -> Self:
-        return cloudpickle.loads(serialized)
-
-
-@dataclass
-class LaunchConfig:
-    fn: Callable
-    world_size: int
-    node_worker_ranks: list[list[int]]
-    backend: Literal["mpi", "gloo", "nccl", "ucc"] | None
-
-
-class Status(Enum):
-    RUNNING = 1
-    DONE = 2
-    FAILED = 3
-
-
-class AgentStatus:
-    def __init__(self, result: RunProcsResult):
-        self.failures = None
-        if result is None:
-            self.status = Status.RUNNING
-            return
-
-        self.stdouts = {k: open(s, "r").read() for k, s in result.stdouts.items()}
-        self.stderrs = {k: open(s, "r").read() for k, s in result.stderrs.items()}
-
-        if result.is_failed():
-            self.status = Status.FAILED
-            self.failures = result.failures
-        else:
-            self.status = Status.DONE
-
-    def is_failed(self):
-        return self.status == Status.FAILED
-
-    def is_done(self):
-        return self.status == Status.DONE
-
-    def __repr__(self):
-        return str(self.__dict__)
 
 
 def get_open_port() -> int:
@@ -101,6 +51,21 @@ def execute_command(
 
 
 @dataclass
+class LauncherPayload:
+    fn: Callable
+    worker_world_size: int
+    worker_global_ranks: list[list[int]]
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None]
+
+
+@dataclass
+class AgentPayload:
+    ip: str
+    port: int
+    process_id: int
+
+
+@dataclass
 class LauncherAgentGroup:
     world_size: int
     rank: int
@@ -127,36 +92,6 @@ class LauncherAgentGroup:
     def _deserialize(self, serialized: bytes) -> Any:
         return cloudpickle.loads(serialized)
 
-    def _broadcast(
-        self,
-        object: Any,
-        src: int = 0,
-    ) -> Any:
-        """broadcast object from src to all ranks"""
-        data = [self._serialize(object)]
-        dist.broadcast_object_list(object_list=data, src=src, group=self.group)
-        return self._deserialize(data[0])
-
-    def _gather(self, object: Any, dst: int = 0) -> list | None:
-        """gather object from every rank to list in dst"""
-        object_bytes = self._serialize(object)
-
-        object_gather_list: list[bytes] | None = None
-        if self.rank == dst:
-            object_gather_list = [bytes()] * self.world_size
-
-        dist.gather_object(
-            obj=object_bytes,
-            object_gather_list=object_gather_list,
-            dst=dst,
-            group=self.group,
-        )
-
-        if object_gather_list is None:
-            return None
-
-        return [self._deserialize(o) for o in object_gather_list]
-
     def _all_gather(self, object: Any) -> list:
         """gather object from every rank to list on every rank"""
         object_bytes = self._serialize(object)
@@ -165,39 +100,47 @@ class LauncherAgentGroup:
         object_list = [self._deserialize(o) for o in object_list]
         return object_list
 
-    def send_launch_config(self, config: LaunchConfig) -> None:
-        assert self.rank == 0
-        self._broadcast(object=config, src=0)
+    def sync_payloads(
+        self, payload: LauncherPayload | AgentPayload
+    ) -> list[LauncherPayload | AgentPayload]:
+        return self._all_gather(object=payload)
 
-    def recv_launch_config(self) -> LaunchConfig:
-        assert self.rank > 0
-        return self._broadcast(object=None, src=0)
-
-    def send_process_id(self) -> None:
-        assert self.rank > 0
-        self._gather(object=os.getpid(), dst=0)
-
-    def recv_agent_process_ids(self) -> list[int]:
-        assert self.rank == 0
-        agent_pids: list[int] = self._gather(object=None, dst=0)  # pyright: ignore[reportAssignmentType]
-        return agent_pids[1:]
-
-    def sync_main_agent_ip_port(self) -> tuple[str, int]:
-        if self.rank == 1:
-            hostname = socket.gethostname()
-            ip = socket.gethostbyname(hostname)
-            port = get_open_port()
-        else:
-            ip, port = None, None
-        return self._broadcast(object=(ip, port), src=1)
-
-    def all_gather_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
+    def sync_agent_statuses(self, status: AgentStatus) -> list[AgentStatus]:
         return self._all_gather(object=status)[1:]
 
-    def send_return_values(self, return_values: dict[int, Any]) -> None:
-        assert self.rank > 0
-        self._gather(object=return_values, dst=0)
 
-    def recv_return_values(self) -> dict[int, Any]:
-        assert self.rank == 0
-        return self._gather(object={}, dst=0)  # pyright: ignore[reportReturnType]
+@dataclass
+class AgentStatus:
+    running: bool = True
+    failed: bool = False
+    return_values: dict[int, Any] = field(default_factory=dict)
+    failures: dict[int, ProcessFailure] = field(default_factory=dict)
+    stdouts: dict[int, str] = field(default_factory=dict)
+    stderrs: dict[int, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_result(cls, result: RunProcsResult | None, worker_global_ranks: list[int]) -> Self:
+        if result is None:
+            return cls()
+
+        return cls(
+            running=False,
+            failed=result.is_failed(),
+            return_values={worker_global_ranks[k]: v for k, v in result.return_values.items()},
+            failures={worker_global_ranks[k]: v for k, v in result.failures.items()},
+            stderrs={
+                worker_global_ranks[k]: open(s, "r").read() for k, s in result.stderrs.items()
+            },
+            stdouts={
+                worker_global_ranks[k]: open(s, "r").read() for k, s in result.stdouts.items()
+            },
+        )
+
+    def is_running(self) -> bool:
+        return self.running
+
+    def is_failed(self) -> bool:
+        return self.failed
+
+    def is_done(self) -> bool:
+        return not self.running and not self.failed

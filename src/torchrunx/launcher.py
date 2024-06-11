@@ -5,14 +5,17 @@ import os
 import socket
 import subprocess
 import sys
+from collections import ChainMap
 from functools import partial
 from typing import Any, Callable, Literal
 
 import torch.distributed as dist
 
 from .utils import (
-    LaunchConfig,
+    AgentPayload,
+    AgentStatus,
     LauncherAgentGroup,
+    LauncherPayload,
     execute_command,
     get_open_port,
 )
@@ -27,7 +30,7 @@ def launch(
     visible_devices_per_host: list[list[int]] | None = None,  # TODO
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
-    log_dir: str = "parallel_processing.log",  # TODO: use
+    log_dir: str = "./logs",
 ):
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
@@ -69,6 +72,8 @@ def launch(
     launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
 
+    log_dir = os.path.abspath(log_dir)
+
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_command(
@@ -77,7 +82,8 @@ def launch(
                 f"--world-size {world_size} "
                 f"--rank {i+1} "
                 f"--launcher-ip {launcher_ip} "
-                f"--launcher-port {launcher_port}"
+                f"--launcher-port {launcher_port} "
+                f"--log-dir {log_dir}"
             ),
             hostname=hostname,
             ssh_config_file=ssh_config_file,
@@ -93,85 +99,59 @@ def launch(
         launcher_port=launcher_port,
     )
 
-    # build LaunchConfig
     cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
     worker_global_ranks = [
         list(range(cumulative_workers[n], cumulative_workers[n + 1])) for n in range(num_hosts)
     ]
 
-    config = LaunchConfig(
+    payload = LauncherPayload(
         fn=partial(func, **func_kwargs),
-        world_size=cumulative_workers[-1],
-        node_worker_ranks=worker_global_ranks,
+        worker_world_size=cumulative_workers[-1],
+        worker_global_ranks=worker_global_ranks,
         backend=backend,
     )
 
-    # communicate parameters with agents
-    launcher_group.send_launch_config(config)
-    _ = launcher_group.sync_main_agent_ip_port()
-    agent_pids = launcher_group.recv_agent_process_ids()
+    agent_payloads: list[AgentPayload] = launcher_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
+    agent_pids = [p.process_id for p in agent_payloads]
 
     # start monitoring loop
     while True:
         try:
-            agent_statuses = launcher_group.all_gather_agent_statuses(status=None)
-        except:
-            # kill all agents (most should be dead but some could be hanging)
-            for pid, ip_forgn in zip(agent_pids, hostnames):
+            agent_statuses = launcher_group.sync_agent_statuses(status=AgentStatus())
+        except Exception:
+            # force kill all agents
+            for agent_pid, agent_hostname in zip(agent_pids, hostnames):
                 execute_command(
-                    command=f"kill {pid}",
-                    hostname=ip_forgn,
+                    command=f"kill {agent_pid}",
+                    hostname=agent_hostname,
                     ssh_config_file=ssh_config_file,
                 )
-            # TODO: can we extract more info for this error?
-            raise RuntimeError("One or more agents encountered an error.")
+            raise
 
-        if any([s.is_failed() for s in agent_statuses]):
-            # terminate - the agents should also be exiting
+        if any(s.is_failed() for s in agent_statuses):
             e = ""
             for i, s in enumerate(agent_statuses):
-                if s.is_failed():
+                if s is not None and s.is_failed():
                     for k, v in s.failures.items():
                         e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
                         e += f"{v.message['extraInfo']['py_callstack']}\n\n"
             raise RuntimeError(e)
-
-        # else, check if everything's done
-        if all(map(lambda s: s.is_done(), agent_statuses)):
-            # we can exit loop and gather return values
+        elif all(s.is_done() for s in agent_statuses):
             break
 
     # print stdouts and stderrs
-    r = 0
     for node, status in enumerate(agent_statuses):
-        for worker in status.stdouts:
-            if status.stdouts[worker] != "":
+        for worker_rank in status.stdouts.keys():
+            if status.stdouts[worker_rank]:
                 print(
-                    f"Node {node}, worker {worker} (rank {r}) stdout:\n{status.stdouts[worker]}",
+                    f"Node {node}, global worker rank {worker_rank} stdout:\n{status.stdouts[worker_rank]}",
                     file=sys.stdout,
                 )
-            if status.stderrs[worker] != "":
+            if status.stderrs[worker_rank]:
                 print(
-                    f"Node {node}, worker {worker} (rank {r}) stderr:\n{status.stderrs[worker]}",
+                    f"Node {node}, global worker rank {worker_rank} stderr:\n{status.stderrs[worker_rank]}",
                     file=sys.stderr,
                 )
-            r += 1
 
-    # wait for return values
-    try:
-        outputs = launcher_group.recv_return_values()
-    except:
-        for pid, ip_forgn in zip(agent_pids, hostnames):
-            execute_command(
-                command=f"kill {pid}",
-                hostname=ip_forgn,
-                ssh_config_file=ssh_config_file,
-            )
-        # TODO: can we extract more info for this error?
-        raise RuntimeError("One or more agents encountered an error.")
-
-    # gather return values in {worker_rank: worker_return_value} format, and return
-    result = {}
-    for d in outputs:
-        result.update(d)
-    return result
+    return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
+    return return_values
