@@ -1,7 +1,20 @@
-from . import agent
-import sys
+from argparse import ArgumentParser
 
+from . import agent
 
 if __name__ == "__main__":
-    # parse arguments, TODO: use argparse
-    agent.main(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3], int(sys.argv[4]))
+    parser = ArgumentParser()
+    parser.add_argument("--world-size", type=int)
+    parser.add_argument("--rank", type=int)
+    parser.add_argument("--launcher-ip", type=str)
+    parser.add_argument("--launcher-port", type=int)
+    parser.add_argument("--log-dir", type=str)
+    args = parser.parse_args()
+
+    agent.main(
+        world_size=args.world_size,
+        rank=args.rank,
+        launcher_ip=args.launcher_ip,
+        launcher_port=args.launcher_port,
+        log_dir=args.log_dir,
+    )

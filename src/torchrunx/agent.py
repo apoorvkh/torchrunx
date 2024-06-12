@@ -1,142 +1,122 @@
-import socket
+from __future__ import annotations
+
 import os
-import tempfile
-import torch.distributed as dist
+import socket
+from dataclasses import dataclass
+from typing import Callable, Literal
 
-# import tyro # what does this do
-from torch.distributed.elastic.multiprocessing import start_processes, DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
-from datetime import timedelta
-
-from torchrunx.utils import get_open_port
-from torchrunx.launcher import LaunchConfig, AgentStatus
-
-import pickle
+import cloudpickle
 import torch
+import torch.distributed as dist
+from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+from typing_extensions import Self
+
+from .utils import AgentPayload, AgentStatus, LauncherAgentGroup, LauncherPayload, get_open_port
 
 
-def entrypoint(fn: bytes, master_ip: str, master_port: int, backend: str, *args):
-    _fn = pickle.loads(fn)
+@dataclass
+class WorkerArgs:
+    function: Callable
+    master_ip: str
+    master_port: int
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None]
+
+    def to_bytes(self) -> bytes:
+        return cloudpickle.dumps(self)
+
+    @classmethod
+    def from_bytes(cls, serialized: bytes) -> Self:
+        return cloudpickle.loads(serialized)
+
+
+def entrypoint(serialized_worker_args: bytes, *args):
+    worker_args = WorkerArgs.from_bytes(serialized_worker_args)
+
+    fn = worker_args.function
+    master_ip = worker_args.master_ip
+    master_port = worker_args.master_port
+    backend = worker_args.backend
 
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
     world_size = int(os.environ["WORLD_SIZE"])
-    store = dist.TCPStore(
-        master_ip, master_port, world_size=world_size, is_master=is_master
-    )
+    store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
 
     if backend is None:
         backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
     rank = int(os.environ["RANK"])
-    dist.init_process_group(
-        backend=backend, world_size=world_size, rank=rank, store=store
-    )
-    return _fn(*args)
+    dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
+    return fn(*args)
 
 
-def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
-    # create client TCPStore for initializing launcher-agent process group
-    store = dist.TCPStore(launcher_ip, launcher_port)
-    # print("got store, trying setup")
-    dist.init_process_group(
-        backend="gloo",
+def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_dir: str):
+    launcher_group = LauncherAgentGroup(
         world_size=world_size,
         rank=rank,
-        store=store,
-        timeout=timedelta(seconds=30),
+        launcher_hostname=launcher_ip,
+        launcher_port=launcher_port,
     )
 
-    # receieve parameters from launcher
-    _params = [None]
-    dist.broadcast_object_list(_params)
-    config: LaunchConfig = _params[0]
+    payload = AgentPayload(
+        ip=socket.gethostbyname(socket.gethostname()),
+        port=get_open_port(),
+        process_id=os.getpid(),
+    )
 
-    serialized_function = config.serialized_fn
-    worker_world_size = config.world_size
-    # num_nodes =  config.num_nodes
-    worker_ranks = config.node_worker_ranks[rank - 1]
-    num_workers = len(worker_ranks)
-    backend = config.backend
-    # arguments = pickle.loads(params['args'])
+    all_payloads = launcher_group.sync_payloads(payload=payload)
+    launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
+    main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
-    # update environment with vars from launcher
-    os.environ.update(config.env)
+    worker_world_size = launcher_payload.worker_world_size
+    worker_global_ranks = launcher_payload.worker_global_ranks[rank - 1]
+    num_workers = len(worker_global_ranks)
 
-    # broadcast/receive launcher worker's IP and port
-    if rank == 1:
-        # rank 1 agent is responsible for rank 0 worker, aka the "master worker"
-        # thus grab a port on this agent's node
-        master_hostname = socket.gethostname()
+    serialized_worker_args = WorkerArgs(
+        function=launcher_payload.fn,
+        master_ip=main_agent_payload.ip,
+        master_port=main_agent_payload.port,
+        backend=launcher_payload.backend,
+    ).to_bytes()
 
-        master_ip = socket.gethostbyname(master_hostname)
-        master_port = get_open_port()
-        master = [master_ip, master_port]
-    else:
-        # else, we listen for the broadcast
-        master = [None, None]
+    args = {i: (serialized_worker_args,) for i in range(num_workers)}
 
-    dist.broadcast_object_list(master, src=1)
-
-    master_ip: str = master[0]
-    master_port: int = master[1]
-
-    # send process pid to launcher
-    dist.gather_object(os.getpid())
-
-    # set arguments and environmental variables for each worker
-    # args = {i: arguments for i in range(num_processes)}
     envs = {
         i: {
-            "RANK": str(worker_ranks[i]),
+            "RANK": str(worker_global_ranks[i]),
             "LOCAL_RANK": str(i),
             "WORLD_SIZE": str(worker_world_size),
         }
         for i in range(num_workers)
     }
 
-    # logging directory
-    log_dir = None
-    if log_dir is None:
-        log_dir = tempfile.mkdtemp()  #  f"/users/pcurtin1/torchrunx/log/{rank}/" #
-
     # spawn workers
-    ctx: MultiprocessContext = start_processes(
+
+    ctx = MultiprocessContext(
         name="distributed_function",
         entrypoint=entrypoint,
-        args={
-            i: (serialized_function, master_ip, master_port, backend)
-            for i in range(num_workers)
-        },
+        args=args,
         envs=envs,
         logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
         start_method="spawn",
     )
-    done = False
-    while True:
-        # determine status of this agent, five-second timeout
-        if not done:
-            result = ctx.wait(5)
-        status = AgentStatus(result)
-        done = status.is_done()
-        # grab statuses of other agents
-        statuses: list[AgentStatus] = [None] * world_size
-        try:
-            dist.all_gather_object(statuses, status)
-        except:
-            ctx.close()
-            return
-        # if any workers on any agent have failed
-        if any(map(lambda s: s.is_failed(), statuses)):
-            # terminate local workers and exit
-            ctx.close()
-            return
 
-        # else, check if everything's done
-        if all(map(lambda s: s.is_done(), statuses)):
-            # we can exit loop and gather return values
-            break
+    try:
+        ctx.start()
 
-        # otherwise, continue...
+        status = AgentStatus()
+        while True:
+            if status.is_running():
+                status = AgentStatus.from_result(
+                    result=ctx.wait(5), worker_global_ranks=worker_global_ranks
+                )
 
-    return_values = {worker_ranks[k]: v for k, v in result.return_values.items()}
-    dist.gather_object(return_values, dst=0)
+            agent_statuses = launcher_group.sync_agent_statuses(status=status)
+
+            if any(s.is_failed() for s in agent_statuses):
+                raise RuntimeError()
+            elif all(s.is_done() for s in agent_statuses):
+                break
+    except Exception:
+        ctx.close()
+        raise

@@ -37,3 +37,10 @@ python-dotenv = ">=1.0.1,<1.1"
 
 [tool.pixi.pypi-dependencies]
 torchrunx = { path = ".", editable = true }
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
