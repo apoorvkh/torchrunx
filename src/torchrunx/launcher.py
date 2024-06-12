@@ -17,6 +17,7 @@ from .utils import (
     LauncherAgentGroup,
     LauncherPayload,
     execute_command,
+    get_env,
     get_open_port,
 )
 
@@ -31,6 +32,8 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
     log_dir: str = "./logs",
+    clone_env_vars: list[str] = ["^PYTHON\w*", "^CUDA\w*"],
+    env_file: str | os.PathLike | None = None,
 ):
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
@@ -74,10 +77,15 @@ def launch(
 
     log_dir = os.path.abspath(log_dir)
 
+    cloned_env_vars = get_env(clone_env_vars)
+    export_string = " ".join(f'export {k}="{v}" &&' for k, v in cloned_env_vars.items())
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_command(
             command=(
+                f"cd {os.getcwd()} && "
+                f"{f'{export_string}' if cloned_env_vars != {} else ''}"
+                f"{f'source {env_file} && ' if env_file else ''}"
                 f"{sys.executable} -u -m torchrunx "
                 f"--world-size {world_size} "
                 f"--rank {i+1} "
