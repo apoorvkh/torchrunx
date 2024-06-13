@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import socket
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Literal
 
 import cloudpickle
@@ -12,7 +13,14 @@ from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
 from typing_extensions import Self
 
-from .utils import AgentPayload, AgentStatus, LauncherAgentGroup, LauncherPayload, get_open_port
+from .utils import (
+    AgentPayload,
+    AgentStatus,
+    LauncherAgentGroup,
+    LauncherPayload,
+    WorkerTee,
+    get_open_port,
+)
 
 
 @dataclass
@@ -21,6 +29,7 @@ class WorkerArgs:
     master_ip: str
     master_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
+    log_dir: str
 
     def to_bytes(self) -> bytes:
         return cloudpickle.dumps(self)
@@ -37,6 +46,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
     master_ip = worker_args.master_ip
     master_port = worker_args.master_port
     backend = worker_args.backend
+    log_dir = worker_args.log_dir
 
     # Initialize TCPStore for group
     is_master = os.environ["RANK"] == "0"
@@ -46,8 +56,11 @@ def entrypoint(serialized_worker_args: bytes, *args):
     if backend is None:
         backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
     rank = int(os.environ["RANK"])
-    dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
-    return fn(*args)
+
+    log_file = Path(log_dir).joinpath(f"worker_{rank}.log")
+    with WorkerTee(log_file, "w", int(os.environ["LOCAL_RANK"])):
+        dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
+        return fn(*args)
 
 
 def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_dir: str):
@@ -77,6 +90,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
         master_ip=main_agent_payload.ip,
         master_port=main_agent_payload.port,
         backend=launcher_payload.backend,
+        log_dir=log_dir,
     ).to_bytes()
 
     args = {i: (serialized_worker_args,) for i in range(num_workers)}
@@ -92,12 +106,14 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
 
     # spawn workers
 
+    tee = {i: (Std.ALL if i == 0 else Std.NONE) for i in range(num_workers)}
+
     ctx = MultiprocessContext(
         name="distributed_function",
         entrypoint=entrypoint,
         args=args,
         envs=envs,
-        logs_specs=DefaultLogsSpecs(log_dir=log_dir, redirects=Std.ALL),
+        logs_specs=DefaultLogsSpecs(log_dir=None, tee=tee),
         start_method="spawn",
     )
 

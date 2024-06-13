@@ -3,10 +3,14 @@ from __future__ import annotations
 import datetime
 import ipaddress
 import os
+import random
 import socket
+import string
 import subprocess
+import sys
 from contextlib import closing
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Literal
 
 import cloudpickle
@@ -39,15 +43,24 @@ def is_localhost(hostname_or_ip: str) -> bool:
 
 
 def execute_command(
-    command: str, hostname: str, ssh_config_file: str | os.PathLike | None = None
+    command: str,
+    hostname: str,
+    ssh_config_file: str | os.PathLike | None = None,
+    outfile: str | None = None,
 ) -> None:
     if is_localhost(hostname):
-        subprocess.Popen(command.split(" "), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if outfile is None:
+            _outfile = subprocess.DEVNULL
+        else:
+            _outfile = open(outfile, "w")
+        subprocess.Popen(command.split(" "), stdout=_outfile, stderr=_outfile)
     else:
         with fabric.Connection(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
-            conn.run(f"{command} >> /dev/null 2>&1 &")
+            if outfile is None:
+                outfile = "/dev/null"
+            conn.run(f"{command} >> {outfile} 2>&1 &")
 
 
 @dataclass
@@ -128,12 +141,6 @@ class AgentStatus:
             failed=result.is_failed(),
             return_values={worker_global_ranks[k]: v for k, v in result.return_values.items()},
             failures={worker_global_ranks[k]: v for k, v in result.failures.items()},
-            stderrs={
-                worker_global_ranks[k]: open(s, "r").read() for k, s in result.stderrs.items()
-            },
-            stdouts={
-                worker_global_ranks[k]: open(s, "r").read() for k, s in result.stdouts.items()
-            },
         )
 
     def is_running(self) -> bool:
@@ -144,3 +151,37 @@ class AgentStatus:
 
     def is_done(self) -> bool:
         return not self.running and not self.failed
+
+
+def random_log_dir(log_dir: Path) -> Path:
+    while True:
+        r = "run_" + "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+        candidate = log_dir.joinpath(r)
+        if not os.path.isdir(candidate):
+            return candidate
+
+
+class WorkerTee(object):
+    def __init__(self, name: str, mode: str, local_rank: int):
+        self.file = open(name, mode)
+        self.stdout = sys.stdout
+        sys.stdout = self
+        self.local_rank = local_rank
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, exception_traceback):
+        self.__del__()
+
+    def __del__(self):
+        sys.stdout = self.stdout
+        self.file.close()
+
+    def write(self, data):
+        self.file.write(data)
+        if self.local_rank == 0:
+            self.stdout.write(data)
+
+    def flush(self):
+        self.file.flush()

@@ -7,6 +7,7 @@ import subprocess
 import sys
 from collections import ChainMap
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, Literal
 
 import torch.distributed as dist
@@ -18,6 +19,7 @@ from .utils import (
     LauncherPayload,
     execute_command,
     get_open_port,
+    random_log_dir,
 )
 
 
@@ -72,7 +74,8 @@ def launch(
     launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
 
-    log_dir = os.path.abspath(log_dir)
+    full_log_dir = random_log_dir(Path(os.path.abspath(log_dir)))
+    full_log_dir.mkdir(parents=True)
 
     # start agents on each node
     for i, hostname in enumerate(hostnames):
@@ -83,10 +86,11 @@ def launch(
                 f"--rank {i+1} "
                 f"--launcher-ip {launcher_ip} "
                 f"--launcher-port {launcher_port} "
-                f"--log-dir {log_dir}"
+                f"--log-dir {os.fspath(full_log_dir)}"
             ),
             hostname=hostname,
             ssh_config_file=ssh_config_file,
+            outfile=os.fspath(full_log_dir.joinpath(f"agent_{i}.log")),
         )
 
     # initialize launcher–agent process group
@@ -138,20 +142,6 @@ def launch(
             raise RuntimeError(e)
         elif all(s.is_done() for s in agent_statuses):
             break
-
-    # print stdouts and stderrs
-    for node, status in enumerate(agent_statuses):
-        for worker_rank in status.stdouts.keys():
-            if status.stdouts[worker_rank]:
-                print(
-                    f"Node {node}, global worker rank {worker_rank} stdout:\n{status.stdouts[worker_rank]}",
-                    file=sys.stdout,
-                )
-            if status.stderrs[worker_rank]:
-                print(
-                    f"Node {node}, global worker rank {worker_rank} stderr:\n{status.stderrs[worker_rank]}",
-                    file=sys.stderr,
-                )
 
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
     return return_values
