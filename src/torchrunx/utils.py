@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import ipaddress
 import os
-import re
 import socket
 import subprocess
 from contextlib import closing
@@ -145,7 +144,3 @@ class AgentStatus:
 
     def is_done(self) -> bool:
         return not self.running and not self.failed
-
-
-def get_env(clone_env_vars) -> dict[str, str]:
-    return {k: v for k, v in os.environ.items() if any(re.match(e, k) for e in clone_env_vars)}

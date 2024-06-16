@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -17,7 +18,6 @@ from .utils import (
     LauncherAgentGroup,
     LauncherPayload,
     execute_command,
-    get_env,
     get_open_port,
 )
 
@@ -77,15 +77,21 @@ def launch(
 
     log_dir = os.path.abspath(log_dir)
 
-    cloned_env_vars = get_env(clone_env_vars)
-    export_string = " ".join(f'export {k}="{v}" &&' for k, v in cloned_env_vars.items())
+    env_export_string = " ".join(
+        f'{k}="{v}"' for k, v in os.environ.items() if any(re.match(e, k) for e in clone_env_vars)
+    )
+    if env_export_string != "":
+        env_export_string = f"export {env_export_string} && "
+
+    env_file_string = f"source {env_file} && " if env_file is not None else ""
+
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_command(
             command=(
                 f"cd {os.getcwd()} && "
-                f"{f'{export_string}' if cloned_env_vars != {} else ''}"
-                f"{f'source {env_file} && ' if env_file else ''}"
+                f"{env_export_string}"
+                f"{env_file_string}"
                 f"{sys.executable} -u -m torchrunx "
                 f"--world-size {world_size} "
                 f"--rank {i+1} "
