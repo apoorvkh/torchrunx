@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import fnmatch
 import itertools
 import os
-import re
 import socket
 import subprocess
 import sys
@@ -32,7 +32,7 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
     log_dir: str = "./logs",
-    clone_env_vars: list[str] = ["^PYTHON\w*", "^CUDA\w*"],
+    clone_env_vars: list[str] = ["PYTHON*", "CUDA*"],
     env_file: str | os.PathLike | None = None,
 ):
     if not dist.is_available():
@@ -78,7 +78,9 @@ def launch(
     log_dir = os.path.abspath(log_dir)
 
     env_export_string = " ".join(
-        f'{k}="{v}"' for k, v in os.environ.items() if any(re.match(e, k) for e in clone_env_vars)
+        f'{k}="{v}"'
+        for k, v in os.environ.items()
+        if any(fnmatch.fnmatch(e, k) for e in clone_env_vars)
     )
     if env_export_string != "":
         env_export_string = f"export {env_export_string} && "
