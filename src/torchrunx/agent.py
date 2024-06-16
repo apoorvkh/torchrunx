@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import socket
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Literal
@@ -18,7 +19,6 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
-    WorkerTee,
     get_open_port,
 )
 
@@ -48,17 +48,17 @@ def entrypoint(serialized_worker_args: bytes, *args):
     backend = worker_args.backend
     log_dir = worker_args.log_dir
 
-    # Initialize TCPStore for group
-    is_master = os.environ["RANK"] == "0"
-    world_size = int(os.environ["WORLD_SIZE"])
-    store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
-
-    if backend is None:
-        backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
     rank = int(os.environ["RANK"])
 
-    log_file = Path(log_dir).joinpath(f"worker_{rank}.log")
-    with WorkerTee(log_file, "w", int(os.environ["LOCAL_RANK"])):
+    log_file = open(Path(log_dir) / f"worker_{rank}.log", "w")
+    with redirect_stderr(log_file), redirect_stdout(log_file):
+        is_master = os.environ["RANK"] == "0"
+        world_size = int(os.environ["WORLD_SIZE"])
+        store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
+
+        if backend is None:
+            backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
+
         dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
         return fn(*args)
 
