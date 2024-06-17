@@ -23,6 +23,7 @@ class WorkerArgs:
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     rank: int
     local_rank: int
+    local_world_size: int
     world_size: int
 
     def to_bytes(self) -> bytes:
@@ -41,7 +42,6 @@ def entrypoint(serialized_worker_args: bytes, *args):
     master_port = worker_args.master_port
     backend = worker_args.backend
     rank = worker_args.rank
-    local_rank = worker_args.local_rank
     world_size = worker_args.world_size
 
     # Initialize TCPStore for group
@@ -53,8 +53,11 @@ def entrypoint(serialized_worker_args: bytes, *args):
     dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
 
     os.environ["RANK"] = str(rank)
-    os.environ["LOCAL_RANK"] = str(local_rank)
+    os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
+    os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
     os.environ["WORLD_SIZE"] = str(world_size)
+    os.environ["MASTER_ADDR"] = master_ip
+    os.environ["MASTER_PORT"] = str(master_port)
 
     return fn(*args)
 
@@ -90,6 +93,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
                 backend=launcher_payload.backend,
                 rank=worker_global_ranks[i],
                 local_rank=i,
+                local_world_size=num_workers,
                 world_size=worker_world_size,
             ).to_bytes(),
         )
