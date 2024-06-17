@@ -20,6 +20,7 @@ from .utils import (
     LauncherAgentGroup,
     LauncherPayload,
     get_open_port,
+    WorkerTee
 )
 
 
@@ -50,8 +51,8 @@ def entrypoint(serialized_worker_args: bytes, *args):
 
     rank = int(os.environ["RANK"])
 
-    log_file = open(Path(log_dir) / f"worker_{rank}.log", "w")
-    with redirect_stderr(log_file), redirect_stdout(log_file):
+    log_file = Path(log_dir) / f"worker_{rank}.log"
+    with WorkerTee(log_file, "w", int(os.environ["LOCAL_RANK"])):
         is_master = os.environ["RANK"] == "0"
         world_size = int(os.environ["WORLD_SIZE"])
         store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
