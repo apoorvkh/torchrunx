@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import io
 import ipaddress
 import os
 import random
@@ -8,6 +9,7 @@ import socket
 import string
 import subprocess
 import sys
+import time
 from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -185,3 +187,13 @@ class WorkerTee(object):
 
     def flush(self):
         self.file.flush()
+
+def monitor_log(log_file):
+    f = open(log_file, "r")
+    print(f.read())
+    f.seek(0, io.SEEK_END)
+    while True:
+        new = f.read()
+        if len(new) != 0:
+            print(new)
+        time.sleep(0.1)

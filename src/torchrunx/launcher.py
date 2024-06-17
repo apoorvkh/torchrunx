@@ -20,7 +20,10 @@ from .utils import (
     execute_command,
     get_open_port,
     random_log_dir,
+    monitor_log
 )
+
+from multiprocessing import Process
 
 
 def launch(
@@ -118,6 +121,10 @@ def launch(
     agent_payloads: list[AgentPayload] = launcher_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
     agent_pids = [p.process_id for p in agent_payloads]
 
+    # start process to read from agent 0 log
+    p = Process(target=monitor_log, args=(full_log_dir / "agent_0.log",))
+    p.start()
+
     # start monitoring loop
     while True:
         try:
@@ -130,6 +137,7 @@ def launch(
                     hostname=agent_hostname,
                     ssh_config_file=ssh_config_file,
                 )
+            p.terminate()
             raise
 
         if any(s.is_failed() for s in agent_statuses):
@@ -139,9 +147,11 @@ def launch(
                     for k, v in s.failures.items():
                         e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
                         e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+            p.terminate()
             raise RuntimeError(e)
         elif all(s.is_done() for s in agent_statuses):
             break
 
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
+    p.terminate()
     return return_values
