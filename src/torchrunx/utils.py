@@ -164,11 +164,10 @@ def random_log_dir(log_dir: Path) -> Path:
 
 
 class WorkerTee(object):
-    def __init__(self, name: str, mode: str, local_rank: int):
+    def __init__(self, name: os.PathLike | str, mode: str):
         self.file = open(name, mode)
         self.stdout = sys.stdout
         sys.stdout = self
-        self.local_rank = local_rank
 
     def __enter__(self):
         return self
@@ -182,8 +181,7 @@ class WorkerTee(object):
 
     def write(self, data):
         self.file.write(data)
-        if self.local_rank == 0:
-            self.stdout.write(data)
+        self.stdout.write(data)
 
     def flush(self):
         self.file.flush()

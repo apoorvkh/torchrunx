@@ -19,8 +19,8 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
+    WorkerTee,
     get_open_port,
-    WorkerTee
 )
 
 
@@ -52,7 +52,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
     rank = int(os.environ["RANK"])
 
     log_file = Path(log_dir) / f"worker_{rank}.log"
-    with WorkerTee(log_file, "w", int(os.environ["LOCAL_RANK"])):
+    with WorkerTee(log_file, "w"):
         is_master = os.environ["RANK"] == "0"
         world_size = int(os.environ["WORLD_SIZE"])
         store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
@@ -107,14 +107,12 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
 
     # spawn workers
 
-    tee = {i: (Std.ALL if i == 0 else Std.NONE) for i in range(num_workers)}
-
     ctx = MultiprocessContext(
         name="distributed_function",
         entrypoint=entrypoint,
         args=args,
         envs=envs,
-        logs_specs=DefaultLogsSpecs(log_dir=None, tee=tee),
+        logs_specs=DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
         start_method="spawn",
     )
 
