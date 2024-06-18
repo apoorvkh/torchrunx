@@ -6,7 +6,9 @@ import socket
 import subprocess
 import sys
 from collections import ChainMap
+from contextlib import contextmanager
 from functools import partial
+from multiprocessing import Process
 from pathlib import Path
 from typing import Any, Callable, Literal
 
@@ -19,11 +21,9 @@ from .utils import (
     LauncherPayload,
     execute_command,
     get_open_port,
+    monitor_log,
     random_log_dir,
-    monitor_log
 )
-
-from multiprocessing import Process
 
 
 def launch(
@@ -122,36 +122,41 @@ def launch(
     agent_pids = [p.process_id for p in agent_payloads]
 
     # start process to read from agent 0 log
-    p = Process(target=monitor_log, args=(full_log_dir / "agent_0.log",))
-    p.start()
+
+    @contextmanager
+    def print_agent_logs():
+        print_process = Process(target=monitor_log, args=(full_log_dir / "agent_0.log",))
+        print_process.start()
+        try:
+            yield
+        finally:
+            print_process.terminate()
 
     # start monitoring loop
-    while True:
-        try:
-            agent_statuses = launcher_group.sync_agent_statuses(status=AgentStatus())
-        except Exception:
-            # force kill all agents
-            for agent_pid, agent_hostname in zip(agent_pids, hostnames):
-                execute_command(
-                    command=f"kill {agent_pid}",
-                    hostname=agent_hostname,
-                    ssh_config_file=ssh_config_file,
-                )
-            p.terminate()
-            raise
+    with print_agent_logs():
+        while True:
+            try:
+                agent_statuses = launcher_group.sync_agent_statuses(status=AgentStatus())
+            except Exception:
+                # force kill all agents
+                for agent_pid, agent_hostname in zip(agent_pids, hostnames):
+                    execute_command(
+                        command=f"kill {agent_pid}",
+                        hostname=agent_hostname,
+                        ssh_config_file=ssh_config_file,
+                    )
+                raise
 
-        if any(s.is_failed() for s in agent_statuses):
-            e = ""
-            for i, s in enumerate(agent_statuses):
-                if s is not None and s.is_failed():
-                    for k, v in s.failures.items():
-                        e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
-                        e += f"{v.message['extraInfo']['py_callstack']}\n\n"
-            p.terminate()
-            raise RuntimeError(e)
-        elif all(s.is_done() for s in agent_statuses):
-            break
+            if any(s.is_failed() for s in agent_statuses):
+                e = ""
+                for i, s in enumerate(agent_statuses):
+                    if s is not None and s.is_failed():
+                        for k, v in s.failures.items():
+                            e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"
+                            e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+                raise RuntimeError(e)
+            elif all(s.is_done() for s in agent_statuses):
+                break
 
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
-    p.terminate()
     return return_values
