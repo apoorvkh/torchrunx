@@ -36,6 +36,7 @@ def simple_matmul():
     o = torch.matmul(i, w)
 
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
+    print(i)
     return o.detach().cpu()
 
 
