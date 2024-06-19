@@ -158,6 +158,7 @@ packages:
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
   md5: d7c89558ba9fa0495403155b64376d81
   license: None
+  purls: []
   size: 2562
   timestamp: 1578324546067
 - kind: conda
@@ -176,6 +177,7 @@ packages:
   - openmp_impl 9999
   license: BSD-3-Clause
   license_family: BSD
+  purls: []
   size: 23621
   timestamp: 1650670423406
 - kind: pypi
@@ -250,6 +252,7 @@ packages:
   sha256: 979af0932b2a5a26112044891a2d79e402e5ae8166f50fa48b8ebae47c0a2d65
   md5: 847c3c2905cc467cea52c24f9cfa8080
   license: ISC
+  purls: []
   size: 156035
   timestamp: 1717311767102
 - kind: pypi
@@ -318,6 +321,7 @@ packages:
   - cuda-toolkit >=11.7.0
   arch: x86_64
   platform: linux
+  purls: []
   size: 1450
   timestamp: 1656529602952
 - kind: conda
@@ -329,6 +333,7 @@ packages:
   md5: 4dcb96960cea4c603b6ef5b33d062ff5
   arch: x86_64
   platform: linux
+  purls: []
   size: 1223929
   timestamp: 1650428244011
 - kind: conda
@@ -348,6 +353,7 @@ packages:
   - cuda-sanitizer-api >=11.7.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 1479
   timestamp: 1656529461635
 - kind: conda
@@ -364,6 +370,7 @@ packages:
   - cuda-nvprune >=11.7.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 1462
   timestamp: 1656529473118
 - kind: conda
@@ -375,6 +382,7 @@ packages:
   md5: 98cd5a3ad5ef4a928e89437608c364e4
   arch: x86_64
   platform: linux
+  purls: []
   size: 199483
   timestamp: 1650834099084
 - kind: conda
@@ -389,6 +397,7 @@ packages:
   - cuda-cudart >=11.7.60
   arch: x86_64
   platform: linux
+  purls: []
   size: 1032258
   timestamp: 1650834100255
 - kind: conda
@@ -400,6 +409,7 @@ packages:
   md5: 7e35d1b055085ba22d44a04e4076d3a9
   arch: x86_64
   platform: linux
+  purls: []
   size: 162802
   timestamp: 1649212986334
 - kind: conda
@@ -411,6 +421,7 @@ packages:
   md5: 574fcb4cadd50dcd079fe25cfb670e12
   arch: x86_64
   platform: linux
+  purls: []
   size: 24044607
   timestamp: 1649213592867
 - kind: conda
@@ -422,6 +433,7 @@ packages:
   md5: 1c55be2750344cf5a174992356279e20
   arch: x86_64
   platform: linux
+  purls: []
   size: 290614
   timestamp: 1649212827286
 - kind: conda
@@ -433,6 +445,7 @@ packages:
   md5: 1b154edaadb2c5bf27521c17508f729c
   arch: x86_64
   platform: linux
+  purls: []
   size: 5188153
   timestamp: 1655213605854
 - kind: conda
@@ -444,6 +457,7 @@ packages:
   md5: 8087cac045651ecef5f4e35a5dc73042
   arch: x86_64
   platform: linux
+  purls: []
   size: 90906
   timestamp: 1655213446631
 - kind: conda
@@ -455,6 +469,7 @@ packages:
   md5: da85cb513904259eb327a0deff44c83e
   arch: x86_64
   platform: linux
+  purls: []
   size: 17306
   timestamp: 1650834099778
 - kind: conda
@@ -466,6 +481,7 @@ packages:
   md5: 4a56a961da9312c45eef7a923867c09a
   arch: x86_64
   platform: linux
+  purls: []
   size: 5031913
   timestamp: 1649217411560
 - kind: conda
@@ -488,6 +504,7 @@ packages:
   - libnvjpeg >=11.7.2.34
   arch: x86_64
   platform: linux
+  purls: []
   size: 1532
   timestamp: 1656529485123
 - kind: conda
@@ -512,6 +529,7 @@ packages:
   - libnvjpeg-dev >=11.7.2.34
   arch: x86_64
   platform: linux
+  purls: []
   size: 1555
   timestamp: 1656529497700
 - kind: conda
@@ -523,6 +541,7 @@ packages:
   md5: 0f93a278e1db683ceb5459d987c9dea1
   arch: x86_64
   platform: linux
+  purls: []
   size: 172923
   timestamp: 1649213042047
 - kind: conda
@@ -534,6 +553,7 @@ packages:
   md5: 20207c732b326a47481797775873ef5e
   arch: x86_64
   platform: linux
+  purls: []
   size: 119141042
   timestamp: 1655213189533
 - kind: conda
@@ -547,6 +567,7 @@ packages:
   - nsight-compute >=2022.2.0.13
   arch: x86_64
   platform: linux
+  purls: []
   size: 1443
   timestamp: 1656529509384
 - kind: conda
@@ -558,6 +579,7 @@ packages:
   md5: 5d6319b9cae2d0d2e54923cbe96df471
   arch: x86_64
   platform: linux
+  purls: []
   size: 44771777
   timestamp: 1651657202137
 - kind: conda
@@ -569,6 +591,7 @@ packages:
   md5: af154b6fb0f634db8b81440ef90ee562
   arch: x86_64
   platform: linux
+  purls: []
   size: 33039793
   timestamp: 1649213490405
 - kind: conda
@@ -580,6 +603,7 @@ packages:
   md5: ba930fa5f7a29c3c5f987074d1cc495f
   arch: x86_64
   platform: linux
+  purls: []
   size: 83313
   timestamp: 1649212178820
 - kind: conda
@@ -591,6 +615,7 @@ packages:
   md5: ad7c62c4078f954e049255b8ee3291a6
   arch: x86_64
   platform: linux
+  purls: []
   size: 4540250
   timestamp: 1649213856717
 - kind: conda
@@ -602,6 +627,7 @@ packages:
   md5: 18363ee0fcca6914b3510e98e2fa5860
   arch: x86_64
   platform: linux
+  purls: []
   size: 66461
   timestamp: 1649212794028
 - kind: conda
@@ -613,6 +639,7 @@ packages:
   md5: 6b2a357a01dc1a8f4191b0c38f36d5b3
   arch: x86_64
   platform: linux
+  purls: []
   size: 18144796
   timestamp: 1649211864503
 - kind: conda
@@ -626,6 +653,7 @@ packages:
   - cuda-nvrtc >=11.7.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 17755280
   timestamp: 1649211875853
 - kind: conda
@@ -637,6 +665,7 @@ packages:
   md5: 6976dd2f242bbf3faf324a4889690c95
   arch: x86_64
   platform: linux
+  purls: []
   size: 59374
   timestamp: 1649212889078
 - kind: conda
@@ -651,6 +680,7 @@ packages:
   - cuda-nvprof
   arch: x86_64
   platform: linux
+  purls: []
   size: 119873153
   timestamp: 1649214460122
 - kind: conda
@@ -664,6 +694,7 @@ packages:
   - cuda-libraries >=11.7.0
   arch: x86_64
   platform: linux
+  purls: []
   size: 1430
   timestamp: 1656529544177
 - kind: conda
@@ -675,6 +706,7 @@ packages:
   md5: 0fead82ef8c41e08d65843d3d74fe34e
   arch: x86_64
   platform: linux
+  purls: []
   size: 17556154
   timestamp: 1649214155195
 - kind: conda
@@ -693,6 +725,7 @@ packages:
   - cuda-tools >=11.7.0
   arch: x86_64
   platform: linux
+  purls: []
   size: 1469
   timestamp: 1656529579362
 - kind: conda
@@ -708,6 +741,7 @@ packages:
   - gds-tools >=1.3.0.44
   arch: x86_64
   platform: linux
+  purls: []
   size: 1449
   timestamp: 1656529567537
 - kind: conda
@@ -725,6 +759,7 @@ packages:
   - cuda-nvvp >=11.7.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 1476
   timestamp: 1656529555717
 - kind: pypi
@@ -904,6 +939,7 @@ packages:
   - libcufile >=1.3.0.44
   arch: x86_64
   platform: linux
+  purls: []
   size: 41628234
   timestamp: 1656528515966
 - kind: pypi
@@ -1103,6 +1139,7 @@ packages:
   - binutils_impl_linux-64 2.40
   license: GPL-3.0-only
   license_family: GPL
+  purls: []
   size: 707934
   timestamp: 1716583433869
 - kind: conda
@@ -1114,6 +1151,7 @@ packages:
   md5: 12db71df5ad476eca4c1e5ba59e5bd82
   arch: x86_64
   platform: linux
+  purls: []
   size: 314450443
   timestamp: 1649213079084
 - kind: conda
@@ -1127,6 +1165,7 @@ packages:
   - libcublas >=11.10.1.25
   arch: x86_64
   platform: linux
+  purls: []
   size: 324267418
   timestamp: 1649213249394
 - kind: conda
@@ -1138,6 +1177,7 @@ packages:
   md5: 92c539005489bb48dac1173c09559fe6
   arch: x86_64
   platform: linux
+  purls: []
   size: 98107830
   timestamp: 1649215036926
 - kind: conda
@@ -1151,6 +1191,7 @@ packages:
   - libcufft >=10.7.2.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 205997732
   timestamp: 1649215083810
 - kind: conda
@@ -1162,6 +1203,7 @@ packages:
   md5: bf3550b0ab35a211752c2018c9fd192a
   arch: x86_64
   platform: linux
+  purls: []
   size: 552448
   timestamp: 1656528513646
 - kind: conda
@@ -1175,6 +1217,7 @@ packages:
   - libcufile >=1.3.0.44
   arch: x86_64
   platform: linux
+  purls: []
   size: 12791788
   timestamp: 1656528532807
 - kind: conda
@@ -1186,6 +1229,7 @@ packages:
   md5: 00e467aec3d8e12f82bb994e434c685c
   arch: x86_64
   platform: linux
+  purls: []
   size: 52796544
   timestamp: 1649213456498
 - kind: conda
@@ -1199,6 +1243,7 @@ packages:
   - libcurand >=10.2.10.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 53180004
   timestamp: 1649213486008
 - kind: conda
@@ -1210,6 +1255,7 @@ packages:
   md5: 4448aa4e3d7464625d372b280c41728e
   arch: x86_64
   platform: linux
+  purls: []
   size: 93511094
   timestamp: 1649215013905
 - kind: conda
@@ -1223,6 +1269,7 @@ packages:
   - libcusolver >=11.3.5.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 65246418
   timestamp: 1649215087514
 - kind: conda
@@ -1234,6 +1281,7 @@ packages:
   md5: d08e053b281fcd900a088fb2f2eaacb9
   arch: x86_64
   platform: linux
+  purls: []
   size: 155592022
   timestamp: 1649213972450
 - kind: conda
@@ -1247,6 +1295,7 @@ packages:
   - libcusparse >=11.7.3.50
   arch: x86_64
   platform: linux
+  purls: []
   size: 315781272
   timestamp: 1649214045356
 - kind: conda
@@ -1262,6 +1311,7 @@ packages:
   - libgcc-ng >=7.3.0
   - libstdcxx-ng >=7.3.0
   license: Custom
+  purls: []
   size: 48003
   timestamp: 1584559351227
 - kind: conda
@@ -1280,6 +1330,7 @@ packages:
   - libgomp 13.2.0 h77fa898_7
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
+  purls: []
   size: 775806
   timestamp: 1715016057793
 - kind: conda
@@ -1295,6 +1346,7 @@ packages:
   - _libgcc_mutex 0.1 conda_forge
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
+  purls: []
   size: 422336
   timestamp: 1715015995979
 - kind: conda
@@ -1306,6 +1358,7 @@ packages:
   md5: 0450f6bb03d24424334573ba05687130
   arch: x86_64
   platform: linux
+  purls: []
   size: 124218053
   timestamp: 1647673432276
 - kind: conda
@@ -1319,6 +1372,7 @@ packages:
   - libnpp >=11.7.3.21
   arch: x86_64
   platform: linux
+  purls: []
   size: 121327534
   timestamp: 1647673495804
 - kind: conda
@@ -1330,6 +1384,7 @@ packages:
   md5: f2b4df286504479597a82a83bc3458e0
   arch: x86_64
   platform: linux
+  purls: []
   size: 2448233
   timestamp: 1649213785605
 - kind: conda
@@ -1343,6 +1398,7 @@ packages:
   - libnvjpeg >=11.7.2.34
   arch: x86_64
   platform: linux
+  purls: []
   size: 2126625
   timestamp: 1649213787489
 - kind: conda
@@ -1357,6 +1413,7 @@ packages:
   - libgcc-ng >=12
   - libzlib >=1.2.13,<2.0.0a0
   license: Unlicense
+  purls: []
   size: 859858
   timestamp: 1713367435849
 - kind: conda
@@ -1370,6 +1427,7 @@ packages:
   md5: 53ebd4c833fa01cb2c6353e99f905406
   license: GPL-3.0-only WITH GCC-exception-3.1
   license_family: GPL
+  purls: []
   size: 3837704
   timestamp: 1715016117360
 - kind: conda
@@ -1387,6 +1445,7 @@ packages:
   - zlib 1.2.13 *_6
   license: Zlib
   license_family: Other
+  purls: []
   size: 61571
   timestamp: 1716874066944
 - kind: pypi
@@ -1464,6 +1523,7 @@ packages:
   depends:
   - libgcc-ng >=12
   license: X11 AND BSD-3-Clause
+  purls: []
   size: 887465
   timestamp: 1715194722503
 - kind: pypi
@@ -1507,6 +1567,7 @@ packages:
   md5: b82bd48611bbcdb30dba23710dad5d60
   arch: x86_64
   platform: linux
+  purls: []
   size: 485381969
   timestamp: 1655214757556
 - kind: pypi
@@ -1608,6 +1669,7 @@ packages:
   - libgcc-ng >=12
   license: OpenSSL
   license_family: Apache
+  purls: []
   size: 1956010
   timestamp: 1694461292959
 - kind: pypi
@@ -1731,6 +1793,7 @@ packages:
   constrains:
   - python_abi * *_cp38
   license: PSF
+  purls: []
   size: 60989193
   timestamp: 1580309998972
 - kind: conda
@@ -1747,6 +1810,7 @@ packages:
   - ncurses >=6.3,<7.0a0
   license: GPL-3.0-only
   license_family: GPL
+  purls: []
   size: 281456
   timestamp: 1679532220005
 - kind: pypi
@@ -1830,6 +1894,7 @@ packages:
   - ncurses >=6.4.20240210,<7.0a0
   - readline >=8.2,<9.0a0
   license: Unlicense
+  purls: []
   size: 848611
   timestamp: 1713367461306
 - kind: pypi
@@ -1854,6 +1919,7 @@ packages:
   - libzlib >=1.2.13,<2.0.0a0
   license: TCL
   license_family: BSD
+  purls: []
   size: 3318875
   timestamp: 1699202167581
 - kind: pypi
@@ -1977,6 +2043,7 @@ packages:
   depends:
   - libgcc-ng >=12
   license: LGPL-2.1 and GPL-2.0
+  purls: []
   size: 418368
   timestamp: 1660346797927
 - kind: pypi
@@ -2018,5 +2085,6 @@ packages:
   - libzlib 1.2.13 h4ab18f5_6
   license: Zlib
   license_family: Other
+  purls: []
   size: 92883
   timestamp: 1716874088980

@@ -55,14 +55,14 @@ def execute_command(
             _outfile = subprocess.DEVNULL
         else:
             _outfile = open(outfile, "w")
-        subprocess.Popen(command.split(" "), stdout=_outfile, stderr=_outfile)
+        subprocess.Popen(command.split(" "), shell=True, stdout=_outfile, stderr=_outfile)
     else:
         with fabric.Connection(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
             if outfile is None:
                 outfile = "/dev/null"
-            conn.run(f"{command} >> {outfile} 2>&1 &")
+            conn.run(f"{command} >> {outfile} 2>&1 &", asynchronous=True)
 
 
 @dataclass
