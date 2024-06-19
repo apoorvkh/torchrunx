@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import itertools
 import os
 import socket
@@ -31,6 +32,8 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc"] | None = None,
     log_dir: str = "./logs",
+    clone_env_vars: list[str] = ["PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"],
+    env_file: str | os.PathLike | None = None,
 ):
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
@@ -74,10 +77,23 @@ def launch(
 
     log_dir = os.path.abspath(log_dir)
 
+    explicit_env_vars = ["PATH", "LD_LIBRARY", "LIBRARY_PATH"]
+    env_export_string = " ".join(
+        f'{k}="{v}"'
+        for k, v in os.environ.items()
+        if any(fnmatch.fnmatch(k, e) for e in clone_env_vars + explicit_env_vars)
+    )
+    if env_export_string != "":
+        env_export_string = f"export {env_export_string} && "
+    env_file_string = f"source {env_file} && " if env_file is not None else ""
+
     # start agents on each node
     for i, hostname in enumerate(hostnames):
         execute_command(
             command=(
+                f"cd {os.getcwd()} && "
+                f"{env_export_string}"
+                f"{env_file_string}"
                 f"{sys.executable} -u -m torchrunx "
                 f"--world-size {world_size} "
                 f"--rank {i+1} "

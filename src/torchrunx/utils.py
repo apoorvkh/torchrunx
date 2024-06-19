@@ -42,12 +42,12 @@ def execute_command(
     command: str, hostname: str, ssh_config_file: str | os.PathLike | None = None
 ) -> None:
     if is_localhost(hostname):
-        subprocess.Popen(command.split(" "), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         with fabric.Connection(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
-            conn.run(f"{command} >> /dev/null 2>&1 &")
+            conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
 @dataclass
