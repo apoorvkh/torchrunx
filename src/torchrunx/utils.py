@@ -186,6 +186,7 @@ class WorkerTee(object):
     def flush(self):
         self.file.flush()
 
+
 def monitor_log(log_file):
     f = open(log_file, "r")
     print(f.read())

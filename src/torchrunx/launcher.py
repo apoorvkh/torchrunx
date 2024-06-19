@@ -168,8 +168,8 @@ def launch(
                 for i, s in enumerate(agent_statuses):
                     if s is not None and s.is_failed():
                         for k, v in s.failures.items():
-                            e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n" # type: ignore
-                            e += f"{v.message['extraInfo']['py_callstack']}\n\n" # type: ignore
+                            e += f"Node {i}, local worker {k} exited with error: {v.message['message']}\n"  # type: ignore
+                            e += f"{v.message['extraInfo']['py_callstack']}\n\n"  # type: ignore
                 raise RuntimeError(e)
             elif all(s.is_done() for s in agent_statuses):
                 break

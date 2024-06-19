@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import socket
-from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Literal
@@ -108,7 +107,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
                 local_rank=i,
                 local_world_size=num_workers,
                 world_size=worker_world_size,
-                log_dir=log_dir
+                log_dir=log_dir,
             ).to_bytes(),
         )
         for i in range(num_workers)
