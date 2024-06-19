@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import fnmatch
 import itertools
 import os
@@ -23,7 +24,6 @@ from .utils import (
     execute_command,
     get_open_port,
     monitor_log,
-    random_log_dir,
 )
 
 
@@ -80,8 +80,8 @@ def launch(
     launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
 
-    full_log_dir = random_log_dir(Path(os.path.abspath(log_dir)))
-    full_log_dir.mkdir(parents=True)
+    full_log_dir = Path(os.path.abspath(log_dir))
+    full_log_dir.mkdir(parents=True, exist_ok=True)
 
     explicit_env_vars = ["PATH", "LD_LIBRARY", "LIBRARY_PATH"]
     env_export_string = " ".join(
@@ -92,6 +92,8 @@ def launch(
     if env_export_string != "":
         env_export_string = f"export {env_export_string} && "
     env_file_string = f"source {env_file} && " if env_file is not None else ""
+
+    timestamp = datetime.datetime.now().strftime("%y-%m-%d-%H%M%S")
 
     # start agents on each node
     for i, hostname in enumerate(hostnames):
@@ -105,11 +107,10 @@ def launch(
                 f"--rank {i+1} "
                 f"--launcher-ip {launcher_ip} "
                 f"--launcher-port {launcher_port} "
-                f"--log-dir {os.fspath(full_log_dir)}"
             ),
             hostname=hostname,
             ssh_config_file=ssh_config_file,
-            outfile=os.fspath(full_log_dir.joinpath(f"agent_{i}.log")),
+            outfile=os.fspath(full_log_dir / f"{timestamp}_agent_{i}.log"),
         )
 
     # initialize launcher–agent process group
@@ -132,6 +133,8 @@ def launch(
         worker_world_size=cumulative_workers[-1],
         worker_global_ranks=worker_global_ranks,
         backend=backend,
+        log_dir=full_log_dir,
+        log_prefix=timestamp
     )
 
     agent_payloads: list[AgentPayload] = launcher_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
@@ -141,7 +144,7 @@ def launch(
 
     @contextmanager
     def print_agent_logs():
-        print_process = Process(target=monitor_log, args=(full_log_dir / "agent_0.log",))
+        print_process = Process(target=monitor_log, args=(full_log_dir / f"{timestamp}_agent_0.log",))
         print_process.start()
         try:
             yield

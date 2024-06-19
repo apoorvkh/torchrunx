@@ -34,6 +34,7 @@ class WorkerArgs:
     local_world_size: int
     world_size: int
     log_dir: str
+    log_prefix: str
 
     def to_bytes(self) -> bytes:
         return cloudpickle.dumps(self)
@@ -53,8 +54,9 @@ def entrypoint(serialized_worker_args: bytes, *args):
     rank = worker_args.rank
     world_size = worker_args.world_size
     log_dir = worker_args.log_dir
+    log_prefix = worker_args.log_prefix
 
-    log_file = Path(log_dir) / f"worker_{rank}.log"
+    log_file = Path(log_dir) / f"{log_prefix}_worker_{rank}.log"
     with WorkerTee(log_file, "w"):
         is_master = rank == 0
         world_size = world_size
@@ -74,7 +76,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
         return fn(*args)
 
 
-def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_dir: str):
+def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     launcher_group = LauncherAgentGroup(
         world_size=world_size,
         rank=rank,
@@ -95,6 +97,8 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[rank - 1]
     num_workers = len(worker_global_ranks)
+    log_dir = launcher_payload.log_dir
+    log_prefix = launcher_payload.log_prefix
 
     args = {
         i: (
@@ -107,7 +111,8 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int, log_d
                 local_rank=i,
                 local_world_size=num_workers,
                 world_size=worker_world_size,
-                log_dir=log_dir,
+                log_dir=os.fspath(log_dir),
+                log_prefix=log_prefix
             ).to_bytes(),
         )
         for i in range(num_workers)

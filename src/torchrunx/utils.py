@@ -71,6 +71,8 @@ class LauncherPayload:
     worker_world_size: int
     worker_global_ranks: list[list[int]]
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
+    log_dir: os.PathLike
+    log_prefix: str
 
 
 @dataclass
@@ -78,6 +80,7 @@ class AgentPayload:
     ip: str
     port: int
     process_id: int
+
 
 
 @dataclass

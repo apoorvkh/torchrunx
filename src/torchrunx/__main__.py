@@ -8,7 +8,6 @@ if __name__ == "__main__":
     parser.add_argument("--rank", type=int)
     parser.add_argument("--launcher-ip", type=str)
     parser.add_argument("--launcher-port", type=int)
-    parser.add_argument("--log-dir", type=str)
     args = parser.parse_args()
 
     agent.main(
@@ -16,5 +15,4 @@ if __name__ == "__main__":
         rank=args.rank,
         launcher_ip=args.launcher_ip,
         launcher_port=args.launcher_port,
-        log_dir=args.log_dir,
     )
