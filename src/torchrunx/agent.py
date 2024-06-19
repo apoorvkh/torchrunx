@@ -57,8 +57,8 @@ def entrypoint(serialized_worker_args: bytes, *args):
 
     log_file = Path(log_dir) / f"worker_{rank}.log"
     with WorkerTee(log_file, "w"):
-        is_master = rank == "0"
-        world_size = int(os.environ["WORLD_SIZE"])
+        is_master = rank == 0
+        world_size = world_size
         store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
 
         if backend is None:
