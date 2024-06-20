@@ -110,7 +110,7 @@ def launch(
             ),
             hostname=hostname,
             ssh_config_file=ssh_config_file,
-            outfile=os.fspath(full_log_dir / f"{timestamp}_agent_{i}.log"),
+            outfile=os.fspath(full_log_dir / f"{timestamp}_{hostname}.log"),
         )
 
     # initialize launcher–agent process group
@@ -134,7 +134,8 @@ def launch(
         worker_global_ranks=worker_global_ranks,
         backend=backend,
         log_dir=full_log_dir,
-        log_prefix=timestamp
+        log_prefix=timestamp,
+        hostnames=hostnames
     )
 
     agent_payloads: list[AgentPayload] = launcher_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
@@ -144,7 +145,7 @@ def launch(
 
     @contextmanager
     def print_agent_logs():
-        print_process = Process(target=monitor_log, args=(full_log_dir / f"{timestamp}_agent_0.log",))
+        print_process = Process(target=monitor_log, args=(full_log_dir / f"{timestamp}_{hostnames[0]}.log",))
         print_process.start()
         try:
             yield

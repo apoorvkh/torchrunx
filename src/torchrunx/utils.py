@@ -73,6 +73,7 @@ class LauncherPayload:
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     log_dir: os.PathLike
     log_prefix: str
+    hostnames: list[str]
 
 
 @dataclass
