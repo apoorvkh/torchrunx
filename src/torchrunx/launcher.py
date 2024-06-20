@@ -80,7 +80,7 @@ def launch(
     launcher_ip = socket.gethostbyname(launcher_hostname)
     launcher_port = get_open_port()
 
-    full_log_dir = Path(os.path.abspath(log_dir))
+    full_log_dir = Path(log_dir)
     full_log_dir.mkdir(parents=True, exist_ok=True)
 
     explicit_env_vars = ["PATH", "LD_LIBRARY", "LIBRARY_PATH"]
