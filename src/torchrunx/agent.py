@@ -77,8 +77,8 @@ def entrypoint(serialized_worker_args: bytes, *args):
         return worker_args.function(*args)
 
 
-def main(launcher_group: LauncherAgentGroup):
-    agent_rank = launcher_group.rank
+def main(launcher_agent_group: LauncherAgentGroup):
+    agent_rank = launcher_agent_group.rank
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -86,7 +86,7 @@ def main(launcher_group: LauncherAgentGroup):
         process_id=os.getpid(),
     )
 
-    all_payloads = launcher_group.sync_payloads(payload=payload)
+    all_payloads = launcher_agent_group.sync_payloads(payload=payload)
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
@@ -139,7 +139,7 @@ def main(launcher_group: LauncherAgentGroup):
                     result=ctx.wait(5), worker_global_ranks=worker_global_ranks
                 )
 
-            agent_statuses = launcher_group.sync_agent_statuses(status=status)
+            agent_statuses = launcher_agent_group.sync_agent_statuses(status=status)
 
             if any(s.is_failed() for s in agent_statuses):
                 raise RuntimeError()

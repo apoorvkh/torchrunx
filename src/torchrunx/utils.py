@@ -4,15 +4,12 @@ import datetime
 import io
 import ipaddress
 import os
-import random
 import socket
-import string
 import subprocess
 import sys
 import time
 from contextlib import closing
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Callable, Literal
 
 import cloudpickle
@@ -48,12 +45,12 @@ def execute_command(
     command: str,
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
-    outfile: str | None = None,
+    outfile: str | os.PathLike | None = None,
 ) -> None:
+    # TODO: permit different stderr / stdout
     if is_localhost(hostname):
-        if outfile is None:
-            _outfile = subprocess.DEVNULL
-        else:
+        _outfile = subprocess.DEVNULL
+        if outfile is not None:
             _outfile = open(outfile, "w")
         subprocess.Popen(command, shell=True, stdout=_outfile, stderr=_outfile)
     else:
@@ -83,13 +80,12 @@ class AgentPayload:
     process_id: int
 
 
-
 @dataclass
 class LauncherAgentGroup:
-    world_size: int
-    rank: int
     launcher_hostname: str
     launcher_port: int
+    world_size: int
+    rank: int
 
     def __post_init__(self) -> None:
         self.group = dist.init_process_group(
@@ -157,14 +153,6 @@ class AgentStatus:
 
     def is_done(self) -> bool:
         return not self.running and not self.failed
-
-
-def random_log_dir(log_dir: Path) -> Path:
-    while True:
-        r = "run_" + "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
-        candidate = log_dir.joinpath(r)
-        if not os.path.isdir(candidate):
-            return candidate
 
 
 class WorkerTee(object):
