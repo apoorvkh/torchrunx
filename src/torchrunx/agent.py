@@ -48,35 +48,33 @@ class WorkerArgs:
 def entrypoint(serialized_worker_args: bytes, *args):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
-    fn = worker_args.function
-    master_ip = worker_args.master_ip
-    master_port = worker_args.master_port
-    backend = worker_args.backend
-    rank = worker_args.rank
-    local_rank = worker_args.local_rank
-    world_size = worker_args.world_size
-    log_dir = worker_args.log_dir
-    log_prefix = worker_args.log_prefix
-    hostname = worker_args.hostname
-
-    log_file = Path(log_dir) / f"{log_prefix}_{hostname}_{local_rank}.log"
+    log_file = (
+        Path(worker_args.log_dir)
+        / f"{worker_args.log_prefix}_{worker_args.hostname}_{worker_args.local_rank}.log"
+    )
     with WorkerTee(log_file, "w"):
-        is_master = rank == 0
-        world_size = world_size
-        store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
+        store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
+            worker_args.master_ip,
+            worker_args.master_port,
+            world_size=worker_args.world_size,
+            is_master=(worker_args.rank == 0),
+        )
 
+        backend = worker_args.backend
         if backend is None:
             backend = "nccl" if torch.cuda.is_available() else "gloo"
-        dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
+        dist.init_process_group(
+            backend=backend, world_size=worker_args.world_size, rank=worker_args.rank, store=store
+        )
 
-        os.environ["RANK"] = str(rank)
-        os.environ["LOCAL_RANK"] = str(local_rank)
+        os.environ["RANK"] = str(worker_args.rank)
+        os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
         os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
-        os.environ["WORLD_SIZE"] = str(world_size)
-        os.environ["MASTER_ADDR"] = master_ip
-        os.environ["MASTER_PORT"] = str(master_port)
+        os.environ["WORLD_SIZE"] = str(worker_args.world_size)
+        os.environ["MASTER_ADDR"] = worker_args.master_ip
+        os.environ["MASTER_PORT"] = str(worker_args.master_port)
 
-        return fn(*args)
+        return worker_args.function(*args)
 
 
 def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
@@ -102,7 +100,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     num_workers = len(worker_global_ranks)
     log_dir = launcher_payload.log_dir
     log_prefix = launcher_payload.log_prefix
-    hostname = launcher_payload.hostnames[rank-1]
+    hostname = launcher_payload.hostnames[rank - 1]
 
     args = {
         i: (
@@ -117,7 +115,7 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
                 world_size=worker_world_size,
                 log_dir=os.fspath(log_dir),
                 log_prefix=log_prefix,
-                hostname=hostname
+                hostname=hostname,
             ).to_bytes(),
         )
         for i in range(num_workers)
