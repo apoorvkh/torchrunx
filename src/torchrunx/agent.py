@@ -26,7 +26,7 @@ from .utils import (
 @dataclass
 class WorkerArgs:
     function: Callable
-    master_ip: str
+    master_hostname: str
     master_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     rank: int
@@ -54,8 +54,8 @@ def entrypoint(serialized_worker_args: bytes, *args):
     )
     with WorkerTee(log_file, "w"):
         store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
-            worker_args.master_ip,
-            worker_args.master_port,
+            host_name=worker_args.master_hostname,
+            port=worker_args.master_port,
             world_size=worker_args.world_size,
             is_master=(worker_args.rank == 0),
         )
@@ -71,22 +71,17 @@ def entrypoint(serialized_worker_args: bytes, *args):
         os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
         os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
         os.environ["WORLD_SIZE"] = str(worker_args.world_size)
-        os.environ["MASTER_ADDR"] = worker_args.master_ip
+        os.environ["MASTER_ADDR"] = worker_args.master_hostname
         os.environ["MASTER_PORT"] = str(worker_args.master_port)
 
         return worker_args.function(*args)
 
 
-def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
-    launcher_group = LauncherAgentGroup(
-        world_size=world_size,
-        rank=rank,
-        launcher_hostname=launcher_ip,
-        launcher_port=launcher_port,
-    )
+def main(launcher_group: LauncherAgentGroup):
+    agent_rank = launcher_group.rank
 
     payload = AgentPayload(
-        ip=socket.gethostbyname(socket.gethostname()),
+        hostname=socket.getfqdn(),
         port=get_open_port(),
         process_id=os.getpid(),
     )
@@ -96,17 +91,17 @@ def main(world_size: int, rank: int, launcher_ip: str, launcher_port: int):
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
     worker_world_size = launcher_payload.worker_world_size
-    worker_global_ranks = launcher_payload.worker_global_ranks[rank - 1]
+    worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank - 1]
     num_workers = len(worker_global_ranks)
     log_dir = launcher_payload.log_dir
     log_prefix = launcher_payload.log_prefix
-    hostname = launcher_payload.hostnames[rank - 1]
+    hostname = launcher_payload.hostnames[agent_rank - 1]
 
     args = {
         i: (
             WorkerArgs(
                 function=launcher_payload.fn,
-                master_ip=main_agent_payload.ip,
+                master_hostname=main_agent_payload.hostname,
                 master_port=main_agent_payload.port,
                 backend=launcher_payload.backend,
                 rank=worker_global_ranks[i],

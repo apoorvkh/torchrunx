@@ -76,8 +76,7 @@ def launch(
 
     world_size = num_hosts + 1
 
-    launcher_hostname = socket.gethostname()
-    launcher_ip = socket.gethostbyname(launcher_hostname)
+    launcher_hostname = socket.getfqdn()
     launcher_port = get_open_port()
 
     full_log_dir = Path(log_dir)
@@ -105,7 +104,7 @@ def launch(
                 f"{sys.executable} -u -m torchrunx "
                 f"--world-size {world_size} "
                 f"--rank {i+1} "
-                f"--launcher-ip {launcher_ip} "
+                f"--launcher-hostname {launcher_hostname} "
                 f"--launcher-port {launcher_port} "
             ),
             hostname=hostname,

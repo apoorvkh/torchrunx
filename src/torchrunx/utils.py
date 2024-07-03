@@ -78,7 +78,7 @@ class LauncherPayload:
 
 @dataclass
 class AgentPayload:
-    ip: str
+    hostname: str
     port: int
     process_id: int
 
