@@ -66,7 +66,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
         store = dist.TCPStore(master_ip, master_port, world_size=world_size, is_master=is_master)  # pyright: ignore[reportPrivateImportUsage]
 
         if backend is None:
-            backend = "gloo|nccl" if torch.cuda.is_available() else "gloo"
+            backend = "nccl" if torch.cuda.is_available() else "gloo"
         dist.init_process_group(backend=backend, world_size=world_size, rank=rank, store=store)
 
         os.environ["RANK"] = str(rank)
