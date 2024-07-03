@@ -23,7 +23,8 @@ def test_launch():
 
 def simple_matmul():
     rank = int(os.environ["RANK"])
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    local_rank = int(os.environ["LOCAL_RANK"])
+    device = torch.device(local_rank) if torch.cuda.is_available() else torch.device("cpu")
 
     if rank == 0:
         w = torch.rand((100, 100), device=device)  # in_dim, out_dim
