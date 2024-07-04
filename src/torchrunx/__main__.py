@@ -1,20 +1,21 @@
 from argparse import ArgumentParser
 
 from . import agent
+from .utils import LauncherAgentGroup
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    parser.add_argument("--launcher-hostname", type=str)
+    parser.add_argument("--launcher-port", type=int)
     parser.add_argument("--world-size", type=int)
     parser.add_argument("--rank", type=int)
-    parser.add_argument("--launcher-ip", type=str)
-    parser.add_argument("--launcher-port", type=int)
-    parser.add_argument("--log-dir", type=str)
     args = parser.parse_args()
 
-    agent.main(
+    launcher_agent_group = LauncherAgentGroup(
+        launcher_hostname=args.launcher_hostname,
+        launcher_port=args.launcher_port,
         world_size=args.world_size,
         rank=args.rank,
-        launcher_ip=args.launcher_ip,
-        launcher_port=args.launcher_port,
-        log_dir=args.log_dir,
     )
+
+    agent.main(launcher_agent_group)

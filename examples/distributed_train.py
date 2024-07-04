@@ -19,13 +19,13 @@ def worker():
             b = self.b(x)
             return (a, b)
 
-    torch.cuda.set_device(0)
+    local_rank = int(os.environ["LOCAL_RANK"])
     print("init model")
-    model = TwoLinLayerNet().cuda()
+    model = TwoLinLayerNet().to(local_rank)
     print("init ddp")
-    ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[0])
+    ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 
-    inp = torch.randn(10, 10).cuda()
+    inp = torch.randn(10, 10).to(local_rank)
     print("train")
 
     for _ in range(20):
@@ -50,7 +50,7 @@ def resolve_node_ips(nodelist):
 if __name__ == "__main__":
     launch(
         worker,
-        resolve_node_ips(os.environ["SLURM_JOB_NODELIST"]),
-        num_workers=int(os.environ["SLURM_NTASKS_PER_NODE"]),
+        {},
+        use_slurm=True,
         backend="nccl",
     )
