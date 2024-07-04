@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: torchrunx
+type: software
+authors:
+  - given-names: Apoorv
+    family-names: Khandelwal
+    email: mail@apoorvkh.com
+  - given-names: Peter
+    family-names: Curtin
+    email: peter_curtin@brown.edu
+repository-code: 'https://github.com/apoorvkh/torchrunx'
+license: MIT
