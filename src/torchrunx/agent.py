@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import socket
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable, Literal
 
 import cloudpickle
@@ -33,9 +32,7 @@ class WorkerArgs:
     local_rank: int
     local_world_size: int
     world_size: int
-    log_dir: str
-    log_prefix: str
-    hostname: str
+    log_file: os.PathLike
 
     def to_bytes(self) -> bytes:
         return cloudpickle.dumps(self)
@@ -48,11 +45,7 @@ class WorkerArgs:
 def entrypoint(serialized_worker_args: bytes, *args):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
-    log_file = (
-        Path(worker_args.log_dir)
-        / f"{worker_args.log_prefix}_{worker_args.hostname}_{worker_args.local_rank}.log"
-    )
-    with WorkerTee(log_file, "w"):
+    with WorkerTee(worker_args.log_file, "w"):
         store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
             host_name=worker_args.master_hostname,
             port=worker_args.master_port,
@@ -78,7 +71,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
 
 
 def main(launcher_agent_group: LauncherAgentGroup):
-    agent_rank = launcher_agent_group.rank
+    agent_rank = launcher_agent_group.rank - 1
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -91,11 +84,9 @@ def main(launcher_agent_group: LauncherAgentGroup):
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
     worker_world_size = launcher_payload.worker_world_size
-    worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank - 1]
+    worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
+    worker_log_files = launcher_payload.worker_log_files[agent_rank]
     num_workers = len(worker_global_ranks)
-    log_dir = launcher_payload.log_dir
-    log_prefix = launcher_payload.log_prefix
-    hostname = launcher_payload.hostnames[agent_rank - 1]
 
     args = {
         i: (
@@ -108,9 +99,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
                 local_rank=i,
                 local_world_size=num_workers,
                 world_size=worker_world_size,
-                log_dir=os.fspath(log_dir),
-                log_prefix=log_prefix,
-                hostname=hostname,
+                log_file=worker_log_files[i],
             ).to_bytes(),
         )
         for i in range(num_workers)

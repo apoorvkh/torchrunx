@@ -10,6 +10,7 @@ import sys
 import time
 from contextlib import closing
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Literal
 
 import cloudpickle
@@ -67,10 +68,8 @@ class LauncherPayload:
     fn: Callable
     worker_world_size: int
     worker_global_ranks: list[list[int]]
+    worker_log_files: list[list[os.PathLike]]
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
-    log_dir: os.PathLike
-    log_prefix: str
-    hostnames: list[str]
 
 
 @dataclass
@@ -179,7 +178,8 @@ class WorkerTee(object):
         self.file.flush()
 
 
-def monitor_log(log_file):
+def monitor_log(log_file: Path):
+    log_file.touch()
     f = open(log_file, "r")
     print(f.read())
     f.seek(0, io.SEEK_END)

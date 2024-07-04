@@ -26,6 +26,23 @@ from .utils import (
 )
 
 
+# TODO: sanity check these variables, commands
+def get_env_from_slurm() -> tuple[list[str], int]:
+    hostnames = (
+        subprocess.check_output(["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]])
+        .decode()
+        .strip()
+        .split("\n")
+    )
+    if "SLURM_JOB_GPUS" in os.environ:
+        # TODO: is it possible to allocate uneven GPUs across nodes?
+        workers_per_host = len(os.environ["SLURM_JOB_GPUS"].split(","))
+    else:
+        # TODO: should we assume that we plan to do one worker per CPU?
+        workers_per_host = int(os.environ["SLURM_CPUS_ON_NODE"])
+    return hostnames, workers_per_host
+
+
 def launch(
     func: Callable,
     func_kwargs: dict[str, Any],
@@ -51,22 +68,8 @@ def launch(
         raise RuntimeError("The torch.distributed package is not available.")
 
     if use_slurm:
-        # TODO: sanity check these variables, commands
         assert "SLURM_JOB_ID" in os.environ
-        hostnames = (
-            subprocess.check_output(
-                ["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]]
-            )
-            .decode()
-            .strip()
-            .split("\n")
-        )
-        if "SLURM_JOB_GPUS" in os.environ:
-            # TODO: is it possible to allocate uneven GPUs across nodes?
-            workers_per_host = len(os.environ["SLURM_JOB_GPUS"].split(","))
-        else:
-            # TODO: should we assume that we plan to do one worker per CPU?
-            workers_per_host = int(os.environ["SLURM_CPUS_ON_NODE"])
+        hostnames, workers_per_host = get_env_from_slurm()
 
     num_hosts = len(hostnames)
 
@@ -104,9 +107,10 @@ def launch(
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%y-%m-%d-%H%M%S")
+    agent_log_files = [log_dir / f"{timestamp}_{hostname}.log" for hostname in hostnames]
 
     # start process to read from agent 0 log
-    print_process = Process(target=monitor_log, args=(log_dir / f"{timestamp}_{hostnames[0]}.log",))
+    print_process = Process(target=monitor_log, args=(agent_log_files[0],))
     print_process.start()
 
     # start agents on each node
@@ -115,7 +119,7 @@ def launch(
             command=f"{command} --rank {i+1}",
             hostname=hostname,
             ssh_config_file=ssh_config_file,
-            outfile=os.fspath(log_dir / f"{timestamp}_{hostname}.log"),
+            outfile=agent_log_files[i],
         )
 
     # initialize launcher–agent process group
@@ -128,66 +132,64 @@ def launch(
         rank=0,
     )
 
-    # build launcher payload (to share with agents)
+    # build and sync payloads between launcher and agents
 
     cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
     worker_world_size = cumulative_workers[-1]
-    worker_global_ranks = [
+    worker_global_ranks = [  # list of worker ranks per host
         list(range(cumulative_workers[n], cumulative_workers[n + 1])) for n in range(num_hosts)
-    ]  # list of worker ranks per host
+    ]
+    worker_log_files = [
+        [
+            log_dir / f"{timestamp}_{hostname}_{local_rank}.log"
+            for local_rank in range(workers_per_host[i])
+        ]
+        for i, hostname in enumerate(hostnames)
+    ]
 
     payload = LauncherPayload(
         fn=partial(func, **func_kwargs),
         worker_world_size=worker_world_size,
         worker_global_ranks=worker_global_ranks,
+        worker_log_files=worker_log_files,
         backend=backend,
-        log_dir=log_dir,
-        log_prefix=timestamp,
-        hostnames=hostnames,
     )
-
-    # sync payloads; get PIDs of agents
 
     agent_payloads: list[AgentPayload] = launcher_agent_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
     agent_pids = [p.process_id for p in agent_payloads]
 
-    # loop to monitor agent statuses
-    # kill all agent processes if timeout
-    # print failures
-
-    while True:
-        try:
+    # loop to monitor agent statuses (until failed or done)
+    try:
+        while True:
             agent_statuses = launcher_agent_group.sync_agent_statuses(status=AgentStatus())
-        except Exception:  # TODO: should we wrap the "while True" with this?
-            # on launcher_agent_group timeout: kill all agent processes
-            for agent_pid, agent_hostname in zip(agent_pids, hostnames):
-                execute_command(
-                    command=f"kill {agent_pid}",
-                    hostname=agent_hostname,
-                    ssh_config_file=ssh_config_file,
-                )
-            raise
 
-        if all(s.is_done() for s in agent_statuses):
-            break
+            if all(s.is_done() for s in agent_statuses):
+                break
 
-        if any(s.is_failed() for s in agent_statuses):
-            # TODO: cleaner way to print these?
-            e = ""
-            for i, s in enumerate(agent_statuses):
-                if s is not None and s.is_failed():
-                    for k, v in s.failures.items():
-                        e += f"Node {i}, local worker {k} exited with error: "
-                        if isinstance(v.message, str):
-                            e += f"{v.message}\n"
-                        else:
-                            e += f"{v.message['message']}\n"
-                            e += f"{v.message['extraInfo']['py_callstack']}\n\n"
-            raise RuntimeError(e)
+            if any(s.is_failed() for s in agent_statuses):
+                # TODO: cleaner way to print these?
+                e = ""
+                for i, s in enumerate(agent_statuses):
+                    if s is not None and s.is_failed():
+                        for k, v in s.failures.items():
+                            e += f"Node {i}, local worker {k} exited with error: "
+                            if isinstance(v.message, str):
+                                e += f"{v.message}\n"
+                            else:
+                                e += f"{v.message['message']}\n"
+                                e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+                raise RuntimeError(e)
+    except:
+        # kill all agents
+        for agent_pid, agent_hostname in zip(agent_pids, hostnames):
+            execute_command(
+                command=f"kill {agent_pid}",
+                hostname=agent_hostname,
+                ssh_config_file=ssh_config_file,
+            )
+        raise
+    #
 
-    # terminate and return values
-
-    print_process.terminate()
-
+    print_process.terminate()  # TODO: or close?
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
     return return_values
