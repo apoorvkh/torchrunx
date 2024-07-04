@@ -66,6 +66,7 @@ def execute_command(
 @dataclass
 class LauncherPayload:
     fn: Callable
+    hostnames: list[str]
     worker_world_size: int
     worker_global_ranks: list[list[int]]
     worker_log_files: list[list[os.PathLike]]

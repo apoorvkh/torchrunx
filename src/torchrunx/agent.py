@@ -83,6 +83,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
+    hostname = launcher_payload.hostnames[agent_rank]
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
     worker_log_files = launcher_payload.worker_log_files[agent_rank]
@@ -110,7 +111,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
     # spawn workers
 
     ctx = MultiprocessContext(
-        name="distributed_function",
+        name=f"{hostname}_",
         entrypoint=entrypoint,
         args=args,
         envs=envs,

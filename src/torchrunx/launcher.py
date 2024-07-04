@@ -149,6 +149,7 @@ def launch(
 
     payload = LauncherPayload(
         fn=partial(func, **func_kwargs),
+        hostnames=hostnames,
         worker_world_size=worker_world_size,
         worker_global_ranks=worker_global_ranks,
         worker_log_files=worker_log_files,
