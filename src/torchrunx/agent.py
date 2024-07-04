@@ -42,7 +42,7 @@ class WorkerArgs:
         return cloudpickle.loads(serialized)
 
 
-def entrypoint(serialized_worker_args: bytes, *args):
+def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
     with WorkerTee(worker_args.log_file, "w"):
@@ -67,7 +67,7 @@ def entrypoint(serialized_worker_args: bytes, *args):
         os.environ["MASTER_ADDR"] = worker_args.master_hostname
         os.environ["MASTER_PORT"] = str(worker_args.master_port)
 
-        return worker_args.function(*args)
+        return worker_args.function()
 
 
 def main(launcher_agent_group: LauncherAgentGroup):
@@ -89,32 +89,28 @@ def main(launcher_agent_group: LauncherAgentGroup):
     worker_log_files = launcher_payload.worker_log_files[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    args = {
-        i: (
-            WorkerArgs(
-                function=launcher_payload.fn,
-                master_hostname=main_agent_payload.hostname,
-                master_port=main_agent_payload.port,
-                backend=launcher_payload.backend,
-                rank=worker_global_ranks[i],
-                local_rank=i,
-                local_world_size=num_workers,
-                world_size=worker_world_size,
-                log_file=worker_log_files[i],
-            ).to_bytes(),
-        )
-        for i in range(num_workers)
-    }
-
-    envs = {i: {} for i in range(num_workers)}
-
     # spawn workers
 
     ctx = MultiprocessContext(
         name=f"{hostname}_",
         entrypoint=entrypoint,
-        args=args,
-        envs=envs,
+        args={
+            i: (
+                WorkerArgs(
+                    function=launcher_payload.fn,
+                    master_hostname=main_agent_payload.hostname,
+                    master_port=main_agent_payload.port,
+                    backend=launcher_payload.backend,
+                    rank=worker_global_ranks[i],
+                    local_rank=i,
+                    local_world_size=num_workers,
+                    world_size=worker_world_size,
+                    log_file=worker_log_files[i],
+                ).to_bytes(),
+            )
+            for i in range(num_workers)
+        },
+        envs={i: {} for i in range(num_workers)},
         logs_specs=DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
         start_method="spawn",
     )
@@ -131,10 +127,13 @@ def main(launcher_agent_group: LauncherAgentGroup):
 
             agent_statuses = launcher_agent_group.sync_agent_statuses(status=status)
 
+            if all(s.is_done() for s in agent_statuses):
+                break
+
             if any(s.is_failed() for s in agent_statuses):
                 raise RuntimeError()
-            elif all(s.is_done() for s in agent_statuses):
-                break
-    except Exception:
-        ctx.close()
+
+    except:
         raise
+    finally:
+        ctx.close()
