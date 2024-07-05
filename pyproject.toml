@@ -26,6 +26,7 @@ dev = ["ruff", "pytest", "build", "twine"]
 [project.urls]
 Documentation = "https://torchrunx.readthedocs.io"
 Repository = "https://github.com/apoorvkh/torchrunx.git"
+Issues = "https://github.com/apoorvkh/torchrunx/issues"
 
 [tool.pixi.project]
 channels = ["nvidia/label/cuda-11.7.0", "conda-forge"]
