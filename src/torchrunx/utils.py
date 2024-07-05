@@ -21,6 +21,28 @@ from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
 
 
+def slurm_hosts() -> list[str]:
+    # TODO: sanity check SLURM variables, commands
+    assert "SLURM_JOB_ID" in os.environ
+    return (
+        subprocess.check_output(["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]])
+        .decode()
+        .strip()
+        .split("\n")
+    )
+
+
+def slurm_workers() -> int:
+    # TODO: sanity check SLURM variables, commands
+    assert "SLURM_JOB_ID" in os.environ
+    if "SLURM_JOB_GPUS" in os.environ:
+        # TODO: is it possible to allocate uneven GPUs across nodes?
+        return len(os.environ["SLURM_JOB_GPUS"].split(","))
+    else:
+        # TODO: should we assume that we plan to do one worker per CPU?
+        return int(os.environ["SLURM_CPUS_ON_NODE"])
+
+
 def get_open_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
