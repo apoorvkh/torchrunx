@@ -9,9 +9,9 @@ authors = [
     {name = "Apoorv Khandelwal", email = "mail@apoorvkh.com"},
     {name = "Peter Curtin", email = "peter_curtin@brown.edu"},
 ]
-description = ""
+description = "Automatically initialize distributed PyTorch environments"
 readme = "README.md"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 requires-python = ">=3.8.1"
 dependencies = [
     "cloudpickle>=3.0.0",
@@ -22,6 +22,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["ruff", "pytest", "build", "twine"]
+
+[project.urls]
+Documentation = "https://torchrunx.readthedocs.io"
+Repository = "https://github.com/apoorvkh/torchrunx.git"
+Issues = "https://github.com/apoorvkh/torchrunx/issues"
 
 [tool.pixi.project]
 channels = ["nvidia/label/cuda-11.7.0", "conda-forge"]
