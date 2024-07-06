@@ -4,14 +4,22 @@ build-backend = "hatchling.build"
 
 [project]
 name = "torchrunx"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
     {name = "Apoorv Khandelwal", email = "mail@apoorvkh.com"},
     {name = "Peter Curtin", email = "peter_curtin@brown.edu"},
 ]
 description = "Automatically initialize distributed PyTorch environments"
 readme = "README.md"
-license = {file = "LICENSE"}
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 requires-python = ">=3.8.1"
 dependencies = [
     "cloudpickle>=3.0.0",
@@ -24,9 +32,8 @@ dependencies = [
 dev = ["ruff", "pytest", "build", "twine"]
 
 [project.urls]
-Documentation = "https://torchrunx.readthedocs.io"
 Repository = "https://github.com/apoorvkh/torchrunx.git"
-Issues = "https://github.com/apoorvkh/torchrunx/issues"
+Documentation = "https://torchrunx.readthedocs.io"
 
 [tool.pixi.project]
 channels = ["nvidia/label/cuda-11.7.0", "conda-forge"]
