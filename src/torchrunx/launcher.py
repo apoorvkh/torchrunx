@@ -5,7 +5,6 @@ import fnmatch
 import itertools
 import os
 import socket
-import subprocess
 import sys
 from collections import ChainMap
 from functools import partial
@@ -26,29 +25,11 @@ from .utils import (
 )
 
 
-# TODO: sanity check these variables, commands
-def get_env_from_slurm() -> tuple[list[str], int]:
-    hostnames = (
-        subprocess.check_output(["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]])
-        .decode()
-        .strip()
-        .split("\n")
-    )
-    if "SLURM_JOB_GPUS" in os.environ:
-        # TODO: is it possible to allocate uneven GPUs across nodes?
-        workers_per_host = len(os.environ["SLURM_JOB_GPUS"].split(","))
-    else:
-        # TODO: should we assume that we plan to do one worker per CPU?
-        workers_per_host = int(os.environ["SLURM_CPUS_ON_NODE"])
-    return hostnames, workers_per_host
-
-
 def launch(
     func: Callable,
     func_kwargs: dict[str, Any],
     hostnames: list[str] = ["localhost"],
     workers_per_host: int | list[int] = 1,
-    use_slurm: bool = False,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_dir: os.PathLike | str = "./logs",
@@ -66,10 +47,6 @@ def launch(
 ):
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
-
-    if use_slurm:
-        assert "SLURM_JOB_ID" in os.environ
-        hostnames, workers_per_host = get_env_from_slurm()
 
     num_hosts = len(hostnames)
 

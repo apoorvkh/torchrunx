@@ -2,7 +2,7 @@ import os
 import socket
 import subprocess
 
-from torchrunx import launch
+import torchrunx
 
 
 def worker():
@@ -48,9 +48,10 @@ def resolve_node_ips(nodelist):
 
 
 if __name__ == "__main__":
-    launch(
+    torchrunx.launch(
         worker,
         {},
-        use_slurm=True,
+        hostnames=torchrunx.slurm_hosts(),
+        workers_per_host=torchrunx.slurm_workers(),
         backend="nccl",
     )
