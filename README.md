@@ -2,6 +2,7 @@
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchrunx)
 ![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)
+![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=latest)
 ![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)
 
 Automatically launch functions and initialize distributed PyTorch environments on multiple machines
