@@ -3,16 +3,17 @@ import os
 import torch
 import torch.distributed as dist
 
-from torchrunx import launch
+import torchrunx
 
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
 
 
 def test_launch():
-    result = launch(
+    result = torchrunx.launch(
         func=simple_matmul,
         func_kwargs={},
-        use_slurm=True,
+        hostnames=torchrunx.slurm_hosts(),
+        workers_per_host=torchrunx.slurm_workers(),
     )
 
     for i in range(len(result)):

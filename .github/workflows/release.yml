@@ -1,0 +1,19 @@
+name: release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          cache: true
+          activate-environment: true
+      - run: python -m build
+      - run: twine upload -u __token__ -p $PYPI_TOKEN dist/*
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
