@@ -77,13 +77,13 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xz-5.2.6-h166bdaf_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.2.13-h4ab18f5_6.conda
       - pypi: https://files.pythonhosted.org/packages/b9/fa/123043af240e49752f1c4bd24da5053b6bd00cad78c2be53c0d1e8b975bc/backports.tarfile-1.2.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/2f/f6/9c0a6de7ef78d573e10d0b7de3ef82454e2e6eb6fada453ea6c2b8fb3f0a/bcrypt-4.1.3-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/4c/6a/ce950d4350c734bc5d9b7196a58fedbdc94f564c00b495a1222984431e03/bcrypt-4.1.3-cp37-abi3-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/e2/03/f3c8ba0a6b6e30d7d18c40faab90807c9bb5e9a1e3b2fe2008af624a9c97/build-1.2.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5b/11/1e78951465b4a225519b8c3ad29769c49e0d8d157a070f681d5b6d64737f/certifi-2024.6.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f1/c9/326611aa83e16b13b6db4dbb73b5455c668159a003c4c2f0c3bcb2ddabaf/cffi-1.16.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/3d/09/d82fe4a34c5f0585f9ea1df090e2a71eb9bb1e469723053e1ee9f57c16f3/charset_normalizer-3.3.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c9/26/4668c980f63a04c697bac26559c1a2a3a2d0730dc3d0f88b87ed7abf76ca/cryptography-42.0.7-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/81/17/0294e576979d7f388855bf64b3cc6d9fc08168cdf6833ff0df3ad0ee6580/cryptography-42.0.7-cp37-abi3-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d5/50/83c593b07763e1161326b3b8c6686f0f4b0f24d5526546bee538c89837d6/decorator-5.1.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/26/87/f238c0670b94533ac0353a4e2a1a771a0cc73277b88bff23d3ae35a256c1/docutils-0.20.1-py3-none-any.whl
@@ -124,7 +124,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/da/d3/8057f0587683ed2fcd4dbfbdfdfa807b9160b809976099d36b8f60d08f03/nvidia_nvtx_cu12-12.1.105-py3-none-manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/49/df/1fceb2f8900f8639e278b056416d49134fb8d84c5942ffaa01ad34782422/packaging-24.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ad/50/8792484502c8141c20c996b802fefa8435a9c018a2bb440a06b172782118/paramiko-3.4.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/66/46/f6bce532c9181b0d99b4612ebc2e633e5e0dae8c8540f2a664fe71e12953/pkginfo-1.11.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/56/09/054aea9b7534a15ad38a363a2bd974c20646ab1582a387a95b8df1bfea1c/pkginfo-1.10.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/88/5f/e351af9a41f866ac3f1fac4ca0613908d9a41741cfcf2228f4ad853b697d/pluggy-1.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/13/a3/a812df4e2dd5696d1f351d58b8fe16a405b234ad2886a0dab9183fb78109/pycparser-2.22-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f7/3f/01c8b82017c199075f8f788d0d906b9ffbbc5a47dc9918a945e13d5a2bda/pygments-2.18.0-py3-none-any.whl
@@ -142,7 +142,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/97/75/10a9ebee3fd790d20926a90a2547f0bf78f371b2f13aa822c759680ca7b9/tomli-2.0.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/01/08/f944e6d04b3610aa3e177a55f2060492eb80d04392f025601c482def6f92/torch-2.3.0-cp38-cp38-manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/07/94/56da1c8082d4e1f5c8f76447a67cd857bc8f011339e69e2fffdbfc116f51/triton-2.3.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/d5/50/55c2a06057cfa092e6ed3305aa587b117734c3d8dc8fddcc1661b5660d83/twine-5.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/5d/ec/00f9d5fd040ae29867355e559a94e9a8429225a0284a3f5f091a3878bfc0/twine-5.1.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e1/4d/d612de852a0bc64a64418e1cef25fe1914c5b1611e34cc271ed7e36174c8/typing_extensions-4.12.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a2/73/a68704750a7679d0b6d3ad7aa8d4da8e14e151ae82e6fee774e6e0d05ec8/urllib3-2.2.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/ef/c6/56e718e2c58a4078518c14d97e531ef1e9e8a5c1ddafdc0d264a92be1a1a/wrapt-1.16.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -201,8 +201,8 @@ packages:
 - kind: pypi
   name: bcrypt
   version: 4.1.3
-  url: https://files.pythonhosted.org/packages/2f/f6/9c0a6de7ef78d573e10d0b7de3ef82454e2e6eb6fada453ea6c2b8fb3f0a/bcrypt-4.1.3-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  sha256: 3d3b317050a9a711a5c7214bf04e28333cf528e0ed0ec9a4e55ba628d0f07c1a
+  url: https://files.pythonhosted.org/packages/4c/6a/ce950d4350c734bc5d9b7196a58fedbdc94f564c00b495a1222984431e03/bcrypt-4.1.3-cp37-abi3-manylinux_2_28_x86_64.whl
+  sha256: 4fb253d65da30d9269e0a6f4b0de32bd657a0208a6f4e43d3e645774fb5457f3
   requires_dist:
   - pytest!=3.3.0,>=3.2.1 ; extra == 'tests'
   - mypy ; extra == 'typecheck'
@@ -284,8 +284,8 @@ packages:
 - kind: pypi
   name: cryptography
   version: 42.0.7
-  url: https://files.pythonhosted.org/packages/c9/26/4668c980f63a04c697bac26559c1a2a3a2d0730dc3d0f88b87ed7abf76ca/cryptography-42.0.7-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  sha256: a47787a5e3649008a1102d3df55424e86606c9bae6fb77ac59afe06d234605f8
+  url: https://files.pythonhosted.org/packages/81/17/0294e576979d7f388855bf64b3cc6d9fc08168cdf6833ff0df3ad0ee6580/cryptography-42.0.7-cp37-abi3-manylinux_2_28_x86_64.whl
+  sha256: 5e44507bf8d14b36b8389b226665d597bc0f18ea035d75b4e53c7b1ea84583cc
   requires_dist:
   - cffi>=1.12 ; platform_python_implementation != 'PyPy'
   - sphinx>=5.3.0 ; extra == 'docs'
@@ -1458,7 +1458,7 @@ packages:
   - psutil ; extra == 'benchmarking'
   - pytest ; extra == 'benchmarking'
   - pytest-benchmark ; extra == 'benchmarking'
-  - pre-commit~=3.0 ; extra == 'code_style'
+  - pre-commit~=3.0 ; extra == 'code-style'
   - commonmark~=0.9 ; extra == 'compare'
   - markdown~=3.4 ; extra == 'compare'
   - mistletoe~=1.0 ; extra == 'compare'
@@ -1698,14 +1698,14 @@ packages:
   requires_python: '>=3.6'
 - kind: pypi
   name: pkginfo
-  version: 1.11.0
-  url: https://files.pythonhosted.org/packages/66/46/f6bce532c9181b0d99b4612ebc2e633e5e0dae8c8540f2a664fe71e12953/pkginfo-1.11.0-py3-none-any.whl
-  sha256: 6d4998d1cd42c297af72cc0eab5f5bab1d356fb8a55b828fa914173f8bc1ba05
+  version: 1.10.0
+  url: https://files.pythonhosted.org/packages/56/09/054aea9b7534a15ad38a363a2bd974c20646ab1582a387a95b8df1bfea1c/pkginfo-1.10.0-py3-none-any.whl
+  sha256: 889a6da2ed7ffc58ab5b900d888ddce90bce912f2d2de1dc1c26f4cb9fe65097
   requires_dist:
   - pytest ; extra == 'testing'
   - pytest-cov ; extra == 'testing'
   - wheel ; extra == 'testing'
-  requires_python: '>=3.8'
+  requires_python: '>=3.6'
 - kind: pypi
   name: pluggy
   version: 1.5.0
@@ -1835,7 +1835,7 @@ packages:
   - urllib3<3,>=1.21.1
   - certifi>=2017.4.17
   - pysocks!=1.5.7,>=1.5.6 ; extra == 'socks'
-  - chardet<6,>=3.0.2 ; extra == 'use_chardet_on_py3'
+  - chardet<6,>=3.0.2 ; extra == 'use-chardet-on-py3'
   requires_python: '>=3.8'
 - kind: pypi
   name: requests-toolbelt
@@ -1958,9 +1958,9 @@ packages:
   requires_python: '>=3.8.0'
 - kind: pypi
   name: torchrunx
-  version: 0.1.0
+  version: 0.1.1
   path: .
-  sha256: 965be62ea84b416b221b3bcdaaed06927ba8c46da6cc0056ac0301bbc95fee2b
+  sha256: 9ad37d49af911e990b2112af378e8028860d3201575c1648fea04d358e397675
   requires_dist:
   - cloudpickle>=3.0.0
   - fabric>=3.0.0
@@ -1994,9 +1994,9 @@ packages:
   - torch ; extra == 'tutorials'
 - kind: pypi
   name: twine
-  version: 5.1.0
-  url: https://files.pythonhosted.org/packages/d5/50/55c2a06057cfa092e6ed3305aa587b117734c3d8dc8fddcc1661b5660d83/twine-5.1.0-py3-none-any.whl
-  sha256: fe1d814395bfe50cfbe27783cb74efe93abeac3f66deaeb6c8390e4e92bacb43
+  version: 5.1.1
+  url: https://files.pythonhosted.org/packages/5d/ec/00f9d5fd040ae29867355e559a94e9a8429225a0284a3f5f091a3878bfc0/twine-5.1.1-py3-none-any.whl
+  sha256: 215dbe7b4b94c2c50a7315c0275d2258399280fbb7d04182c7e55e24b5f93997
   requires_dist:
   - pkginfo>=1.8.1
   - readme-renderer>=35.0
@@ -2007,6 +2007,7 @@ packages:
   - keyring>=15.1
   - rfc3986>=1.4.0
   - rich>=12.0.0
+  - pkginfo<1.11
   requires_python: '>=3.8'
 - kind: pypi
   name: typing-extensions

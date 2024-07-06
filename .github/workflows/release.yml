@@ -12,8 +12,8 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.8.1
         with:
           cache: true
-          activate-environment: true
-      - run: python -m build
-      - run: twine upload -u __token__ -p $PYPI_TOKEN dist/*
+      - run: pixi run build
+      - run: pixi run upload
         env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
