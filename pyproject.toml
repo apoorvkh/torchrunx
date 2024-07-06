@@ -28,34 +28,6 @@ dependencies = [
     "numpy",  # torch.distributed depends on numpy
 ]
 
-[project.optional-dependencies]
-dev = ["ruff", "pytest", "build", "twine"]
-
 [project.urls]
 Repository = "https://github.com/apoorvkh/torchrunx.git"
 Documentation = "https://torchrunx.readthedocs.io"
-
-[tool.pixi.project]
-channels = ["nvidia/label/cuda-11.7.0", "conda-forge"]
-platforms = ["linux-64"]
-
-[tool.pixi.environments]
-default = { features = ["dev"], solve-group = "default" }
-
-[tool.pixi.dependencies]
-python = "3.8.1"
-cuda = "11.7.0"
-
-[tool.pixi.pypi-dependencies]
-torchrunx = { path = ".", editable = true }
-
-[tool.pixi.tasks]
-build = "python -m build"
-upload = "twine upload dist/*"
-
-[tool.ruff]
-line-length = 100
-src = ["src", "tests"]
-
-[tool.ruff.lint]
-select = ["E", "F", "I"]
