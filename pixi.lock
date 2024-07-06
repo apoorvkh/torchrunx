@@ -1960,7 +1960,7 @@ packages:
   name: torchrunx
   version: 0.1.1
   path: .
-  sha256: 9ad37d49af911e990b2112af378e8028860d3201575c1648fea04d358e397675
+  sha256: 7ae2feb903861a835f32c7f7c0f202a57037aba77debbd74499841c5bbc990d3
   requires_dist:
   - cloudpickle>=3.0.0
   - fabric>=3.0.0
