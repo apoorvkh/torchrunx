@@ -31,3 +31,17 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/apoorvkh/torchrunx.git"
 Documentation = "https://torchrunx.readthedocs.io"
+
+## Development tools
+
+[tool.ruff]
+include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
+line-length = 100
+src = ["src", "tests"]
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.8"
+pythonPlatform = "Linux"

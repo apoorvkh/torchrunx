@@ -22,10 +22,3 @@ twine = "*"
 [environments]
 default = { features = ["package", "dev"], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
-
-[tasks]
-check = "ruff check; ruff format --check"
-typecheck = "pyright"
-format = "ruff check --fix; ruff format"
-build = "python -m build"
-upload = "twine upload dist/*"

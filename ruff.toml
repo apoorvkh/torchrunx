@@ -1,6 +1,0 @@
-include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
-line-length = 100
-src = ["src", "tests"]
-
-[lint]
-select = ["E", "F", "I"]

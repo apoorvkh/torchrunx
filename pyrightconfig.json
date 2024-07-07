@@ -1,5 +1,0 @@
-{
-    "include": ["src", "tests"],  
-    "pythonVersion": "3.8",
-    "pythonPlatform": "Linux",
-}

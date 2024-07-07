@@ -14,8 +14,9 @@ jobs:
           pixi-version: v0.25.0
           cache: true
           environments: dev
-      - run: pixi run build
-      - run: pixi run upload
+          activate-environment: dev
+      - run: python -m build
+      - run: twine upload dist/*
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}

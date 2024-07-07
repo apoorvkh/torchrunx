@@ -14,7 +14,10 @@ jobs:
           pixi-version: v0.25.0
           cache: true
           environments: dev
-      - run: pixi run check
+          activate-environment: dev
+      - run: ruff check
+      - run: ruff format --check
+        if: success() || failure()
 
   typecheck:
     runs-on: ubuntu-latest
@@ -25,4 +28,5 @@ jobs:
           pixi-version: v0.25.0
           cache: true
           environments: default
-      - run: pixi run typecheck
+          activate-environment: default
+      - run: pyright
