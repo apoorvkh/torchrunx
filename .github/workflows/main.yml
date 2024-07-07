@@ -5,6 +5,21 @@ on:
     branches: [main]
 
 jobs:
+
+  # TODO: Currently not super efficient because it will try to install the environment
+  # check-lockfile:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: prefix-dev/setup-pixi@v0.8.1
+  #       with:
+  #         pixi-version: v0.25.0
+  #         cache: true
+  #         locked: true
+  #         environments: >-
+  #           default
+  #           dev
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -13,6 +28,7 @@ jobs:
         with:
           pixi-version: v0.25.0
           cache: true
+          frozen: true
           environments: dev
           activate-environment: dev
       - run: ruff check
@@ -28,6 +44,7 @@ jobs:
         with:
           pixi-version: v0.25.0
           cache: true
+          frozen: true
           environments: default
           activate-environment: default
       - run: pyright
