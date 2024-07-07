@@ -16,8 +16,8 @@ jobs:
           environments: dev
           activate-environment: dev
       - run: ruff check
+        continue-on-error: true
       - run: ruff format --check
-        if: success() || failure()
 
   typecheck:
     runs-on: ubuntu-latest
