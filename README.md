@@ -1,9 +1,9 @@
 # torchrunx 🔥
 
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchrunx)
-![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)
-![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=latest)
-![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/pyproject.toml)
+[![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)](https://pypi.org/project/torchrunx/)
+[![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=latest)](https://torchrunx.readthedocs.io)
+[![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/LICENSE)
 
 Automatically launch functions and initialize distributed PyTorch environments on multiple machines
 
@@ -20,8 +20,10 @@ Requirements:
 
 ## Usage
 
-Example distributed function:
 ```python
+# Simple example
+def distributed_function():
+    pass
 ```
 
 ```python
@@ -30,17 +32,7 @@ import torchrunx
 torchrunx.launch(
     func=distributed_function,
     func_kwargs={},
-    hostnames=["localhost"],
-    workers_per_host=2
-)
-```
-
-### Multiple machines
-
-```python
-torchrunx.launch(
-    # ...
-    hostnames=["node1", "node2"],
+    hostnames=["node1", "node2"],  # or just: ["localhost"]
     workers_per_host=2
 )
 ```
