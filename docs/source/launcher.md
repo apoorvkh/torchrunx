@@ -2,6 +2,6 @@ Launcher
 ========
 
 .. autosummary::
-    .toctree generated
+    :toctree: generated
 
     launch
