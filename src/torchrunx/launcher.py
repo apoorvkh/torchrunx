@@ -44,7 +44,32 @@ def launch(
         "NCCL*",
     ],
     env_file: str | os.PathLike | None = None,
-):
+) -> dict[int, Any]:
+    """_summary_
+
+    :param func: The distributed function to call on all workers
+    :type func: Callable
+    :param func_kwargs: Any keyword arguments to be provided when calling `func`
+    :type func_kwargs: dict[str, Any]
+    :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
+    :type hostnames: list[str], optional
+    :param workers_per_host: The numbder of workers per node. 
+    Providing an `int` implies all nodes should have `workers_per_host` workers, meanwhile providing a list causes node `i` to have `worker_per_host[i]` workers, defaults to 1
+    :type workers_per_host: int | list[int], optional
+    :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
+    :type ssh_config_file: str | os.PathLike | None, optional
+    :param backend: A `torch.distributed` `backend string <https://pytorch.org/docs/stable/distributed.html>`, defaults to None
+    :type backend: Literal[&quot;mpi&quot;, &quot;gloo&quot;, &quot;nccl&quot;, &quot;ucc&quot;, None], optional
+    :param log_dir: A directory in which logs should be written, defaults to "./logs"
+    :type log_dir: os.PathLike | str, optional
+    :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to [ "PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*", ]
+    :type env_vars: list[str], optional
+    :param env_file: An additional environment file that will be sourced prior to executing `func`, defaults to None
+    :type env_file: str | os.PathLike | None, optional
+    :raises RuntimeError: May fail due to misconfiguration, or errors thrown by `func`
+    :return: A dictionary mapping worker ranks to their local output
+    :rtype: dict[int, Any]
+    """
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
 
