@@ -19,7 +19,7 @@ extensions = [
     'sphinx.ext.intersphinx',
 ]
 
-autodoc_mock_imports = ['torch', 'fabric', 'cloudpickle']
+autodoc_mock_imports = ['torch', 'fabric', 'cloudpickle', 'typing_extensions']
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
