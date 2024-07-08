@@ -17,8 +17,9 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    'myst_parser'
 ]
+
+autodoc_mock_imports = ['torch', 'fabric', 'cloudpickle']
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
