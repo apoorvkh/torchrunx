@@ -4,4 +4,4 @@ Launcher
 .. autosummary::
     :toctree: generated
 
-    launch
+    torchrunx.launch
