@@ -1,8 +1,11 @@
-name: Run checks on push to main
+name: Run checks on push or PR to main
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches:
+      - main
 
 jobs:
 
