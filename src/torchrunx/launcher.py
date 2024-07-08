@@ -53,8 +53,7 @@ def launch(
     :type func_kwargs: dict[str, Any]
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
     :type hostnames: list[str], optional
-    :param workers_per_host: The numbder of workers per node. 
-    Providing an `int` implies all nodes should have `workers_per_host` workers, meanwhile providing a list causes node `i` to have `worker_per_host[i]` workers, defaults to 1
+    :param workers_per_host: The number of workers per node. Providing an `int` implies all nodes should have `workers_per_host` workers, meanwhile providing a list causes node `i` to have `worker_per_host[i]` workers, defaults to 1
     :type workers_per_host: int | list[int], optional
     :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
     :type ssh_config_file: str | os.PathLike | None, optional
