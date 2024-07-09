@@ -68,7 +68,7 @@ def launch(
     :raises RuntimeError: May fail due to misconfiguration, or errors thrown by `func`
     :return: A dictionary mapping worker ranks to their local output
     :rtype: dict[int, Any]
-    """
+    """  # noqa: E501
     if not dist.is_available():
         raise RuntimeError("The torch.distributed package is not available.")
 
