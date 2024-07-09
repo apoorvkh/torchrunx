@@ -41,7 +41,7 @@ def slurm_workers() -> int:
     """
     |  Determines number of workers per node in current Slurm allocation using
     |  the ``SLURM_JOB_GPUS`` or ``SLURM_CPUS_ON_NODE`` environmental variables.
-    
+
     :return: The implied number of workers per node.
     :rtype: int
     """
