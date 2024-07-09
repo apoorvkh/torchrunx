@@ -45,7 +45,8 @@ def launch(
     ],
     env_file: str | os.PathLike | None = None,
 ) -> dict[int, Any]:
-    """_summary_
+    """
+    Launch a distributed pytorch function on the specified nodes.
 
     :param func: The distributed function to call on all workers
     :type func: Callable
