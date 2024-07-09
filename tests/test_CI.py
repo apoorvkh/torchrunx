@@ -47,7 +47,10 @@ def test_logging():
         rank = int(os.environ["RANK"])
         print(f"worker rank: {rank}")
 
-    shutil.rmtree("./test_logs")
+    try: 
+        shutil.rmtree("./test_logs")
+    except FileNotFoundError: 
+        pass
 
     torchrunx.launch(
         func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
