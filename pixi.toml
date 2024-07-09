@@ -6,6 +6,12 @@ platforms = ["linux-64"]
 [dependencies]
 python = "3.8.1"
 
+[feature.package]
+channels = ["nvidia/label/cuda-11.7.0"]
+dependencies = { cuda = "11.7.0" }
+[feature.package.pypi-dependencies]
+torchrunx = {path = ".", editable = true}
+
 [feature.dev.pypi-dependencies]
 ruff = "*"
 pyright = "*"
@@ -13,12 +19,6 @@ pytest = "*"
 build = "*"
 twine = "*"
 
-[feature.package]
-channels = ["nvidia/label/cuda-11.7.0"]
-dependencies = { cuda = "11.7.0" }
-[feature.package.pypi-dependencies]
-torchrunx = {path = ".", editable = true}
-
 [environments]
-dev = { features = ["dev"], solve-group = "default" }
 default = { features = ["package", "dev"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
