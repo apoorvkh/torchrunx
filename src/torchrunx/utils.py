@@ -91,7 +91,7 @@ class LauncherPayload:
     hostnames: list[str]
     worker_world_size: int
     worker_global_ranks: list[list[int]]
-    worker_log_files: list[list[os.PathLike]]
+    worker_log_files: list[list[Path]]
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
 
 
