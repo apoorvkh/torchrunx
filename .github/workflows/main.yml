@@ -62,6 +62,6 @@ jobs:
           pixi-version: v0.25.0
           cache: true
           frozen: true
-          environments: dev
-          activate-environment: dev
+          environments: default
+          activate-environment: default
       - run: pytest tests
