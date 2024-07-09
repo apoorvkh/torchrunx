@@ -22,6 +22,11 @@ from typing_extensions import Self
 
 
 def slurm_hosts() -> list[str]:
+    """Retrieves hostnames of Slurm-allocated nodes.
+
+    :return: Hostnames of nodes in current Slurm allocation
+    :rtype: list[str]
+    """
     # TODO: sanity check SLURM variables, commands
     assert "SLURM_JOB_ID" in os.environ
     return (
@@ -33,6 +38,13 @@ def slurm_hosts() -> list[str]:
 
 
 def slurm_workers() -> int:
+    """
+    |  Determines number of workers per node in current Slurm allocation using
+    |  the ``SLURM_JOB_GPUS`` or ``SLURM_CPUS_ON_NODE`` environmental variables.
+
+    :return: The implied number of workers per node
+    :rtype: int
+    """
     # TODO: sanity check SLURM variables, commands
     assert "SLURM_JOB_ID" in os.environ
     if "SLURM_JOB_GPUS" in os.environ:

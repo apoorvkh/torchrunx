@@ -35,3 +35,6 @@ html_theme = 'furo'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
+
+# code block syntax highlighting
+#pygments_style = 'sphinx'
