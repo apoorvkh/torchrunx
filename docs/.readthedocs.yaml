@@ -10,7 +10,4 @@ sphinx:
 
 python:
   install:
-    - method: pip
-      extra_requirements:
-        - sphinx==6.2.1
-        - furo==2024.5.6
+    - requirements: docs/requirements.txt
