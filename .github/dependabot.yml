@@ -2,10 +2,17 @@
 
 version: 2
 updates:
+  # pyproject.toml
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "daily"
+
+  # ignore docs/requirements.txt
+  - package-ecosystem: "pip"
+    directory: "/docs"
+    schedule:
+      interval: "monthly"
     ignore:
-      - dependency-name: "sphinx"
-      - dependency-name: "furo"
+      - dependency-name: "*"
+        versions: []
