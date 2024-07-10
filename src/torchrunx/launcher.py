@@ -193,6 +193,6 @@ def launch(
         raise
     #
 
-    print_process.terminate()  # TODO: or close?
+    print_process.kill()  # TODO: or close?
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
     return return_values
