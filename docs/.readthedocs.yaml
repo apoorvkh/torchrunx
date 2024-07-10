@@ -11,6 +11,6 @@ sphinx:
 python:
   install:
     - method: pip
-      path: sphinx==6.2.1
-    - method: pip
-      path: furo==2024.5.6
+      extra_requirements:
+        - sphinx==6.2.1
+        - furo==2024.5.6
