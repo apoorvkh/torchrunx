@@ -225,15 +225,15 @@ def monitor_log(log_file: Path):
             print(new)
         time.sleep(0.1)
 
-class trxMultiprocessContext(MultiprocessContext):
 
+class trxMultiprocessContext(MultiprocessContext):
     def _start(self):
         if self._pc:
             raise ValueError(
                 "The process context already initialized."
                 " Most likely the start method got called twice."
             )
-        self._pc = mp.start_processes( # type: ignore
+        self._pc = mp.start_processes(  # type: ignore
             fn=_wrap,
             args=(
                 self.entrypoint,
