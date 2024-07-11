@@ -181,6 +181,7 @@ def launch(
                             else:
                                 e += f"{v.message['message']}\n"
                                 e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+                print_process.kill()
                 raise RuntimeError(e)
     except:
         # kill all agents
@@ -190,8 +191,8 @@ def launch(
                 hostname=agent_hostname,
                 ssh_config_file=ssh_config_file,
             )
+        print_process.kill()   
         raise
-    #
 
     print_process.kill()  # TODO: or close?
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))

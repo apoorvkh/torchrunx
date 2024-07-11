@@ -37,7 +37,7 @@ def main():
     )
 
     trainer = Trainer(
-        model=model,
+        model=model, # type: ignore
         args=training_arguments,
         train_dataset=train_dataset
     )
