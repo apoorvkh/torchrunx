@@ -231,7 +231,7 @@ def monitor_log(log_file: Path):
 
 
 class MultiprocessContext(TorchMultiprocessContext):
-    """A Daemonic subclass of PyTorch's ``MultiprocessContext`` """
+    """A Daemonic subclass of PyTorch's ``MultiprocessContext``"""
 
     def _start(self):
         if self._pc:
