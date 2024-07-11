@@ -19,7 +19,7 @@ from .utils import (
     LauncherPayload,
     WorkerTee,
     get_open_port,
-    trxMultiprocessContext,
+    MultiprocessContext,
 )
 
 
@@ -92,7 +92,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
 
     # spawn workers
 
-    ctx = trxMultiprocessContext(
+    ctx = MultiprocessContext(
         name=f"{hostname}_",
         entrypoint=entrypoint,
         args={

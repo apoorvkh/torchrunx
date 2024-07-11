@@ -17,7 +17,11 @@ import cloudpickle
 import fabric
 import torch.distributed as dist
 import torch.multiprocessing as mp
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult, _wrap
+from torch.distributed.elastic.multiprocessing.api import (
+    RunProcsResult,
+    _wrap,
+    MultiprocessContext as TorchMultiprocessContext,
+)
 from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
 
@@ -226,7 +230,9 @@ def monitor_log(log_file: Path):
         time.sleep(0.1)
 
 
-class trxMultiprocessContext(MultiprocessContext):
+class MultiprocessContext(TorchMultiprocessContext):
+    """A Daemonic subclass of PyTorch's ``MultiprocessContext`` """
+
     def _start(self):
         if self._pc:
             raise ValueError(

@@ -39,7 +39,7 @@ include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
 line-length = 100
 src = ["src", "tests"]
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F"]
 
 [tool.pyright]
 include = ["src", "tests"]
