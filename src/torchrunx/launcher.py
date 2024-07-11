@@ -191,8 +191,8 @@ def launch(
                 ssh_config_file=ssh_config_file,
             )
         raise
-    #
+    finally:
+        print_process.kill()
 
-    print_process.terminate()  # TODO: or close?
     return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
     return return_values
