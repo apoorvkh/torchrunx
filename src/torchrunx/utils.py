@@ -16,7 +16,8 @@ from typing import Any, Callable, Literal
 import cloudpickle
 import fabric
 import torch.distributed as dist
-from torch.distributed.elastic.multiprocessing.api import RunProcsResult
+import torch.multiprocessing as mp
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, RunProcsResult, _wrap
 from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
 
@@ -223,3 +224,28 @@ def monitor_log(log_file: Path):
         if len(new) != 0:
             print(new)
         time.sleep(0.1)
+
+class trxMultiprocessContext(MultiprocessContext):
+
+    def _start(self):
+        if self._pc:
+            raise ValueError(
+                "The process context already initialized."
+                " Most likely the start method got called twice."
+            )
+        self._pc = mp.start_processes( # type: ignore
+            fn=_wrap,
+            args=(
+                self.entrypoint,
+                self.args,
+                self.envs,
+                self.stdouts,
+                self.stderrs,
+                self._ret_vals,
+                self._worker_finished_event,
+            ),
+            nprocs=self.nprocs,
+            join=False,
+            daemon=True,
+            start_method=self.start_method,
+        )

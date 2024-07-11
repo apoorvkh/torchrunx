@@ -9,7 +9,7 @@ import cloudpickle
 import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+from torch.distributed.elastic.multiprocessing.api import Std
 from typing_extensions import Self
 
 from .utils import (
@@ -19,6 +19,7 @@ from .utils import (
     LauncherPayload,
     WorkerTee,
     get_open_port,
+    trxMultiprocessContext,
 )
 
 
@@ -91,7 +92,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
 
     # spawn workers
 
-    ctx = MultiprocessContext(
+    ctx = trxMultiprocessContext(
         name=f"{hostname}_",
         entrypoint=entrypoint,
         args={

@@ -112,7 +112,7 @@ def launch(
     agent_log_files = [log_dir / f"{timestamp}_{hostname}.log" for hostname in hostnames]
 
     # start process to read from agent 0 log
-    print_process = Process(target=monitor_log, args=(agent_log_files[0],))
+    print_process = Process(target=monitor_log, args=(agent_log_files[0],), daemon=True)
     print_process.start()
 
     # start agents on each node
