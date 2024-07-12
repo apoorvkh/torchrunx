@@ -27,9 +27,9 @@ def distributed_function():
 ```
 
 ```python
-import torchrunx
+import torchrunx as trx
 
-torchrunx.launch(
+trx.launch(
     func=distributed_function,
     func_kwargs={},
     hostnames=["node1", "node2"],  # or just: ["localhost"]
@@ -40,10 +40,10 @@ torchrunx.launch(
 ### In a SLURM allocation
 
 ```python
-torchrunx.launch(
+trx.launch(
     # ...
-    hostnames=torchrunx.slurm_hosts(),
-    workers_per_host=torchrunx.slurm_workers()
+    hostnames=trx.slurm_hosts(),
+    workers_per_host=trx.slurm_workers()
 )
 ```
 
@@ -51,4 +51,4 @@ torchrunx.launch(
 
 ## Contributing
 
-We use the [`pixi`](https://pixi.sh) package manager. Simply [install `pixi`](latest/#installation) and run `pixi shell` in this repository. We use `ruff` for linting and formatting, `pyright` for static type checking, and `pytest` for testing. We build for `PyPI` and `conda-forge`. Our release pipeline is powered by Github Actions.
+We use the [`pixi`](https://pixi.sh) package manager. Simply [install `pixi`](https://pixi.sh/latest/#installation) and run `pixi shell` in this repository. We use `ruff` for linting and formatting, `pyright` for static type checking, and `pytest` for testing. We build for `PyPI` and `conda-forge`. Our release pipeline is powered by Github Actions.

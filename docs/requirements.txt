@@ -1,2 +1,3 @@
 sphinx==6.2.1
 furo
+myst-parser
