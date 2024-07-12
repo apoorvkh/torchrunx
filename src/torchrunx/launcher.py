@@ -133,16 +133,18 @@ def launch(
 
     # launch command
 
-    env_export_string = ""
     env_exports = []
     for k, v in os.environ.items():
-        for e in env_vars:
-            if any(fnmatch.fnmatch(k, e)):
-                env_exports.append(f"{k}={v}")
+        if any(fnmatch.fnmatch(k, e) for e in env_vars):
+            env_exports.append(f"{k}={v}")
+
+    env_export_string = ""
     if len(env_exports) > 0:
         env_export_string = f"export {' '.join(env_exports)} && "
 
-    env_file_string = f"source {env_file} && " if env_file is not None else ""
+    env_file_string = ""
+    if env_file is not None:
+        env_file_string = f"source {env_file} && "
 
     launcher_hostname = socket.getfqdn()
     launcher_port = get_open_port()
