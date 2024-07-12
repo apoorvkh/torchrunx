@@ -33,7 +33,7 @@ def main():
         output_dir = "output",
         do_train = True,
         per_device_train_batch_size = 16,
-        max_steps = 100,
+        max_steps = 20,
     )
 
     trainer = Trainer(
