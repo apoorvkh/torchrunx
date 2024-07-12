@@ -2,16 +2,21 @@ from __future__ import annotations
 
 import datetime
 import fnmatch
+import io
+import ipaddress
 import itertools
 import os
 import socket
+import subprocess
 import sys
+import time
 from collections import ChainMap
 from functools import partial
 from multiprocessing import Process
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+import fabric
 import torch.distributed as dist
 
 from .utils import (
@@ -19,10 +24,55 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
-    execute_command,
     get_open_port,
-    monitor_log,
 )
+
+
+def is_localhost(hostname_or_ip: str) -> bool:
+    # check if host is "loopback" address (i.e. designated to send to self)
+    try:
+        ip = ipaddress.ip_address(hostname_or_ip)
+    except ValueError:
+        ip = ipaddress.ip_address(socket.gethostbyname(hostname_or_ip))
+    if ip.is_loopback:
+        return True
+    # else compare local interface addresses between host and localhost
+    host_addrs = [addr[4][0] for addr in socket.getaddrinfo(str(ip), None)]
+    localhost_addrs = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
+    return len(set(host_addrs) & set(localhost_addrs)) > 0
+
+
+def execute_command(
+    command: str,
+    hostname: str,
+    ssh_config_file: str | os.PathLike | None = None,
+    outfile: str | os.PathLike | None = None,
+) -> None:
+    # TODO: permit different stderr / stdout
+    if is_localhost(hostname):
+        _outfile = subprocess.DEVNULL
+        if outfile is not None:
+            _outfile = open(outfile, "w")
+        subprocess.Popen(command, shell=True, stdout=_outfile, stderr=_outfile)
+    else:
+        with fabric.Connection(
+            host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
+        ) as conn:
+            if outfile is None:
+                outfile = "/dev/null"
+            conn.run(f"{command} >> {outfile} 2>&1 &", asynchronous=True)
+
+
+def monitor_log(log_file: Path):
+    log_file.touch()
+    f = open(log_file, "r")
+    print(f.read())
+    f.seek(0, io.SEEK_END)
+    while True:
+        new = f.read()
+        if len(new) != 0:
+            print(new)
+        time.sleep(0.1)
 
 
 def launch(
