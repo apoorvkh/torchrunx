@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 
-from . import agent
+from .agent import main
 from .utils import LauncherAgentGroup
 
 if __name__ == "__main__":
@@ -18,4 +18,4 @@ if __name__ == "__main__":
         rank=args.rank,
     )
 
-    agent.main(launcher_agent_group)
+    main(launcher_agent_group)

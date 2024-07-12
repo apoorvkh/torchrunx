@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import socket
+import sys
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -17,7 +18,6 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
-    WorkerTee,
     get_open_port,
 )
 
@@ -40,6 +40,30 @@ class WorkerArgs:
     @classmethod
     def from_bytes(cls, serialized: bytes) -> Self:
         return cloudpickle.loads(serialized)
+
+
+class WorkerTee(object):
+    def __init__(self, name: os.PathLike | str, mode: str):
+        self.file = open(name, mode)
+        self.stdout = sys.stdout
+        sys.stdout = self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, exception_traceback):
+        self.__del__()
+
+    def __del__(self):
+        sys.stdout = self.stdout
+        self.file.close()
+
+    def write(self, data):
+        self.file.write(data)
+        self.stdout.write(data)
+
+    def flush(self):
+        self.file.flush()
 
 
 def entrypoint(serialized_worker_args: bytes):
