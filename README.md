@@ -14,7 +14,6 @@ pip install torchrunx
 ```
 
 Requirements:
-- Operating System: Linux
 - Python >= 3.8.1
 - PyTorch >= 2.0
 - Shared filesystem & passwordless SSH between hosts
