@@ -1,6 +1,8 @@
 .pixi/
 logs/
 test_logs/
+_build/
+out/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
