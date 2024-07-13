@@ -78,22 +78,24 @@ def monitor_log(log_file: Path):
 
 @dataclass
 class Launcher:
-    hostnames: list[str] = ["localhost"],
-    workers_per_host: int | list[int] = 1,
-    ssh_config_file: str | os.PathLike | None = None,
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_dir: os.PathLike | str = "./logs",
-    env_vars: list[str] = [
-        "PATH",
-        "LD_LIBRARY",
-        "LIBRARY_PATH",
-        "PYTHON*",
-        "CUDA*",
-        "TORCH*",
-        "PYTORCH*",
-        "NCCL*",
-    ],
-    env_file: str | os.PathLike | None = None,
+    hostnames: list[str] = (["localhost"],)
+    workers_per_host: int | list[int] = (1,)
+    ssh_config_file: str | os.PathLike | None = (None,)
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = (None,)
+    log_dir: os.PathLike | str = ("./logs",)
+    env_vars: list[str] = (
+        [
+            "PATH",
+            "LD_LIBRARY",
+            "LIBRARY_PATH",
+            "PYTHON*",
+            "CUDA*",
+            "TORCH*",
+            "PYTORCH*",
+            "NCCL*",
+        ],
+    )
+    env_file: str | os.PathLike | None = (None,)
 
     def run(
         self,
@@ -261,3 +263,34 @@ class Launcher:
 
         return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
         return return_values
+
+
+def launch(
+    func: Callable,
+    func_kwargs: dict[str, Any],
+    hostnames: list[str] = ["localhost"],
+    workers_per_host: int | list[int] = 1,
+    ssh_config_file: str | os.PathLike | None = None,
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
+    log_dir: os.PathLike | str = "./logs",
+    env_vars: list[str] = [
+        "PATH",
+        "LD_LIBRARY",
+        "LIBRARY_PATH",
+        "PYTHON*",
+        "CUDA*",
+        "TORCH*",
+        "PYTORCH*",
+        "NCCL*",
+    ],
+    env_file: str | os.PathLike | None = None,
+):
+    return Launcher(
+        hostnames=hostnames,
+        workers_per_host=workers_per_host,
+        ssh_config_file=ssh_config_file,
+        backend=backend,
+        log_dir=log_dir,
+        env_vars=env_vars,
+        env_file=env_file,
+    ).run(func=func, func_kwargs=func_kwargs)
