@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .launcher import launch
+from .launcher import Launcher
 
 
 def slurm_hosts() -> list[str]:
@@ -42,4 +42,4 @@ def slurm_workers() -> int:
         return int(os.environ["SLURM_CPUS_ON_NODE"])
 
 
-__all__ = ["launch", "slurm_hosts", "slurm_workers"]
+__all__ = ["Launcher", "slurm_hosts", "slurm_workers"]
