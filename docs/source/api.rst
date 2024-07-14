@@ -1,4 +1,4 @@
-torchrunx API
+API
 =============
 
 .. automodule:: torchrunx
