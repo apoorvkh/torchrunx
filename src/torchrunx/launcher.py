@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 from collections import ChainMap
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from multiprocessing import Process
 from pathlib import Path
@@ -78,21 +78,23 @@ def monitor_log(log_file: Path):
 
 @dataclass
 class Launcher:
-    hostnames: list[str] = ["localhost"]
+    hostnames: list[str] = field(default_factory=lambda: ["localhost"])
     workers_per_host: int | list[int] = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_dir: os.PathLike | str = "./logs"
-    env_vars: list[str] = [
-        "PATH",
-        "LD_LIBRARY",
-        "LIBRARY_PATH",
-        "PYTHON*",
-        "CUDA*",
-        "TORCH*",
-        "PYTORCH*",
-        "NCCL*",
-    ]
+    env_vars: list[str] = field(
+        default_factory=lambda: [
+            "PATH",
+            "LD_LIBRARY",
+            "LIBRARY_PATH",
+            "PYTHON*",
+            "CUDA*",
+            "TORCH*",
+            "PYTORCH*",
+            "NCCL*",
+        ]
+    )
     env_file: str | os.PathLike | None = None
 
     def run(
