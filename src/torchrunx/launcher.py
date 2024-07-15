@@ -78,24 +78,22 @@ def monitor_log(log_file: Path):
 
 @dataclass
 class Launcher:
-    hostnames: list[str] = (["localhost"],)
-    workers_per_host: int | list[int] = (1,)
-    ssh_config_file: str | os.PathLike | None = (None,)
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = (None,)
-    log_dir: os.PathLike | str = ("./logs",)
-    env_vars: list[str] = (
-        [
-            "PATH",
-            "LD_LIBRARY",
-            "LIBRARY_PATH",
-            "PYTHON*",
-            "CUDA*",
-            "TORCH*",
-            "PYTORCH*",
-            "NCCL*",
-        ],
-    )
-    env_file: str | os.PathLike | None = (None,)
+    hostnames: list[str] = ["localhost"]
+    workers_per_host: int | list[int] = 1
+    ssh_config_file: str | os.PathLike | None = None
+    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
+    log_dir: os.PathLike | str = "./logs"
+    env_vars: list[str] = [
+        "PATH",
+        "LD_LIBRARY",
+        "LIBRARY_PATH",
+        "PYTHON*",
+        "CUDA*",
+        "TORCH*",
+        "PYTORCH*",
+        "NCCL*",
+    ]
+    env_file: str | os.PathLike | None = None
 
     def run(
         self,
@@ -137,7 +135,7 @@ class Launcher:
             workers_per_host = [workers_per_host] * num_hosts
 
         assert workers_per_host is not None
-        assert len(workers_per_host) == num_hosts
+        assert len(workers_per_host) == num_hosts  # type: ignore
 
         # launch command
 
@@ -199,7 +197,7 @@ class Launcher:
 
         # build and sync payloads between launcher and agents
 
-        _cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
+        _cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))  # type: ignore
 
         worker_world_size = _cumulative_workers[-1]
 
@@ -211,7 +209,7 @@ class Launcher:
         worker_log_files = [
             [
                 log_dir / f"{timestamp}_{hostname}_{local_rank}.log"
-                for local_rank in range(workers_per_host[i])
+                for local_rank in range(workers_per_host[i])  # type: ignore
             ]
             for i, hostname in enumerate(self.hostnames)
         ]
