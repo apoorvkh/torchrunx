@@ -17,8 +17,13 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    "myst_parser",
+    'myst_parser',
+    'sphinx_toolbox.sidebar_links',
+    'sphinx_toolbox.github',
 ]
+
+github_username = 'apoorvkh'
+github_repository = 'torchrunx'
 
 autodoc_mock_imports = ['torch', 'fabric', 'cloudpickle', 'typing_extensions']
 

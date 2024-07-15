@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import os
 import subprocess
 
 
-def slurm_hosts() -> "list[str]":
+def slurm_hosts() -> list[str]:
     """Retrieves hostnames of Slurm-allocated nodes.
 
     :return: Hostnames of nodes in current Slurm allocation
