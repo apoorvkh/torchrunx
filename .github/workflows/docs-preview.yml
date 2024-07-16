@@ -14,3 +14,7 @@ jobs:
       - uses: readthedocs/actions/preview@v1
         with:
           project-slug: "torchrunx"
+          project-language: ""
+          message-template: |
+            ----
+            Documentation preview: {docs-pr-index-url}"
