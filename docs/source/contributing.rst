@@ -6,6 +6,8 @@ Development environment
 
 Ensure you have the latest development environment installed. After cloning our repository, `install pixi <https://pixi.sh/latest/#installation>`_ and run ``pixi shell`` in the repo's root directory. Additionally, we use `ruff <https://github.com/astral-sh/ruff>`_ for linting and formatting, `pyright <https://github.com/microsoft/pyright>`_ for type checking, and ``pytest`` for testing. 
 
+TODO: just write these as Pixi run commands
+
 Testing 
 -------
 
