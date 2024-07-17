@@ -29,6 +29,7 @@ class LauncherPayload:
     worker_global_ranks: list[list[int]]
     worker_log_files: list[list[Path]]
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
+    pg_timeout: int
 
 
 @dataclass
