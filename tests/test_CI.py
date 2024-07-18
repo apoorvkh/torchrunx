@@ -72,6 +72,6 @@ def test_logging():
                 assert "worker rank: 1" not in contents
 
     # clean up
-    shutil.rmtree("./test_logs")
+    shutil.rmtree("./test_logs", ignore_errors=True)
 
     dist.destroy_process_group()
