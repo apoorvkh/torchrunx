@@ -34,7 +34,7 @@ class WorkerArgs:
     local_world_size: int
     world_size: int
     log_file: os.PathLike
-    pg_timeout: int
+    timeout: int
 
     def to_bytes(self) -> bytes:
         return cloudpickle.dumps(self)
@@ -87,7 +87,7 @@ def entrypoint(serialized_worker_args: bytes):
             world_size=worker_args.world_size,
             rank=worker_args.rank,
             store=store,
-            timeout=datetime.timedelta(seconds=worker_args.pg_timeout),
+            timeout=datetime.timedelta(seconds=worker_args.timeout),
         )
 
         os.environ["RANK"] = str(worker_args.rank)
@@ -136,7 +136,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
                     local_world_size=num_workers,
                     world_size=worker_world_size,
                     log_file=worker_log_files[i],
-                    pg_timeout=launcher_payload.pg_timeout,
+                    timeout=launcher_payload.timeout,
                 ).to_bytes(),
             )
             for i in range(num_workers)

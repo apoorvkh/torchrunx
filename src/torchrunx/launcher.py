@@ -96,7 +96,7 @@ class Launcher:
         ]
     )
     env_file: str | os.PathLike | None = None
-    pg_timeout: int = 600
+    timeout: int = 600
 
     def run(
         self,
@@ -210,7 +210,7 @@ class Launcher:
             worker_global_ranks=worker_global_ranks,
             worker_log_files=worker_log_files,
             backend=self.backend,
-            pg_timeout=self.pg_timeout,
+            timeout=self.timeout,
         )
 
         agent_payloads: list[AgentPayload] = launcher_agent_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
@@ -272,7 +272,7 @@ def launch(
         "NCCL*",
     ],
     env_file: str | os.PathLike | None = None,
-    pg_timeout: int = 600,
+    timeout: int = 600,
 ) -> dict[int, Any]:
     """
     Launch a distributed PyTorch function on the specified nodes.
@@ -295,8 +295,8 @@ def launch(
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
     :type env_file: str | os.PathLike | None, optional
-    :param pg_timeout: Worker process group timeout, defaults to 600
-    :type pg_timeout: int, optional
+    :param timeout: Worker process group timeout, defaults to 600
+    :type timeout: int, optional
     :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
     :return: A dictionary mapping worker ranks to their output
     :rtype: dict[int, Any]
@@ -309,5 +309,5 @@ def launch(
         log_dir=log_dir,
         env_vars=env_vars,
         env_file=env_file,
-        pg_timeout=pg_timeout,
+        timeout=timeout,
     ).run(func=func, func_kwargs=func_kwargs)
