@@ -101,13 +101,16 @@ class Launcher:
     def run(
         self,
         func: Callable,
-        func_kwargs: dict[str, Any],
+        func_args: tuple[Any] = (),
+        func_kwargs: dict[str, Any] = {},
     ) -> dict[int, Any]:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
         :param func: The distributed function to call on all workers
         :type func: Callable
+        :param func_args: Any positional arguments to be provided when calling ``func``
+        :type func_args: tuple[Any]
         :param func_kwargs: Any keyword arguments to be provided when calling ``func``
         :type func_kwargs: dict[str, Any]
         :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
@@ -204,7 +207,7 @@ class Launcher:
         ]
 
         payload = LauncherPayload(
-            fn=partial(func, **func_kwargs),
+            fn=partial(func, *func_args, **func_kwargs),
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
@@ -255,7 +258,8 @@ class Launcher:
 
 def launch(
     func: Callable,
-    func_kwargs: dict[str, Any],
+    func_args: tuple[Any] = (),
+    func_kwargs: dict[str, Any] = {},
     hostnames: list[str] = ["localhost"],
     workers_per_host: int | list[int] = 1,
     ssh_config_file: str | os.PathLike | None = None,
@@ -279,6 +283,8 @@ def launch(
 
     :param func: The distributed function to call on all workers
     :type func: Callable
+    :param func_args: Any positional arguments to be provided when calling ``func``
+    :type func_args: tuple[Any]
     :param func_kwargs: Any keyword arguments to be provided when calling ``func``
     :type func_kwargs: dict[str, Any]
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
@@ -310,4 +316,4 @@ def launch(
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
-    ).run(func=func, func_kwargs=func_kwargs)
+    ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
