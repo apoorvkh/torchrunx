@@ -1,9 +1,13 @@
+import logging
 import os
+import sys
 
 import torch
 import torch.distributed as dist
 
-import torchrunx
+sys.path.append("../src")
+
+import torchrunx   # noqa: I001
 
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
 
@@ -38,7 +42,7 @@ def simple_matmul():
     o = torch.matmul(i, w)
 
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
-    print(i)
+    logging.info(i)
     return o.detach().cpu()
 
 

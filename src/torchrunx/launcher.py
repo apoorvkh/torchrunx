@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import datetime
 import fnmatch
-import io
 import ipaddress
 import itertools
+import logging
+import logging.config
+import logging.handlers
 import os
 import socket
 import subprocess
 import sys
-import time
 from collections import ChainMap
 from dataclasses import dataclass, field
 from functools import partial
@@ -25,6 +26,7 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
+    LogRecordSocketReceiver,
     get_open_port,
 )
 
@@ -47,34 +49,20 @@ def execute_command(
     command: str,
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
-    outfile: str | os.PathLike | None = None,
 ) -> None:
     # TODO: permit different stderr / stdout
     if is_localhost(hostname):
-        _outfile = subprocess.DEVNULL
-        if outfile is not None:
-            _outfile = open(outfile, "w")
-        subprocess.Popen(command, shell=True, stdout=_outfile, stderr=_outfile)
+        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         with fabric.Connection(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
-            if outfile is None:
-                outfile = "/dev/null"
-            conn.run(f"{command} >> {outfile} 2>&1 &", asynchronous=True)
+            conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
-def monitor_log(log_file: Path):
-    log_file.touch()
-    f = open(log_file, "r")
-    print(f.read())
-    f.seek(0, io.SEEK_END)
-    while True:
-        new = f.read()
-        if len(new) != 0:
-            print(new)
-        time.sleep(0.1)
-
+def monitor_log():
+    tcpserver = LogRecordSocketReceiver(host=socket.getfqdn())
+    tcpserver.serve_until_stopped()
 
 @dataclass
 class Launcher:
@@ -83,6 +71,7 @@ class Launcher:
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_dir: os.PathLike | str = "./logs"
+    propagate_logs: bool = True
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -114,6 +103,23 @@ class Launcher:
         :return: A dictionary mapping worker ranks to their output
         :rtype: dict[int, Any]
         """
+
+        logger = logging.getLogger("torchrunx")
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = self.propagate_logs
+
+        log_dir = Path(self.log_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+        log_file_formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
+        log_file_handler = logging.FileHandler(f"{log_dir}/{timestamp}.log")
+        log_file_handler.setFormatter(log_file_formatter)
+        logger.addHandler(log_file_handler)
+        
+        log_process = Process(target=monitor_log, args=(), daemon=True)
+        log_process.start()
+
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
@@ -156,22 +162,13 @@ class Launcher:
             # rank set in the loop below
         )
 
-        log_dir = Path(self.log_dir)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-        agent_log_files = [log_dir / f"{timestamp}_{hostname}.log" for hostname in self.hostnames]
-
-        # start process to read from agent 0 log
-        print_process = Process(target=monitor_log, args=(agent_log_files[0],), daemon=True)
-        print_process.start()
-
+        logger.debug("starting agents")
         # start agents on each node
         for i, hostname in enumerate(self.hostnames):
             execute_command(
                 command=f"{command} --rank {i+1}",
                 hostname=hostname,
                 ssh_config_file=self.ssh_config_file,
-                outfile=agent_log_files[i],
             )
 
         # initialize launcher–agent process group
@@ -195,12 +192,12 @@ class Launcher:
             host_ranks = range(_cumulative_workers[n], _cumulative_workers[n + 1])
             worker_global_ranks.append(list(host_ranks))
 
-        worker_log_files = [
+        worker_log_names = [
             [
-                log_dir / f"{timestamp}_{hostname}_{local_rank}.log"
+                f"torchrunx.agent-{i}.worker-{local_rank}"
                 for local_rank in range(workers_per_host[i])  # type: ignore
             ]
-            for i, hostname in enumerate(self.hostnames)
+            for i in range(len(self.hostnames))
         ]
 
         payload = LauncherPayload(
@@ -208,7 +205,8 @@ class Launcher:
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
-            worker_log_files=worker_log_files,
+            worker_log_names=worker_log_names,
+            log_host=launcher_hostname,
             backend=self.backend,
             timeout=self.timeout,
         )
@@ -236,9 +234,11 @@ class Launcher:
                                 else:
                                     e += f"{v.message['message']}\n"
                                     e += f"{v.message['extraInfo']['py_callstack']}\n\n"
+                    logger.error(f"workers threw:\n {e}")
                     raise RuntimeError(e)
         except:
             # cleanup: SIGTERM all agents
+            logger.warn("agents encountered error, manually killing")
             for agent_pid, agent_hostname in zip(agent_pids, self.hostnames):
                 execute_command(
                     command=f"kill {agent_pid}",
@@ -247,8 +247,10 @@ class Launcher:
                 )
             raise
         finally:
-            print_process.kill()
+            logger.debug("killing log process")
+            log_process.kill()
 
+        logger.debug("returning")
         return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
         return return_values
 
@@ -261,6 +263,7 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_dir: os.PathLike | str = "./logs",
+    propagate_logs: bool = True,
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -291,6 +294,8 @@ def launch(
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
     :param log_dir: A directory in which logs should be written, defaults to "./logs"
     :type log_dir: os.PathLike | str, optional
+    :param log_level: The logging level, defaults to logging.WARN
+    :type log_level: logging._Level, optional
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
@@ -307,6 +312,7 @@ def launch(
         ssh_config_file=ssh_config_file,
         backend=backend,
         log_dir=log_dir,
+        propagate_logs=propagate_logs,
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
