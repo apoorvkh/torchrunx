@@ -118,7 +118,8 @@ class LauncherAgentGroup:
 
     def sync_agent_statuses(self, status: AgentStatus) -> list[AgentStatus]:
         return self._all_gather(object=status)[1:]
-    
+
+
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
     """Handler for a streaming logging request.
 
@@ -136,7 +137,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
             chunk = self.connection.recv(4)
             if len(chunk) < 4:
                 break
-            slen = struct.unpack('>L', chunk)[0]
+            slen = struct.unpack(">L", chunk)[0]
             chunk = self.connection.recv(slen)
             while len(chunk) < slen:
                 chunk = chunk + self.connection.recv(slen - len(chunk))
@@ -150,7 +151,7 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
     def handleLogRecord(self, record):
         # if a name is specified, we use the named logger rather than the one
         # implied by the record.
-        if self.server.logname is not None: # type: ignore
+        if self.server.logname is not None:  # type: ignore
             name = self.server.logname  # type: ignore
         else:
             name = record.name
@@ -162,28 +163,62 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
         if logger.getEffectiveLevel() <= record.levelno:
             logger.handle(record)
 
+
 class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
     """
     Simple TCP socket-based logging receiver suitable for testing.
     """
 
-    allow_reuse_address = 1 # type: ignore
+    allow_reuse_address = 1  # type: ignore
 
-    def __init__(self, host='localhost',
-                 port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,
-                 handler=LogRecordStreamHandler):
+    def __init__(
+        self,
+        host="localhost",
+        port=logging.handlers.DEFAULT_TCP_LOGGING_PORT,
+        handler=LogRecordStreamHandler,
+    ):
         socketserver.ThreadingTCPServer.__init__(self, (host, port), handler)
         self.abort = 0
         self.timeout = 1
         self.logname = None
-        
 
     def serve_until_stopped(self):
         abort = 0
         while not abort:
-            rd, wr, ex = select.select([self.socket.fileno()],
-                                       [], [],
-                                       self.timeout)
+            rd, wr, ex = select.select([self.socket.fileno()], [], [], self.timeout)
             if rd:
                 self.handle_request()
             abort = self.abort
+
+
+def default_logging(
+    num_agents: int, num_workers: int, log_dir: str
+) -> dict[str, list[logging.Handler]]:
+    """
+    Generates torchrunx's default
+
+    :param num_agents: Number of agents in work group
+    :type num_agents: int
+    :param num_workers: Number of workers per agent
+    :type num_workers: int
+    :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
+    :rtype: dict[str, list[logging.Handler]]
+    """
+
+    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+    agents: dict[str, list[logging.Handler]] = {
+        f"agent-{i}": [logging.FileHandler(f"{log_dir}/{timestamp}-agent-{i}.log")]
+        for i in range(num_agents)
+    }
+    workers: dict[str, list[logging.Handler]] = {
+        f"agent-{i}-worker-{j}": [
+            logging.FileHandler(f"{log_dir}/{timestamp}-agent-{i}.worker-{j}.log")
+        ]
+        for j in range(num_workers)
+        for i in range(num_agents)
+    }
+
+    workers["agent-0-worker-0"].append(logging.StreamHandler())
+
+    return {**agents, **workers}

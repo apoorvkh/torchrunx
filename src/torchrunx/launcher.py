@@ -27,6 +27,7 @@ from .utils import (
     LauncherAgentGroup,
     LauncherPayload,
     LogRecordSocketReceiver,
+    default_logging,
     get_open_port,
 )
 
@@ -71,7 +72,7 @@ class Launcher:
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_dir: os.PathLike | str = "./logs"
-    propagate_logs: bool = True
+    log_spec: dict[str, list[logging.Handler]] | None = None
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -106,16 +107,26 @@ class Launcher:
 
         logger = logging.getLogger("torchrunx")
         logger.setLevel(logging.DEBUG)
-        logger.propagate = self.propagate_logs
+        logger.propagate = False
 
         log_dir = Path(self.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+        #timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
-        log_file_formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
-        log_file_handler = logging.FileHandler(f"{log_dir}/{timestamp}.log")
-        log_file_handler.setFormatter(log_file_formatter)
-        logger.addHandler(log_file_handler)
+        if self.log_spec is None:
+            # TODO: this assumes the type of workers_per_host is simply int. We should consider
+            # again whether it's worth supporting inhomogeneous allocations (list[int])
+            self.log_spec = default_logging(num_agents=len(self.hostnames), 
+                                            num_workers=self.workers_per_host, # type: ignore
+                                            log_dir=os.fspath(log_dir))
+
+        log_formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
+
+        for lname, handlers in self.log_spec.items(): # type: ignore
+            _logger = logging.getLogger(f"torchrunx.{lname}")
+            for handler in handlers:
+                handler.setFormatter(log_formatter)
+                _logger.addHandler(handler)
         
         log_process = Process(target=monitor_log, args=(), daemon=True)
         log_process.start()
@@ -194,7 +205,7 @@ class Launcher:
 
         worker_log_names = [
             [
-                f"torchrunx.agent-{i}.worker-{local_rank}"
+                f"torchrunx.agent-{i}-worker-{local_rank}"
                 for local_rank in range(workers_per_host[i])  # type: ignore
             ]
             for i in range(len(self.hostnames))
@@ -263,7 +274,7 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_dir: os.PathLike | str = "./logs",
-    propagate_logs: bool = True,
+    log_spec: dict[str, list[logging.Handler]] | None = None,
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -294,8 +305,8 @@ def launch(
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
     :param log_dir: A directory in which logs should be written, defaults to "./logs"
     :type log_dir: os.PathLike | str, optional
-    :param log_level: The logging level, defaults to logging.WARN
-    :type log_level: logging._Level, optional
+    :param log_spec: TODO
+    :type log_spec: TODO
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
@@ -312,7 +323,7 @@ def launch(
         ssh_config_file=ssh_config_file,
         backend=backend,
         log_dir=log_dir,
-        propagate_logs=propagate_logs,
+        log_spec=log_spec,
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,

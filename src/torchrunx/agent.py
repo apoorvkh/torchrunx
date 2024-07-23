@@ -80,6 +80,7 @@ def entrypoint(serialized_worker_args: bytes):
     logger.setLevel(logging.DEBUG)
     logger.addHandler(socketHandler)
     logger.debug("creating TCPStore for worker group.")
+
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.master_hostname,
         port=worker_args.master_port,
