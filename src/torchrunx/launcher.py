@@ -116,7 +116,7 @@ class Launcher:
         if self.log_spec is None:
             # TODO: this assumes the type of workers_per_host is simply int. We should consider
             # again whether it's worth supporting inhomogeneous allocations (list[int])
-            self.log_spec = default_logging(num_agents=len(self.hostnames), 
+            self.log_spec = default_logging(hostnames=self.hostnames, 
                                             num_workers=self.workers_per_host, # type: ignore
                                             log_dir=os.fspath(log_dir))
 
@@ -205,10 +205,10 @@ class Launcher:
 
         worker_log_names = [
             [
-                f"torchrunx.agent-{i}-worker-{local_rank}"
+                f"torchrunx.{hostname}.worker-{local_rank}"
                 for local_rank in range(workers_per_host[i])  # type: ignore
             ]
-            for i in range(len(self.hostnames))
+            for i, hostname in enumerate(self.hostnames)
         ]
 
         payload = LauncherPayload(

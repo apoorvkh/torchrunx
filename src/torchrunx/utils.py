@@ -192,7 +192,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 def default_logging(
-    num_agents: int, num_workers: int, log_dir: str
+    hostnames: list[str], num_workers: int, log_dir: str
 ) -> dict[str, list[logging.Handler]]:
     """
     Generates torchrunx's default
@@ -208,18 +208,18 @@ def default_logging(
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
     agents: dict[str, list[logging.Handler]] = {
-        f"agent-{i}": [logging.FileHandler(f"{log_dir}/{timestamp}-agent-{i}.log")]
-        for i in range(num_agents)
+        hostname: [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}.log")]
+        for hostname in hostnames
     }
     workers: dict[str, list[logging.Handler]] = {
-        f"agent-{i}-worker-{j}": [
-            logging.FileHandler(f"{log_dir}/{timestamp}-agent-{i}.worker-{j}.log")
+        f"{hostname}.worker-{j}": [
+            logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}.worker-{j}.log")
         ]
         for j in range(num_workers)
-        for i in range(num_agents)
+        for hostname in hostnames
     }
 
-    workers["agent-0-worker-0"].append(logging.StreamHandler())
+    workers[f"{hostnames[0]}.worker-0"].append(logging.StreamHandler())
 
     return {**agents, **workers}
 

@@ -129,7 +129,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
-    logger = logging.getLogger(f"torchrunx.agent-{agent_rank}")
+    logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
     logger.setLevel(logging.DEBUG)
     socketHandler = logging.handlers.SocketHandler(launcher_payload.log_host,
                     logging.handlers.DEFAULT_TCP_LOGGING_PORT)
