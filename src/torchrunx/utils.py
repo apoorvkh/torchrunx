@@ -24,6 +24,7 @@ def get_open_port() -> int:
         port = s.getsockname()[1]
     return port
 
+
 def automatic() -> tuple[list[str], int]:
     """
     Automatically determine allocation sizes
@@ -31,13 +32,13 @@ def automatic() -> tuple[list[str], int]:
     :return: Allocation hosts and workers per host
     :rtype: tuple[list[str], int]
     """
-    
+
     if "SLURM_JOB_ID" not in os.environ:
         _cpus = os.cpu_count()
         cpus = 1 if _cpus is None else _cpus
         gpus = torch.cuda.device_count()
         return (["localhost"], cpus if gpus == 0 else gpus)
-    
+
     return slurm_hosts(), slurm_workers()
 
 
