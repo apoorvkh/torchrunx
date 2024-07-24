@@ -222,3 +222,16 @@ def default_logging(
     workers["agent-0-worker-0"].append(logging.StreamHandler())
 
     return {**agents, **workers}
+
+class RenamingSocketHandler(logging.handlers.SocketHandler):
+
+    def __init__(self, host, port, root_name):
+
+        super().__init__(host, port)
+
+        self.root_name = root_name
+
+    def emit(self, record):
+        if not record.name.startswith(self.root_name):
+            record.name = f"{self.root_name}.{record.name}"
+        super().emit(record)

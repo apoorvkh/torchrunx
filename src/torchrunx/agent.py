@@ -6,6 +6,7 @@ import logging.handlers
 import os
 import socket
 import sys
+import tempfile
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -13,7 +14,7 @@ import cloudpickle
 import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 from typing_extensions import Self
 
 from .utils import (
@@ -21,6 +22,7 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
+    RenamingSocketHandler,
     get_open_port,
 )
 
@@ -73,13 +75,13 @@ class WorkerTee(object):
 
 def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
-    logger = logging.getLogger(worker_args.log_name)
-    # TODO: set logging level? maybe argument to launch?
-    socketHandler = logging.handlers.SocketHandler(worker_args.log_host,
-                    logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+    logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
+    logger.name = worker_args.log_name # overwrite root logger name
+    socketHandler = RenamingSocketHandler(worker_args.log_host,
+                    logging.handlers.DEFAULT_TCP_LOGGING_PORT,
+                    worker_args.log_name)
     logger.addHandler(socketHandler)
-    logger.debug("creating TCPStore for worker group.")
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.master_hostname,
@@ -91,7 +93,9 @@ def entrypoint(serialized_worker_args: bytes):
     backend = worker_args.backend
     if backend is None:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
-    logger.debug("initializing worker process group.")
+    
+    logging.debug(f"using backend: {backend}")
+
     dist.init_process_group(
         backend=backend,
         world_size=worker_args.world_size,
@@ -106,9 +110,8 @@ def entrypoint(serialized_worker_args: bytes):
     os.environ["WORLD_SIZE"] = str(worker_args.world_size)
     os.environ["MASTER_ADDR"] = worker_args.master_hostname
     os.environ["MASTER_PORT"] = str(worker_args.master_port)
-    logger.debug("calling user function")
 
-    logging.root = logger
+    logging.debug(f"executing function: {worker_args.function}")
     return worker_args.function()
 
 
@@ -162,7 +165,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
             for i in range(num_workers)
         },
         envs={i: {} for i in range(num_workers)},
-        logs_specs=DefaultLogsSpecs(log_dir="/dev/null"),
+        logs_specs=DefaultLogsSpecs(log_dir=tempfile.mkdtemp()),
         start_method="spawn",
     )
     logger.debug("starting processes")
