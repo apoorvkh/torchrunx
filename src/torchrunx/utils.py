@@ -192,8 +192,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 def default_logging(
-    hostnames: list[str], num_workers: int, log_dir: str,
-    stream: bool = True
+    hostnames: list[str], num_workers: int, log_dir: str, stream: bool = True
 ) -> dict[str, list[logging.Handler]]:
     """
     Generates torchrunx's default
@@ -224,6 +223,7 @@ def default_logging(
         workers[f"{hostnames[0]}.worker-0"].append(logging.StreamHandler())
 
     return {**agents, **workers}
+
 
 class RenamingSocketHandler(logging.handlers.SocketHandler):
     def __init__(self, host, port, root_name):
