@@ -101,7 +101,7 @@ class Launcher:
     def run(
         self,
         func: Callable,
-        func_args: tuple[Any] = (),
+        func_args: tuple[Any] = tuple(),
         func_kwargs: dict[str, Any] = {},
     ) -> dict[int, Any]:
         """
@@ -258,7 +258,7 @@ class Launcher:
 
 def launch(
     func: Callable,
-    func_args: tuple[Any] = (),
+    func_args: tuple[Any] = tuple(),
     func_kwargs: dict[str, Any] = {},
     hostnames: list[str] = ["localhost"],
     workers_per_host: int | list[int] = 1,
