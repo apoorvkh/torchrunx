@@ -201,9 +201,9 @@ def default_logging(
     :type num_agents: int
     :param num_workers: Number of workers per agent
     :type num_workers: int
-    :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
+    :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument 
     :rtype: dict[str, list[logging.Handler]]
-    """
+    """  # noqa: E501
 
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
@@ -223,10 +223,9 @@ def default_logging(
 
     return {**agents, **workers}
 
+
 class RenamingSocketHandler(logging.handlers.SocketHandler):
-
     def __init__(self, host, port, root_name):
-
         super().__init__(host, port)
 
         self.root_name = root_name

@@ -77,10 +77,10 @@ def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    logger.name = worker_args.log_name # overwrite root logger name
-    socketHandler = RenamingSocketHandler(worker_args.log_host,
-                    logging.handlers.DEFAULT_TCP_LOGGING_PORT,
-                    worker_args.log_name)
+    logger.name = worker_args.log_name  # overwrite root logger name
+    socketHandler = RenamingSocketHandler(
+        worker_args.log_host, logging.handlers.DEFAULT_TCP_LOGGING_PORT, worker_args.log_name
+    )
     logger.addHandler(socketHandler)
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
@@ -93,7 +93,7 @@ def entrypoint(serialized_worker_args: bytes):
     backend = worker_args.backend
     if backend is None:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
-    
+
     logging.debug(f"using backend: {backend}")
 
     dist.init_process_group(
@@ -116,7 +116,6 @@ def entrypoint(serialized_worker_args: bytes):
 
 
 def main(launcher_agent_group: LauncherAgentGroup):
-
     agent_rank = launcher_agent_group.rank - 1
 
     payload = AgentPayload(
@@ -131,8 +130,9 @@ def main(launcher_agent_group: LauncherAgentGroup):
 
     logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
     logger.setLevel(logging.DEBUG)
-    socketHandler = logging.handlers.SocketHandler(launcher_payload.log_host,
-                    logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+    socketHandler = logging.handlers.SocketHandler(
+        launcher_payload.log_host, logging.handlers.DEFAULT_TCP_LOGGING_PORT
+    )
     logger.addHandler(socketHandler)
 
     hostname = launcher_payload.hostnames[agent_rank]

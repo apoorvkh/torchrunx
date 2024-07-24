@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import fnmatch
 import ipaddress
 import itertools
@@ -65,6 +64,7 @@ def monitor_log():
     tcpserver = LogRecordSocketReceiver(host=socket.getfqdn())
     tcpserver.serve_until_stopped()
 
+
 @dataclass
 class Launcher:
     hostnames: list[str] = field(default_factory=lambda: ["localhost"])
@@ -111,23 +111,25 @@ class Launcher:
 
         log_dir = Path(self.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
-        #timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+        # timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
         if self.log_spec is None:
             # TODO: this assumes the type of workers_per_host is simply int. We should consider
             # again whether it's worth supporting inhomogeneous allocations (list[int])
-            self.log_spec = default_logging(hostnames=self.hostnames, 
-                                            num_workers=self.workers_per_host, # type: ignore
-                                            log_dir=os.fspath(log_dir))
+            self.log_spec = default_logging(
+                hostnames=self.hostnames,
+                num_workers=self.workers_per_host,  # type: ignore
+                log_dir=os.fspath(log_dir),
+            )
 
         log_formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 
-        for lname, handlers in self.log_spec.items(): # type: ignore
+        for lname, handlers in self.log_spec.items():  # type: ignore
             _logger = logging.getLogger(f"torchrunx.{lname}")
             for handler in handlers:
                 handler.setFormatter(log_formatter)
                 _logger.addHandler(handler)
-        
+
         log_process = Process(target=monitor_log, args=(), daemon=True)
         log_process.start()
 
