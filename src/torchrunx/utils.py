@@ -201,7 +201,7 @@ def default_logging(
     :type num_agents: int
     :param num_workers: Number of workers per agent
     :type num_workers: int
-    :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument 
+    :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
     :rtype: dict[str, list[logging.Handler]]
     """  # noqa: E501
 
