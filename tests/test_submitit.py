@@ -23,6 +23,7 @@ class DummyDataset(Dataset):
             "labels": self.labels[index],
         }
 
+
 def main():
     model = BertForMaskedLM.from_pretrained("bert-base-uncased")
     train_dataset = DummyDataset()
@@ -30,30 +31,28 @@ def main():
     ## Training
 
     training_arguments = TrainingArguments(
-        output_dir = "output",
-        do_train = True,
-        per_device_train_batch_size = 16,
-        max_steps = 20,
+        output_dir="output",
+        do_train=True,
+        per_device_train_batch_size=16,
+        max_steps=20,
     )
 
     trainer = Trainer(
-        model=model, # type: ignore
+        model=model,  # type: ignore
         args=training_arguments,
-        train_dataset=train_dataset
+        train_dataset=train_dataset,
     )
 
     trainer.train()
 
+
 def launch():
     trx.launch(
-        func=main,
-        func_kwargs={},
-        hostnames=trx.slurm_hosts(),
-        workers_per_host=trx.slurm_workers()
+        func=main, func_kwargs={}, hostnames=trx.slurm_hosts(), workers_per_host=trx.slurm_workers()
     )
 
-def test_submitit():
 
+def test_submitit():
     executor = submitit.SlurmExecutor(folder="logs")
 
     executor.update_parameters(
