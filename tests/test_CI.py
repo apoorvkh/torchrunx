@@ -104,7 +104,7 @@ def test_timeout():
         while len(pids) == 0:
             time.sleep(0.5)
         print(pids[0])
-        os.system(f"kill -TSTP {pids[0]}")
+        os.system(f"kill {pids[0]}")
 
     thr = Thread(target=suspend)
     with pytest.raises(RuntimeError) as excinfo:
