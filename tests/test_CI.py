@@ -1,9 +1,16 @@
 import os
 import shutil
 import sys
+import tempfile
+import time
+from threading import Thread
 
+import pytest
 import torch
 import torch.distributed as dist
+
+from tests.test_train import worker
+from torchrunx.utils import AgentPayload
 
 sys.path.append("../src")
 
@@ -35,11 +42,10 @@ def test_simple_localhost():
         func_kwargs={},
         workers_per_host=2,
         backend="gloo",
+        log_dir="./test_logs"
     )
 
     assert torch.all(r[0] == r[1])
-
-    dist.destroy_process_group()
 
 
 def test_logging():
@@ -47,21 +53,17 @@ def test_logging():
         rank = int(os.environ["RANK"])
         print(f"worker rank: {rank}")
 
-    try:
-        shutil.rmtree("./test_logs")
-    except FileNotFoundError:
-        pass
-
+    tmp = tempfile.mkdtemp()
     torchrunx.launch(
-        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
+        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir=tmp
     )
 
-    log_files = next(os.walk("./test_logs"), (None, None, []))[2]
+    log_files = next(os.walk(tmp), (None, None, []))[2]
 
     assert len(log_files) == 3
 
     for file in log_files:
-        with open("./test_logs/" + file, "r") as f:
+        with open(f"{tmp}/{file}", "r") as f:
             if file.endswith("0.log"):
                 assert f.read() == "worker rank: 0\n"
             elif file.endswith("1.log"):
@@ -71,7 +73,44 @@ def test_logging():
                 assert "worker rank: 0" in contents
                 assert "worker rank: 1" not in contents
 
-    # clean up
-    shutil.rmtree("./test_logs", ignore_errors=True)
+def test_error():
 
-    dist.destroy_process_group()
+    def error_func():
+        raise ValueError("abcdefg")
+
+    with pytest.raises(RuntimeError) as excinfo:
+        torchrunx.launch(
+            func=error_func, func_kwargs={}, workers_per_host=1, backend="gloo", log_dir="./test_logs"
+        )
+
+    assert "abcdefg" in str(excinfo.value)
+
+
+def test_timeout():
+
+    def dist_func():
+        time.sleep(10)
+    
+    pids = []
+
+    original = torchrunx.launcher.LauncherAgentGroup.sync_payloads
+
+    def wrap(self, payload):
+        r = original(self, payload)
+        _r: list[AgentPayload] = r[1:] # pyright: ignore[reportAssignmentType]
+        pids.extend([p.process_id for p in _r])
+        return r
+    
+    torchrunx.launcher.LauncherAgentGroup.sync_payloads = wrap
+    
+    def suspend():
+        time.sleep(5)
+        os.system(f"kill -TSTP {pids[0]}")
+
+    thr = Thread(target=suspend)
+    with pytest.raises(RuntimeError) as excinfo:
+        thr.start()
+        torchrunx.launch(func=dist_func, func_kwargs={}, workers_per_host=1, backend="gloo", log_dir="./test_logs")
+    thr.join()
+    os.system(f"kill {pids[0]}")
+    assert "Timed out" in str(excinfo.value)
