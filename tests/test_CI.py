@@ -86,7 +86,7 @@ def test_error():
 
 def test_timeout():
     def dist_func():
-        time.sleep(10)
+        time.sleep(30)
 
     pids = []
 
@@ -103,6 +103,7 @@ def test_timeout():
     def suspend():
         while len(pids) == 0:
             time.sleep(0.5)
+        print(pids[0])
         os.system(f"kill -TSTP {pids[0]}")
 
     thr = Thread(target=suspend)
