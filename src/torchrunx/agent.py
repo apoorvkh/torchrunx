@@ -119,7 +119,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
     worker_log_files = launcher_payload.worker_log_files[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    if torch.__version__ > '2.2':
+    if torch.__version__ >= '2.3':
         # DefaultLogsSpecs only exists in torch >= 2.3
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
         log_arg = DefaultLogsSpecs(log_dir=tempfile.mkdtemp())
