@@ -4,14 +4,14 @@ import datetime
 import os
 import socket
 import sys
+import tempfile
 from dataclasses import dataclass
 from typing import Callable, Literal
 
 import cloudpickle
 import torch
 import torch.distributed as dist
-from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
 
 from .utils import (
@@ -108,7 +108,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
         port=get_open_port(),
         process_id=os.getpid(),
     )
-
+    # DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
     all_payloads = launcher_agent_group.sync_payloads(payload=payload)
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
@@ -119,36 +119,40 @@ def main(launcher_agent_group: LauncherAgentGroup):
     worker_log_files = launcher_payload.worker_log_files[agent_rank]
     num_workers = len(worker_global_ranks)
 
+    if torch.__version__ > '2.2':
+        # DefaultLogsSpecs only exists in torch >= 2.3
+        from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
+        log_arg = DefaultLogsSpecs(log_dir=tempfile.mkdtemp())
+    else:
+        log_arg = tempfile.mkdtemp()
+
     # spawn workers
-
-    ctx = MultiprocessContext(
-        name=f"{hostname}_",
-        entrypoint=entrypoint,
-        args={
-            i: (
-                WorkerArgs(
-                    function=launcher_payload.fn,
-                    master_hostname=main_agent_payload.hostname,
-                    master_port=main_agent_payload.port,
-                    backend=launcher_payload.backend,
-                    rank=worker_global_ranks[i],
-                    local_rank=i,
-                    local_world_size=num_workers,
-                    world_size=worker_world_size,
-                    log_file=worker_log_files[i],
-                    timeout=launcher_payload.timeout,
-                ).to_bytes(),
+    
+    ctx = start_processes(
+            f"{hostname}_",
+            entrypoint,
+            {
+                i: (
+                    WorkerArgs(
+                        function=launcher_payload.fn,
+                        master_hostname=main_agent_payload.hostname,
+                        master_port=main_agent_payload.port,
+                        backend=launcher_payload.backend,
+                        rank=worker_global_ranks[i],
+                        local_rank=i,
+                        local_world_size=num_workers,
+                        world_size=worker_world_size,
+                        log_file=worker_log_files[i],
+                        timeout=launcher_payload.timeout,
+                    ).to_bytes(),
+                )
+                for i in range(num_workers)
+            },
+            {i: {} for i in range(num_workers)},
+            log_arg # type: ignore
             )
-            for i in range(num_workers)
-        },
-        envs={i: {} for i in range(num_workers)},
-        logs_specs=DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
-        start_method="spawn",
-    )
-
+    
     try:
-        ctx.start()
-
         status = AgentStatus()
         while True:
             if status.is_running():
@@ -163,7 +167,6 @@ def main(launcher_agent_group: LauncherAgentGroup):
 
             if any(s.is_failed() for s in agent_statuses):
                 raise RuntimeError()
-
     except:
         raise
     finally:
