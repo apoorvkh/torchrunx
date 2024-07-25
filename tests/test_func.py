@@ -9,7 +9,6 @@ import torchrunx
 def test_launch():
     result = torchrunx.launch(
         func=simple_matmul,
-        func_kwargs={},
         hostnames=torchrunx.slurm_hosts(),
         workers_per_host=torchrunx.slurm_workers(),
     )
@@ -23,7 +22,7 @@ def test_launch():
     dist.destroy_process_group()
 
 
-def simple_matmul():
+def simple_matmul(test):
     rank = int(os.environ["RANK"])
     local_rank = int(os.environ["LOCAL_RANK"])
     device = torch.device(local_rank) if torch.cuda.is_available() else torch.device("cpu")
@@ -37,7 +36,7 @@ def simple_matmul():
 
     i = torch.rand((500, 100), device=device)  # batch, dim
     o = torch.matmul(i, w)
-
+    print(test)
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
     print(i)
     return o.detach().cpu()
