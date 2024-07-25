@@ -5,8 +5,6 @@ import torch.distributed as dist
 
 import torchrunx
 
-# this is not a pytest test, but a functional test designed to be run on a slurm allocation
-
 
 def test_launch():
     result = torchrunx.launch(
@@ -15,10 +13,13 @@ def test_launch():
         workers_per_host=torchrunx.slurm_workers(),
     )
 
+    t = True
     for i in range(len(result)):
-        assert torch.all(result[i] == result[0]), "Not all tensors equal"
-    print(result[0])
-    print("PASS")
+        t = t and torch.all(result[i] == result[0])
+
+    assert t, "Not all tensors equal"
+
+    dist.destroy_process_group()
 
 
 def simple_matmul(test):

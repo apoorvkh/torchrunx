@@ -64,4 +64,4 @@ jobs:
           frozen: true
           environments: default
           activate-environment: default
-      - run: pytest tests
+      - run: pytest tests/test_CI.py

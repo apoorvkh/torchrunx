@@ -1,6 +1,9 @@
 import os
-import socket
-import subprocess
+import sys
+
+sys.path.append("../src")
+
+import torch.distributed as dist
 
 import torchrunx
 
@@ -34,24 +37,16 @@ def worker():
         loss.sum().backward()
 
 
-def resolve_node_ips(nodelist):
-    # Expand the nodelist into individual hostnames
-    hostnames = (
-        subprocess.check_output(["scontrol", "show", "hostnames", nodelist])
-        .decode()
-        .strip()
-        .split("\n")
-    )
-    # Resolve each hostname to an IP address
-    ips = [socket.gethostbyname(hostname) for hostname in hostnames]
-    return ips
-
-
-if __name__ == "__main__":
+def test_distributed_train():
     torchrunx.launch(
         worker,
-        {},
         hostnames=torchrunx.slurm_hosts(),
         workers_per_host=torchrunx.slurm_workers(),
         backend="nccl",
     )
+
+    dist.destroy_process_group()
+
+
+if __name__ == "__main__":
+    test_distributed_train()
