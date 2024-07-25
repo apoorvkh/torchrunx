@@ -101,7 +101,8 @@ def test_timeout():
     torchrunx.launcher.LauncherAgentGroup.sync_payloads = wrap
 
     def suspend():
-        time.sleep(5)
+        while len(pids) == 0:
+            time.sleep(0.5)
         os.system(f"kill -TSTP {pids[0]}")
 
     thr = Thread(target=suspend)

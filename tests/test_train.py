@@ -40,7 +40,6 @@ def worker():
 def test_distributed_train():
     torchrunx.launch(
         worker,
-        {},
         hostnames=torchrunx.slurm_hosts(),
         workers_per_host=torchrunx.slurm_workers(),
         backend="nccl",
