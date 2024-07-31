@@ -9,6 +9,7 @@ import socketserver
 import struct
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from io import StringIO, TextIOWrapper
 
 
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -168,3 +169,22 @@ class DefaultLogSpec(LogSpec):
 
     def get_map(self):
         return self.log_spec_dict
+    
+class StreamLogger:
+    def __init__(self, logger: logging.Logger, stream: TextIOWrapper | None):
+        self.logger = logger
+        self._string_io = StringIO()
+        if stream is None:
+            raise ValueError("stream cannot be None")
+        self.stream: TextIOWrapper = stream # type: ignore
+    
+    def write(self, data: str):
+        self._string_io.write(data)
+        self.stream.write(data)
+
+    def flush(self):
+        value = self._string_io.getvalue()
+        if value != "":
+            self.logger.info(f"\n{value}")
+            self._string_io = StringIO() # "create a new one, it's faster" - someone online
+        self.stream.flush()

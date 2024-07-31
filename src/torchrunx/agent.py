@@ -17,7 +17,7 @@ from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 from typing_extensions import Self
 
-from .log_utils import RenamingSocketHandler
+from .log_utils import RenamingSocketHandler, StreamLogger
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -83,6 +83,9 @@ def entrypoint(serialized_worker_args: bytes):
     )
     socketHandler = RenamingSocketHandler(worker_args.log_host, worker_args.log_port, logger.name)
     logger.addHandler(socketHandler)
+
+    sys.stdout = StreamLogger(logger, sys.__stdout__)
+    sys.stderr = StreamLogger(logger, sys.__stderr__)
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.master_hostname,

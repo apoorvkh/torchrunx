@@ -1,4 +1,3 @@
-import logging
 import os
 
 import torch
@@ -37,7 +36,7 @@ def simple_matmul():
     o = torch.matmul(i, w)
 
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
-    logging.info(i)
+    print(i)
     return o.detach().cpu()
 
 

@@ -58,12 +58,11 @@ def execute_command(
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
-def monitor_log(log_spec: LogSpec, port: int):
-    log_formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
+def monitor_log(log_spec: LogSpec, port: int, formatter: logging.Formatter):
     for lname, handlers in log_spec.get_map().items():  # type: ignore
         _logger = logging.getLogger(f"torchrunx.{lname}")
         for handler in handlers:
-            handler.setFormatter(log_formatter)
+            handler.setFormatter(formatter)
             _logger.addHandler(handler)
 
     LogRecordSocketReceiver(host=socket.getfqdn(), port=port).serve_until_stopped()
@@ -111,6 +110,10 @@ class Launcher:
         logger = logging.getLogger("torchrunx")
         logger.setLevel(logging.DEBUG)
         logger.propagate = False
+        logger.parent = None
+
+        formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
+        # logger.
 
         # log_dir = Path(self.log_dir)
         # log_dir.mkdir(parents=True, exist_ok=True)
@@ -120,11 +123,14 @@ class Launcher:
             # TODO: this assumes the type of workers_per_host is simply int. We should consider
             # again whether it's worth supporting inhomogeneous allocations (list[int])
             self.log_spec = DefaultLogSpec.basic(
-                hostnames=self.hostnames, num_workers=self.workers_per_host # type: ignore
-            )  
+                hostnames=self.hostnames,
+                num_workers=self.workers_per_host,  # type: ignore
+            )
 
         log_port = get_open_port()
-        log_process = Process(target=monitor_log, args=(self.log_spec, log_port), daemon=True)
+        log_process = Process(
+            target=monitor_log, args=(self.log_spec, log_port, formatter), daemon=True
+        )
         log_process.start()
 
         if not dist.is_available():
@@ -169,7 +175,6 @@ class Launcher:
             # rank set in the loop below
         )
 
-        logger.debug("starting agents")
         # start agents on each node
         for i, hostname in enumerate(self.hostnames):
             execute_command(
@@ -233,11 +238,9 @@ class Launcher:
                                 else:
                                     e += f"{v.message['message']}\n"
                                     e += f"{v.message['extraInfo']['py_callstack']}\n\n"
-                    logger.error(f"workers threw:\n {e}")
                     raise RuntimeError(e)
         except:
             # cleanup: SIGTERM all agents
-            logger.warn("agents encountered error, manually killing")
             for agent_pid, agent_hostname in zip(agent_pids, self.hostnames):
                 execute_command(
                     command=f"kill {agent_pid}",
@@ -246,10 +249,8 @@ class Launcher:
                 )
             raise
         finally:
-            logger.debug("killing log process")
             log_process.kill()
 
-        logger.debug("returning")
         return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
         return return_values
 
