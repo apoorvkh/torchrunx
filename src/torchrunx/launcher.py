@@ -20,6 +20,7 @@ from typing import Any, Callable, Literal
 import fabric
 import torch.distributed as dist
 
+from .environment import auto_hosts, auto_workers
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -97,6 +98,7 @@ class Launcher:
     )
     env_file: str | os.PathLike | None = None
     timeout: int = 600
+    auto: bool = False
 
     def run(
         self,
@@ -114,6 +116,13 @@ class Launcher:
         :return: A dictionary mapping worker ranks to their output
         :rtype: dict[int, Any]
         """
+
+        if self.auto:
+            if self.workers_per_host is None:
+                self.workers_per_host = auto_workers()
+            if self.hostnames is None:
+                self.hostnames = auto_hosts()
+
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 

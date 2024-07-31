@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-import os
 import socket
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -9,13 +8,10 @@ from pathlib import Path
 from typing import Any, Callable, Literal
 
 import cloudpickle
-import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
-
-from torchrunx.slurm import slurm_hosts, slurm_workers
 
 
 def get_open_port() -> int:
@@ -23,23 +19,6 @@ def get_open_port() -> int:
         s.bind(("", 0))
         port = s.getsockname()[1]
     return port
-
-
-def automatic() -> tuple[list[str], int]:
-    """
-    Automatically determine allocation sizes
-
-    :return: Allocation hosts and workers per host
-    :rtype: tuple[list[str], int]
-    """
-
-    if "SLURM_JOB_ID" not in os.environ:
-        _cpus = os.cpu_count()
-        cpus = 1 if _cpus is None else _cpus
-        gpus = torch.cuda.device_count()
-        return (["localhost"], cpus if gpus == 0 else gpus)
-
-    return slurm_hosts(), slurm_workers()
 
 
 @dataclass
