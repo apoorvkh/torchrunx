@@ -282,6 +282,7 @@ def launch(
     ],
     env_file: str | os.PathLike | None = None,
     timeout: int = 600,
+    auto: bool = False,
 ) -> dict[int, Any]:
     """
     Launch a distributed PyTorch function on the specified nodes.
@@ -306,6 +307,8 @@ def launch(
     :type env_file: str | os.PathLike | None, optional
     :param timeout: Worker process group timeout, defaults to 600
     :type timeout: int, optional
+    :param auto: Automatically determine allocation sizes, supports Slurm allocation, defaults to None
+    :type auto: bool, optional
     :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
     :return: A dictionary mapping worker ranks to their output
     :rtype: dict[int, Any]
@@ -319,4 +322,5 @@ def launch(
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
+        auto=auto,
     ).run(func=func, func_kwargs=func_kwargs)
