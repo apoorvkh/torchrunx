@@ -1,13 +1,10 @@
 import logging
 import os
-import sys
 
 import torch
 import torch.distributed as dist
 
-sys.path.append("../src")
-
-import torchrunx   # noqa: I001
+import torchrunx
 
 # this is not a pytest test, but a functional test designed to be run on a slurm allocation
 

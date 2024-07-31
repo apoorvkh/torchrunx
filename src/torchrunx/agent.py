@@ -17,12 +17,12 @@ from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
 from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 from typing_extensions import Self
 
+from .log_utils import RenamingSocketHandler
 from .utils import (
     AgentPayload,
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
-    RenamingSocketHandler,
     get_open_port,
 )
 
@@ -37,8 +37,9 @@ class WorkerArgs:
     local_rank: int
     local_world_size: int
     world_size: int
-    log_name: str
+    hostname: str
     log_host: str
+    log_port: int
     timeout: int
 
     def to_bytes(self) -> bytes:
@@ -77,10 +78,10 @@ def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    logger.name = worker_args.log_name  # overwrite root logger name
-    socketHandler = RenamingSocketHandler(
-        worker_args.log_host, logging.handlers.DEFAULT_TCP_LOGGING_PORT, worker_args.log_name
+    logger.name = (
+        f"torchrunx.{worker_args.hostname}.{worker_args.local_rank}"  # overwrite root logger name
     )
+    socketHandler = RenamingSocketHandler(worker_args.log_host, worker_args.log_port, logger.name)
     logger.addHandler(socketHandler)
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
@@ -128,18 +129,18 @@ def main(launcher_agent_group: LauncherAgentGroup):
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
 
-    logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
-    logger.setLevel(logging.DEBUG)
-    socketHandler = logging.handlers.SocketHandler(
-        launcher_payload.log_host, logging.handlers.DEFAULT_TCP_LOGGING_PORT
-    )
-    logger.addHandler(socketHandler)
-
     hostname = launcher_payload.hostnames[agent_rank]
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
-    worker_log_names = launcher_payload.worker_log_names[agent_rank]
     num_workers = len(worker_global_ranks)
+
+    logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
+    logger.setLevel(logging.DEBUG)
+    socketHandler = logging.handlers.SocketHandler(
+        launcher_payload.log_host,
+        launcher_payload.log_port,
+    )
+    logger.addHandler(socketHandler)
 
     # spawn workers
 
@@ -157,8 +158,9 @@ def main(launcher_agent_group: LauncherAgentGroup):
                     local_rank=i,
                     local_world_size=num_workers,
                     world_size=worker_world_size,
-                    log_name=worker_log_names[i],
+                    hostname=launcher_payload.hostnames[agent_rank],
                     log_host=launcher_payload.log_host,
+                    log_port=launcher_payload.log_port,
                     timeout=launcher_payload.timeout,
                 ).to_bytes(),
             )
