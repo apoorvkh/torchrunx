@@ -17,8 +17,6 @@ def test_launch():
 
     for i in range(len(result)):
         assert torch.all(result[i] == result[0]), "Not all tensors equal"
-    print(result[0])
-    print("PASS")
 
 
 def simple_matmul(test):

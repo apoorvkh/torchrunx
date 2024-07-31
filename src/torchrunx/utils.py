@@ -4,7 +4,6 @@ import datetime
 import socket
 from contextlib import closing
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Callable, Literal
 
 import cloudpickle
@@ -27,7 +26,8 @@ class LauncherPayload:
     hostnames: list[str]
     worker_world_size: int
     worker_global_ranks: list[list[int]]
-    worker_log_files: list[list[Path]]
+    log_host: str
+    log_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     timeout: int
 

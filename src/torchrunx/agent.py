@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import datetime
+import logging
+import logging.handlers
 import os
 import socket
 import sys
+import tempfile
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -11,9 +14,10 @@ import cloudpickle
 import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext, Std
+from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
 from typing_extensions import Self
 
+from .log_utils import RenamingSocketHandler, StreamLogger
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -33,7 +37,9 @@ class WorkerArgs:
     local_rank: int
     local_world_size: int
     world_size: int
-    log_file: os.PathLike
+    hostname: str
+    log_host: str
+    log_port: int
     timeout: int
 
     def to_bytes(self) -> bytes:
@@ -70,34 +76,47 @@ class WorkerTee(object):
 
 def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logger.name = (
+        f"torchrunx.{worker_args.hostname}.{worker_args.local_rank}"  # overwrite root logger name
+    )
+    socketHandler = RenamingSocketHandler(worker_args.log_host, worker_args.log_port, logger.name)
+    logger.addHandler(socketHandler)
 
-    with WorkerTee(worker_args.log_file, "w"):
-        store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
-            host_name=worker_args.master_hostname,
-            port=worker_args.master_port,
-            world_size=worker_args.world_size,
-            is_master=(worker_args.rank == 0),
-        )
+    sys.stdout = StreamLogger(logger, sys.__stdout__)
+    sys.stderr = StreamLogger(logger, sys.__stderr__)
 
-        backend = worker_args.backend
-        if backend is None:
-            backend = "nccl" if torch.cuda.is_available() else "gloo"
-        dist.init_process_group(
-            backend=backend,
-            world_size=worker_args.world_size,
-            rank=worker_args.rank,
-            store=store,
-            timeout=datetime.timedelta(seconds=worker_args.timeout),
-        )
+    store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
+        host_name=worker_args.master_hostname,
+        port=worker_args.master_port,
+        world_size=worker_args.world_size,
+        is_master=(worker_args.rank == 0),
+    )
 
-        os.environ["RANK"] = str(worker_args.rank)
-        os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
-        os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
-        os.environ["WORLD_SIZE"] = str(worker_args.world_size)
-        os.environ["MASTER_ADDR"] = worker_args.master_hostname
-        os.environ["MASTER_PORT"] = str(worker_args.master_port)
+    backend = worker_args.backend
+    if backend is None:
+        backend = "nccl" if torch.cuda.is_available() else "gloo"
 
-        return worker_args.function()
+    logging.debug(f"using backend: {backend}")
+
+    dist.init_process_group(
+        backend=backend,
+        world_size=worker_args.world_size,
+        rank=worker_args.rank,
+        store=store,
+        timeout=datetime.timedelta(seconds=worker_args.timeout),
+    )
+
+    os.environ["RANK"] = str(worker_args.rank)
+    os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
+    os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
+    os.environ["WORLD_SIZE"] = str(worker_args.world_size)
+    os.environ["MASTER_ADDR"] = worker_args.master_hostname
+    os.environ["MASTER_PORT"] = str(worker_args.master_port)
+
+    logging.debug(f"executing function: {worker_args.function}")
+    return worker_args.function()
 
 
 def main(launcher_agent_group: LauncherAgentGroup):
@@ -116,8 +135,15 @@ def main(launcher_agent_group: LauncherAgentGroup):
     hostname = launcher_payload.hostnames[agent_rank]
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
-    worker_log_files = launcher_payload.worker_log_files[agent_rank]
     num_workers = len(worker_global_ranks)
+
+    logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
+    logger.setLevel(logging.DEBUG)
+    socketHandler = logging.handlers.SocketHandler(
+        launcher_payload.log_host,
+        launcher_payload.log_port,
+    )
+    logger.addHandler(socketHandler)
 
     # spawn workers
 
@@ -135,17 +161,19 @@ def main(launcher_agent_group: LauncherAgentGroup):
                     local_rank=i,
                     local_world_size=num_workers,
                     world_size=worker_world_size,
-                    log_file=worker_log_files[i],
+                    hostname=launcher_payload.hostnames[agent_rank],
+                    log_host=launcher_payload.log_host,
+                    log_port=launcher_payload.log_port,
                     timeout=launcher_payload.timeout,
                 ).to_bytes(),
             )
             for i in range(num_workers)
         },
         envs={i: {} for i in range(num_workers)},
-        logs_specs=DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
+        logs_specs=DefaultLogsSpecs(log_dir=tempfile.mkdtemp()),
         start_method="spawn",
     )
-
+    logger.debug("starting processes")
     try:
         ctx.start()
 
@@ -162,9 +190,10 @@ def main(launcher_agent_group: LauncherAgentGroup):
                 break
 
             if any(s.is_failed() for s in agent_statuses):
-                raise RuntimeError()
+                raise RuntimeError("worker failure")
 
-    except:
+    except Exception as e:
+        logger.error(f"encountered error: {e}")
         raise
     finally:
         ctx.close()

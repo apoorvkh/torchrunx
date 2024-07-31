@@ -1,25 +1,25 @@
 from __future__ import annotations
 
-import datetime
 import fnmatch
-import io
 import ipaddress
 import itertools
+import logging
+import logging.config
+import logging.handlers
 import os
 import socket
 import subprocess
 import sys
-import time
 from collections import ChainMap
 from dataclasses import dataclass, field
 from functools import partial
 from multiprocessing import Process
-from pathlib import Path
 from typing import Any, Callable, Literal
 
 import fabric
 import torch.distributed as dist
 
+from .log_utils import DefaultLogSpec, LogRecordSocketReceiver, LogSpec
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -47,33 +47,25 @@ def execute_command(
     command: str,
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
-    outfile: str | os.PathLike | None = None,
 ) -> None:
     # TODO: permit different stderr / stdout
     if is_localhost(hostname):
-        _outfile = subprocess.DEVNULL
-        if outfile is not None:
-            _outfile = open(outfile, "w")
-        subprocess.Popen(command, shell=True, stdout=_outfile, stderr=_outfile)
+        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         with fabric.Connection(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
-            if outfile is None:
-                outfile = "/dev/null"
-            conn.run(f"{command} >> {outfile} 2>&1 &", asynchronous=True)
+            conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
-def monitor_log(log_file: Path):
-    log_file.touch()
-    f = open(log_file, "r")
-    print(f.read())
-    f.seek(0, io.SEEK_END)
-    while True:
-        new = f.read()
-        if len(new) != 0:
-            print(new)
-        time.sleep(0.1)
+def monitor_log(log_spec: LogSpec, port: int, formatter: logging.Formatter):
+    for lname, handlers in log_spec.get_map().items():  # type: ignore
+        _logger = logging.getLogger(f"torchrunx.{lname}")
+        for handler in handlers:
+            handler.setFormatter(formatter)
+            _logger.addHandler(handler)
+
+    LogRecordSocketReceiver(host=socket.getfqdn(), port=port).serve_until_stopped()
 
 
 @dataclass
@@ -82,7 +74,7 @@ class Launcher:
     workers_per_host: int | list[int] = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
-    log_dir: os.PathLike | str = "./logs"
+    log_spec: LogSpec | None = None
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -117,6 +109,33 @@ class Launcher:
         :return: A dictionary mapping worker ranks to their output
         :rtype: dict[int, Any]
         """
+
+        logger = logging.getLogger("torchrunx")
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = False
+        logger.parent = None
+
+        formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
+        # logger.
+
+        # log_dir = Path(self.log_dir)
+        # log_dir.mkdir(parents=True, exist_ok=True)
+        # timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+        if self.log_spec is None:
+            # TODO: this assumes the type of workers_per_host is simply int. We should consider
+            # again whether it's worth supporting inhomogeneous allocations (list[int])
+            self.log_spec = DefaultLogSpec.basic(
+                hostnames=self.hostnames,
+                num_workers=self.workers_per_host,  # type: ignore
+            )
+
+        log_port = get_open_port()
+        log_process = Process(
+            target=monitor_log, args=(self.log_spec, log_port, formatter), daemon=True
+        )
+        log_process.start()
+
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
@@ -159,22 +178,12 @@ class Launcher:
             # rank set in the loop below
         )
 
-        log_dir = Path(self.log_dir)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-        agent_log_files = [log_dir / f"{timestamp}_{hostname}.log" for hostname in self.hostnames]
-
-        # start process to read from agent 0 log
-        print_process = Process(target=monitor_log, args=(agent_log_files[0],), daemon=True)
-        print_process.start()
-
         # start agents on each node
         for i, hostname in enumerate(self.hostnames):
             execute_command(
                 command=f"{command} --rank {i+1}",
                 hostname=hostname,
                 ssh_config_file=self.ssh_config_file,
-                outfile=agent_log_files[i],
             )
 
         # initialize launcher–agent process group
@@ -198,20 +207,13 @@ class Launcher:
             host_ranks = range(_cumulative_workers[n], _cumulative_workers[n + 1])
             worker_global_ranks.append(list(host_ranks))
 
-        worker_log_files = [
-            [
-                log_dir / f"{timestamp}_{hostname}_{local_rank}.log"
-                for local_rank in range(workers_per_host[i])  # type: ignore
-            ]
-            for i, hostname in enumerate(self.hostnames)
-        ]
-
         payload = LauncherPayload(
             fn=partial(func, *func_args, **func_kwargs),
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
-            worker_log_files=worker_log_files,
+            log_host=launcher_hostname,
+            log_port=log_port,
             backend=self.backend,
             timeout=self.timeout,
         )
@@ -250,7 +252,7 @@ class Launcher:
                 )
             raise
         finally:
-            print_process.kill()
+            log_process.kill()
 
         return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
         return return_values
@@ -265,6 +267,7 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_dir: os.PathLike | str = "./logs",
+    log_spec: LogSpec | None = None,
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -297,6 +300,8 @@ def launch(
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
     :param log_dir: A directory in which logs should be written, defaults to "./logs"
     :type log_dir: os.PathLike | str, optional
+    :param log_spec: TODO
+    :type log_spec: TODO
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
@@ -312,7 +317,7 @@ def launch(
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        log_dir=log_dir,
+        log_spec=log_spec,
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,

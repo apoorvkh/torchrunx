@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import sys
@@ -45,7 +46,7 @@ def test_simple_localhost():
 def test_logging():
     def dist_func():
         rank = int(os.environ["RANK"])
-        print(f"worker rank: {rank}")
+        logging.info(f"worker rank: {rank}")
 
     try:
         shutil.rmtree("./test_logs")
@@ -63,15 +64,15 @@ def test_logging():
     for file in log_files:
         with open("./test_logs/" + file, "r") as f:
             if file.endswith("0.log"):
-                assert f.read() == "worker rank: 0\n"
+                assert "worker rank: 0\n" in f.read()
             elif file.endswith("1.log"):
-                assert f.read() == "worker rank: 1\n"
+                assert "worker rank: 1\n" in f.read()
             else:
                 contents = f.read()
                 assert "worker rank: 0" in contents
-                assert "worker rank: 1" not in contents
+                assert "worker rank: 1" in contents
 
     # clean up
-    shutil.rmtree("./test_logs")
+    shutil.rmtree("./test_logs", ignore_errors=True)
 
     dist.destroy_process_group()
