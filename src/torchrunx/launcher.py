@@ -121,10 +121,12 @@ class Launcher:
         """
 
         if self.auto:
-            if self.workers_per_host is None:
-                self.workers_per_host = auto_workers()
             if self.hostnames is None:
                 self.hostnames = auto_hosts()
+            if self.workers_per_host is None:
+                self.workers_per_host = auto_workers()
+
+        assert self.hostnames is not None and self.workers_per_host is not None
 
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
