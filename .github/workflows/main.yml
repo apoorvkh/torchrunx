@@ -26,13 +26,13 @@ jobs:
   setup-dev-env:
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/workflows/setup-dev-env
+      - uses: ./.github/actions/setup-dev-env
 
   check:
     runs-on: ubuntu-latest
     needs: setup-dev-env
     steps:
-      - uses: ./.github/workflows/setup-dev-env
+      - uses: ./.github/actions/setup-dev-env
       - run: ruff check
         if: success() || failure()
       - run: ruff format --check
