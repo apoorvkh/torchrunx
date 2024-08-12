@@ -314,6 +314,7 @@ def launch(
     :rtype: dict[int, Any]
     """  # noqa: E501
     return Launcher(
+        auto=auto,
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
@@ -322,5 +323,4 @@ def launch(
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
-        auto=auto,
     ).run(func=func, func_kwargs=func_kwargs)
