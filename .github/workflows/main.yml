@@ -55,13 +55,17 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy: 
+      matrix:
+        python: [py32, py39, py310, py311] 
+        pytorch: [torch20, torch21, torch22, torch23, torch24]
     steps:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.1
         with:
           pixi-version: v0.25.0
-          cache: true
+          cache: false
           frozen: true
-          environments: default
-          activate-environment: default
+          environments: ${{ matrix.python }}-${{ matrix.pytorch }}
+          activate-environment: ${{ matrix.python }}-${{ matrix.pytorch }}
       - run: pytest tests
