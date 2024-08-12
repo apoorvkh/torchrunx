@@ -51,10 +51,10 @@ def auto_hosts() -> list[str]:
     :return: Hostnames in Slurm allocation, or ['localhost']
     :rtype: list[str]
     """
-    if not in_slurm_job():
-        return ["localhost"]
+    if in_slurm_job():
+        slurm_hosts()
 
-    return slurm_hosts()
+    return ["localhost"]
 
 
 def auto_workers() -> int:
@@ -64,8 +64,7 @@ def auto_workers() -> int:
     :return: Workers per host
     :rtype: int
     """
+    if in_slurm_job():
+        return slurm_workers()
 
-    if not in_slurm_job:
-        return torch.cuda.device_count() or os.cpu_count() or 1
-
-    return slurm_workers()
+    return torch.cuda.device_count() or os.cpu_count() or 1
