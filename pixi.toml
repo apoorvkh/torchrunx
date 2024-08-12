@@ -19,6 +19,10 @@ pytest = "*"
 build = "*"
 twine = "*"
 
+[feature.matrix.pypi-dependencies]
+pytest = "*"
+torchrunx = {path = ".", editable = true}
+
 [feature.py38.dependencies]
 python = "3.8.*"
 
@@ -50,26 +54,26 @@ torch = ">=2.4.0,<2.5"
 default = { features = ["package", "dev"], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
-py38-torch20 = {features = ["py38", "torch20"], no-default-feature = true}
-py38-torch21 = {features = ["py38", "torch21"], no-default-feature = true}
-py38-torch22 = {features = ["py38", "torch22"], no-default-feature = true}
-py38-torch23 = {features = ["py38", "torch23"], no-default-feature = true}
-py38-torch24 = {features = ["py38", "torch24"], no-default-feature = true}
+py38-torch20 = {features = ["py38", "torch20", "matrix"], no-default-feature = true}
+py38-torch21 = {features = ["py38", "torch21", "matrix"], no-default-feature = true}
+py38-torch22 = {features = ["py38", "torch22", "matrix"], no-default-feature = true}
+py38-torch23 = {features = ["py38", "torch23", "matrix"], no-default-feature = true}
+py38-torch24 = {features = ["py38", "torch24", "matrix"], no-default-feature = true}
 
-py39-torch20 = {features = ["py39", "torch20"], no-default-feature = true}
-py39-torch21 = {features = ["py39", "torch21"], no-default-feature = true}
-py39-torch22 = {features = ["py39", "torch22"], no-default-feature = true}
-py39-torch23 = {features = ["py39", "torch23"], no-default-feature = true}
-py39-torch24 = {features = ["py39", "torch24"], no-default-feature = true}
+py39-torch20 = {features = ["py39", "torch20", "matrix"], no-default-feature = true}
+py39-torch21 = {features = ["py39", "torch21", "matrix"], no-default-feature = true}
+py39-torch22 = {features = ["py39", "torch22", "matrix"], no-default-feature = true}
+py39-torch23 = {features = ["py39", "torch23", "matrix"], no-default-feature = true}
+py39-torch24 = {features = ["py39", "torch24", "matrix"], no-default-feature = true}
 
-py310-torch20 = {features = ["py310", "torch20"], no-default-feature = true}
-py310-torch21 = {features = ["py310", "torch21"], no-default-feature = true}
-py310-torch22 = {features = ["py310", "torch22"], no-default-feature = true}
-py310-torch23 = {features = ["py310", "torch23"], no-default-feature = true}
-py310-torch24 = {features = ["py310", "torch24"], no-default-feature = true}
+py310-torch20 = {features = ["py310", "torch20", "matrix"], no-default-feature = true}
+py310-torch21 = {features = ["py310", "torch21", "matrix"], no-default-feature = true}
+py310-torch22 = {features = ["py310", "torch22", "matrix"], no-default-feature = true}
+py310-torch23 = {features = ["py310", "torch23", "matrix"], no-default-feature = true}
+py310-torch24 = {features = ["py310", "torch24", "matrix"], no-default-feature = true}
 
-py311-torch20 = {features = ["py311", "torch20"], no-default-feature = true}
-py311-torch21 = {features = ["py311", "torch21"], no-default-feature = true}
-py311-torch22 = {features = ["py311", "torch22"], no-default-feature = true}
-py311-torch23 = {features = ["py311", "torch23"], no-default-feature = true}
-py311-torch24 = {features = ["py311", "torch24"], no-default-feature = true}
+py311-torch20 = {features = ["py311", "torch20", "matrix"], no-default-feature = true}
+py311-torch21 = {features = ["py311", "torch21", "matrix"], no-default-feature = true}
+py311-torch22 = {features = ["py311", "torch22", "matrix"], no-default-feature = true}
+py311-torch23 = {features = ["py311", "torch23", "matrix"], no-default-feature = true}
+py311-torch24 = {features = ["py311", "torch24", "matrix"], no-default-feature = true}
