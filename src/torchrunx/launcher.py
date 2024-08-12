@@ -80,8 +80,8 @@ def monitor_log(log_file: Path):
 @dataclass
 class Launcher:
     auto: bool = False
-    hostnames: list[str] = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] = 1
+    hostnames: list[str] | None = field(default_factory=lambda: ["localhost"])
+    workers_per_host: int | list[int] | None = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_dir: os.PathLike | str = "./logs"
@@ -266,8 +266,8 @@ def launch(
     func: Callable,
     func_kwargs: dict[str, Any],
     auto: bool = False,
-    hostnames: list[str] = ["localhost"],
-    workers_per_host: int | list[int] = 1,
+    hostnames: list[str] | None = ["localhost"],
+    workers_per_host: int | list[int] | None = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_dir: os.PathLike | str = "./logs",
@@ -294,9 +294,9 @@ def launch(
     :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
     :type auto: bool, optional
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
-    :type hostnames: list[str], optional
+    :type hostnames: list[str] | None, optional
     :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to 1
-    :type workers_per_host: int | list[int], optional
+    :type workers_per_host: int | list[int] | None, optional
     :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
