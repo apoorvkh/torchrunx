@@ -103,13 +103,16 @@ class Launcher:
     def run(
         self,
         func: Callable,
-        func_kwargs: dict[str, Any],
+        func_args: tuple[Any] = tuple(),
+        func_kwargs: dict[str, Any] = {},
     ) -> dict[int, Any]:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
         :param func: The distributed function to call on all workers
         :type func: Callable
+        :param func_args: Any positional arguments to be provided when calling ``func``
+        :type func_args: tuple[Any]
         :param func_kwargs: Any keyword arguments to be provided when calling ``func``
         :type func_kwargs: dict[str, Any]
         :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
@@ -213,7 +216,7 @@ class Launcher:
         ]
 
         payload = LauncherPayload(
-            fn=partial(func, **func_kwargs),
+            fn=partial(func, *func_args, **func_kwargs),
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
@@ -264,7 +267,8 @@ class Launcher:
 
 def launch(
     func: Callable,
-    func_kwargs: dict[str, Any],
+    func_args: tuple[Any] = tuple(),
+    func_kwargs: dict[str, Any] = {},
     auto: bool = False,
     hostnames: list[str] | None = ["localhost"],
     workers_per_host: int | list[int] | None = 1,
@@ -289,6 +293,8 @@ def launch(
 
     :param func: The distributed function to call on all workers
     :type func: Callable
+    :param func_args: Any positional arguments to be provided when calling ``func``
+    :type func_args: tuple[Any]
     :param func_kwargs: Any keyword arguments to be provided when calling ``func``
     :type func_kwargs: dict[str, Any]
     :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
@@ -323,4 +329,4 @@ def launch(
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
-    ).run(func=func, func_kwargs=func_kwargs)
+    ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
