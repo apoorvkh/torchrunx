@@ -119,39 +119,40 @@ def main(launcher_agent_group: LauncherAgentGroup):
     worker_log_files = launcher_payload.worker_log_files[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    if torch.__version__ >= '2.3':
+    if torch.__version__ >= "2.3":
         # DefaultLogsSpecs only exists in torch >= 2.3
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
+
         log_arg = DefaultLogsSpecs(log_dir=tempfile.mkdtemp())
     else:
         log_arg = tempfile.mkdtemp()
 
     # spawn workers
-    
+
     ctx = start_processes(
-            f"{hostname}_",
-            entrypoint,
-            {
-                i: (
-                    WorkerArgs(
-                        function=launcher_payload.fn,
-                        master_hostname=main_agent_payload.hostname,
-                        master_port=main_agent_payload.port,
-                        backend=launcher_payload.backend,
-                        rank=worker_global_ranks[i],
-                        local_rank=i,
-                        local_world_size=num_workers,
-                        world_size=worker_world_size,
-                        log_file=worker_log_files[i],
-                        timeout=launcher_payload.timeout,
-                    ).to_bytes(),
-                )
-                for i in range(num_workers)
-            },
-            {i: {} for i in range(num_workers)},
-            log_arg # type: ignore
+        f"{hostname}_",
+        entrypoint,
+        {
+            i: (
+                WorkerArgs(
+                    function=launcher_payload.fn,
+                    master_hostname=main_agent_payload.hostname,
+                    master_port=main_agent_payload.port,
+                    backend=launcher_payload.backend,
+                    rank=worker_global_ranks[i],
+                    local_rank=i,
+                    local_world_size=num_workers,
+                    world_size=worker_world_size,
+                    log_file=worker_log_files[i],
+                    timeout=launcher_payload.timeout,
+                ).to_bytes(),
             )
-    
+            for i in range(num_workers)
+        },
+        {i: {} for i in range(num_workers)},
+        log_arg,  # type: ignore
+    )
+
     try:
         status = AgentStatus()
         while True:
