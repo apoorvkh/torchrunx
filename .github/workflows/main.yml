@@ -69,3 +69,4 @@ jobs:
           environments: ${{ matrix.python }}-${{ matrix.pytorch }}
           activate-environment: ${{ matrix.python }}-${{ matrix.pytorch }}
       - run: pytest tests
+        if: success() || failure()
