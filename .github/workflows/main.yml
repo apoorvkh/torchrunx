@@ -9,20 +9,6 @@ on:
 
 jobs:
 
-  # TODO: Currently not super efficient because it will try to install the environment
-  # check-lockfile:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: prefix-dev/setup-pixi@v0.8.1
-  #       with:
-  #         pixi-version: v0.25.0
-  #         cache: true
-  #         locked: true
-  #         environments: >-
-  #           default
-  #           dev
-
   setup-dev-env:
     runs-on: ubuntu-latest
     steps:
@@ -44,29 +30,33 @@ jobs:
       - run: ruff format --check
         if: success() || failure()
 
-  typecheck:
+  ##
+
+  setup-default-env:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: ./.github/actions/setup-env
         with:
-          pixi-version: v0.25.0
-          cache: true
-          frozen: true
-          environments: default
-          activate-environment: default
+          environment: default
+
+  typecheck:
+    runs-on: ubuntu-latest
+    needs: setup-default-env
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          environment: default
       - run: pyright
         if: success() || failure()
 
   test:
     runs-on: ubuntu-latest
+    needs: setup-default-env
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: ./.github/actions/setup-env
         with:
-          pixi-version: v0.25.0
-          cache: true
-          frozen: true
-          environments: default
-          activate-environment: default
+          environment: default
       - run: pytest tests
