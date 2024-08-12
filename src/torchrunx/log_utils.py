@@ -10,6 +10,7 @@ import struct
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from io import StringIO, TextIOWrapper
+from pathlib import Path
 
 
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -123,9 +124,11 @@ class DefaultLogSpec(LogSpec):
         :type num_workers: int
         :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
         :rtype: dict[str, list[logging.Handler]]
-        """ # noqa: E501
+        """  # noqa: E501
 
         timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
 
         agents: dict[str, list[logging.Handler]] = {
             hostname: [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}.log")]
@@ -153,11 +156,13 @@ class DefaultLogSpec(LogSpec):
         :type file_map: dict[str, str]
         :return: Returns an accordingly constructed DefaultLogSpec
         :rtype: DefaultLogSpec
-        """ # noqa: E501
+        """  # noqa: E501
 
         reverse_map: defaultdict[str, list[logging.Handler]] = defaultdict(lambda: [])
 
         timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
 
         for file_suffix, loggers in file_map.items():
             for logger in loggers:
@@ -169,15 +174,16 @@ class DefaultLogSpec(LogSpec):
 
     def get_map(self):
         return self.log_spec_dict
-    
+
+
 class StreamLogger:
     def __init__(self, logger: logging.Logger, stream: TextIOWrapper | None):
         self.logger = logger
         self._string_io = StringIO()
         if stream is None:
             raise ValueError("stream cannot be None")
-        self.stream: TextIOWrapper = stream # type: ignore
-    
+        self.stream: TextIOWrapper = stream  # type: ignore
+
     def write(self, data: str):
         self._string_io.write(data)
         self.stream.write(data)
@@ -186,5 +192,5 @@ class StreamLogger:
         value = self._string_io.getvalue()
         if value != "":
             self.logger.info(f"\n{value}")
-            self._string_io = StringIO() # "create a new one, it's faster" - someone online
+            self._string_io = StringIO()  # "create a new one, it's faster" - someone online
         self.stream.flush()

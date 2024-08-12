@@ -1,14 +1,12 @@
 import logging
 import os
 import shutil
-import sys
 
 import torch
 import torch.distributed as dist
 
-sys.path.append("../src")
-
 import torchrunx  # noqa: I001
+from torchrunx.log_utils import DefaultLogSpec
 
 
 def test_simple_localhost():
@@ -54,7 +52,13 @@ def test_logging():
         pass
 
     torchrunx.launch(
-        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
+        func=dist_func,
+        func_kwargs={},
+        workers_per_host=2,
+        backend="gloo",
+        log_spec=DefaultLogSpec.basic(
+            hostnames=["localhost"], num_workers=2, log_dir="./test_logs"
+        ),
     )
 
     log_files = next(os.walk("./test_logs"), (None, None, []))[2]

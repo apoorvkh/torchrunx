@@ -262,7 +262,6 @@ def launch(
     workers_per_host: int | list[int] = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_dir: os.PathLike | str = "./logs",
     log_spec: LogSpec | None = None,
     env_vars: list[str] = [
         "PATH",
@@ -292,8 +291,6 @@ def launch(
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
-    :param log_dir: A directory in which logs should be written, defaults to "./logs"
-    :type log_dir: os.PathLike | str, optional
     :param log_spec: TODO
     :type log_spec: TODO
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
