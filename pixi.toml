@@ -19,6 +19,57 @@ pytest = "*"
 build = "*"
 twine = "*"
 
+[feature.py38.dependencies]
+python = "3.8.*"
+
+[feature.py39.dependencies]
+python = "3.9.*"
+
+[feature.py310.dependencies]
+python = "3.10.*"
+
+[feature.py311.dependencies]
+python = "3.11.*"
+
+[feature.torch20.pypi-dependencies]
+torch = ">=2.0.0,<2.1"
+
+[feature.torch21.pypi-dependencies]
+torch = ">=2.1.0,<2.2"
+
+[feature.torch22.pypi-dependencies]
+torch = ">=2.2.0,<2.3"
+
+[feature.torch23.pypi-dependencies]
+torch = ">=2.3.0,<2.4"
+
+[feature.torch24.pypi-dependencies]
+torch = ">=2.4.0,<2.5"
+
 [environments]
 default = { features = ["package", "dev"], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
+
+py38-torch20 = {features = ["py38", "torch20"], no-default-feature = true}
+py38-torch21 = {features = ["py38", "torch21"], no-default-feature = true}
+py38-torch22 = {features = ["py38", "torch22"], no-default-feature = true}
+py38-torch23 = {features = ["py38", "torch23"], no-default-feature = true}
+py38-torch24 = {features = ["py38", "torch24"], no-default-feature = true}
+
+py39-torch20 = {features = ["py39", "torch20"], no-default-feature = true}
+py39-torch21 = {features = ["py39", "torch21"], no-default-feature = true}
+py39-torch22 = {features = ["py39", "torch22"], no-default-feature = true}
+py39-torch23 = {features = ["py39", "torch23"], no-default-feature = true}
+py39-torch24 = {features = ["py39", "torch24"], no-default-feature = true}
+
+py310-torch20 = {features = ["py310", "torch20"], no-default-feature = true}
+py310-torch21 = {features = ["py310", "torch21"], no-default-feature = true}
+py310-torch22 = {features = ["py310", "torch22"], no-default-feature = true}
+py310-torch23 = {features = ["py310", "torch23"], no-default-feature = true}
+py310-torch24 = {features = ["py310", "torch24"], no-default-feature = true}
+
+py311-torch20 = {features = ["py311", "torch20"], no-default-feature = true}
+py311-torch21 = {features = ["py311", "torch21"], no-default-feature = true}
+py311-torch22 = {features = ["py311", "torch22"], no-default-feature = true}
+py311-torch23 = {features = ["py311", "torch23"], no-default-feature = true}
+py311-torch24 = {features = ["py311", "torch24"], no-default-feature = true}
