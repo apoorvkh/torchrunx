@@ -56,6 +56,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy: 
+      fail-fast: false
       matrix:
         python: [py38, py39, py310, py311] 
         pytorch: [torch20, torch21, torch22, torch23, torch24]
@@ -69,4 +70,3 @@ jobs:
           environments: ${{ matrix.python }}-${{ matrix.pytorch }}
           activate-environment: ${{ matrix.python }}-${{ matrix.pytorch }}
       - run: pytest tests
-        if: success() || failure()
