@@ -9,7 +9,7 @@ runs:
   steps:
     - uses: prefix-dev/setup-pixi@v0.8.1
       with:
-        pixi-version: 0.27.1
+        pixi-version: v0.27.1
         cache: true
         frozen: true
         environments: ${{ inputs.environment }}
