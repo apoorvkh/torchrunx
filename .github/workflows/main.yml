@@ -54,14 +54,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject dependencies into pixi.toml
+      - name: Inject (python, pytorch) test dependencies into pixi.toml
         run: |
-          sed -i '/\[feature.package\]/i \
-          [feature.test.dependencies]\
-          python = "${{ matrix.python }}"\
-          [feature.test.pypi-dependencies]\
-          torch = "~=${{ matrix.pytorch }}"\n' pixi.toml
-
+          sed -i 's/python = "3.8.1"/python = "${{ matrix.python }}"/' pixi.toml
+          sed -i '/\[feature\.package\]/i [feature.test.pypi-dependencies]\ntorch = "~=${{ matrix.pytorch }}"\n' pixi.toml
           sed -i '/\[environments\]/a test = { features = ["package", "dev", "test"], solve-group = "default" }' pixi.toml
 
       - uses: prefix-dev/setup-pixi@v0.8.1
