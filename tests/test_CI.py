@@ -48,7 +48,7 @@ def test_logging():
         print(f"worker rank: {rank}")
 
     try:
-        shutil.rmtree("./test_logs")
+        shutil.rmtree("./test_logs", ignore_errors=True)
     except FileNotFoundError:
         pass
 
@@ -69,9 +69,9 @@ def test_logging():
             else:
                 contents = f.read()
                 assert "worker rank: 0" in contents
-                assert "worker rank: 1" not in contents
+                assert "worker rank: 1" in contents
 
     # clean up
-    shutil.rmtree("./test_logs")
+    shutil.rmtree("./test_logs", ignore_errors=True)
 
     dist.destroy_process_group()

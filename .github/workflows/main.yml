@@ -9,22 +9,17 @@ on:
 
 jobs:
 
-  setup-dev-env:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-env
-        with:
-          environment: dev
-
   check:
     runs-on: ubuntu-latest
-    needs: setup-dev-env
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-env
+      - uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          environment: dev
+          pixi-version: v0.27.1
+          frozen: true
+          cache: true
+          environments: dev
+          activate-environment: dev
       - run: ruff check
         if: success() || failure()
       - run: ruff format --check
@@ -32,31 +27,64 @@ jobs:
 
   ##
 
-  setup-default-env:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-env
-        with:
-          environment: default
-
   typecheck:
     runs-on: ubuntu-latest
-    needs: setup-default-env
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-env
+      - uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          environment: default
+          pixi-version: v0.27.1
+          frozen: true
+          cache: true
+          environments: default
+          activate-environment: default
       - run: pyright
         if: success() || failure()
 
+  ##
+
+  get-pytorch-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.get-pytorch-versions.outputs.versions }}
+    steps:
+      - name: Get PyTorch versions
+        id: get-pytorch-versions
+        run: |
+          VERSIONS=$(
+            curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' |
+            # remove versions <2.0; strip "patch" from versions
+            grep -v '^1\.' | grep -E '\.[0]+$' | sort -V | sed 's/\.0$//' |
+            # to JSON array
+            jq -R . | jq -sc .
+          )
+          echo "versions=$VERSIONS" >> $GITHUB_OUTPUT
+          # e.g. ["2.0","2.1","2.2","2.3","2.4"]
+
   test:
     runs-on: ubuntu-latest
-    needs: setup-default-env
+    needs: get-pytorch-versions
+    strategy: 
+      fail-fast: false
+      matrix:
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"] 
+        pytorch: ${{fromJson(needs.get-pytorch-versions.outputs.versions)}}
+
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-env
+
+      - name: Inject (python / pytorch) test deps into pixi.toml / pyproject.toml
+        run: |
+          sed -i 's/python = "3.8.1"/python = "${{ matrix.python }}.*"/' pixi.toml
+          sed -i 's/torch>=2.0.0/torch~=${{ matrix.pytorch }}/' pyproject.toml
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          environment: default
+          pixi-version: v0.27.1
+          locked: false
+          frozen: false
+          cache: false
+          environments: default
+          activate-environment: default
+
       - run: pytest tests
