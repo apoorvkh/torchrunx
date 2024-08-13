@@ -9,49 +9,49 @@ on:
 
 jobs:
 
-  # TODO: Currently not super efficient because it will try to install the environment
-  # check-lockfile:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: prefix-dev/setup-pixi@v0.8.1
-  #       with:
-  #         pixi-version: v0.25.0
-  #         cache: true
-  #         locked: true
-  #         environments: >-
-  #           default
-  #           dev
-
-  check:
+  setup-dev-env:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: ./.github/actions/setup-env
         with:
-          pixi-version: v0.25.0
-          cache: true
-          frozen: true
-          environments: dev
-          activate-environment: dev
+          environment: dev
+
+  check:
+    runs-on: ubuntu-latest
+    needs: setup-dev-env
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          environment: dev
       - run: ruff check
         if: success() || failure()
       - run: ruff format --check
         if: success() || failure()
 
-  typecheck:
+  ##
+
+  setup-default-env:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: ./.github/actions/setup-env
         with:
-          pixi-version: v0.25.0
-          cache: true
-          frozen: true
-          environments: default
-          activate-environment: default
+          environment: default
+
+  typecheck:
+    runs-on: ubuntu-latest
+    needs: setup-default-env
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          environment: default
       - run: pyright
         if: success() || failure()
+
+  ##
 
   test:
     runs-on: ubuntu-latest
@@ -62,11 +62,20 @@ jobs:
         pytorch: [torch20, torch21, torch22, torch23, torch24]
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+
+      - name: Inject dependencies into pixi.toml
+        run: |
+          sed -i '/\[feature.dev.pypi-dependencies\]/i \
+          [feature.test.dependencies]\
+          python = "3.8"\
+          [feature.test.pypi-dependencies]\
+          torch = "2.3"\n' pixi.toml
+
+          sed -i '/\[environments\]/a test = { features = ["package", "dev", "test"], solve-group = "default" }' pixi.toml
+
+      - uses: ./.github/actions/setup-env
         with:
-          pixi-version: v0.25.0
           cache: false
-          frozen: true
-          environments: ${{ matrix.python }}-${{ matrix.pytorch }}
-          activate-environment: ${{ matrix.python }}-${{ matrix.pytorch }}
+          environment: test
+
       - run: pytest tests
