@@ -43,13 +43,25 @@ jobs:
 
   ##
 
+  get-pytorch-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      pytorch-versions: ${{ steps.get-pytorch-versions.outputs.versions }}
+    steps:
+      - name: Get PyTorch versions
+        id: get-pytorch-versions
+        run: |
+          VERSIONS=($(curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' | grep -v '^1\.' | grep -E '\.[0]+$' | sort -rV | sed 's/\.0$//') | jq -R . | jq -sc .)
+          echo "versions=$VERSIONS" >> $GITHUB_OUTPUT
+
   test:
     runs-on: ubuntu-latest
+    needs: get-pytorch-versions
     strategy: 
       fail-fast: false
       matrix:
         python: ["3.8", "3.9", "3.10", "3.11", "3.12"] 
-        pytorch: ["2.0", "2.1", "2.2", "2.3", "2.4"]
+        pytorch: ${{fromJson(needs.get-pytorch-versions.outputs.versions)}}
 
     steps:
       - uses: actions/checkout@v4
