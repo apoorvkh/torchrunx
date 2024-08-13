@@ -56,7 +56,7 @@ jobs:
 
       - name: Inject (python, pytorch) test dependencies into pixi.toml
         run: |
-          sed -i 's/python = "3.8.1"/python = "${{ matrix.python }}"/' pixi.toml
+          sed -i 's/python = "3.8.1"/python = "${{ matrix.python }}.*"/' pixi.toml
           sed -i '/\[feature\.package\]/i [feature.test.pypi-dependencies]\ntorch = "~=${{ matrix.pytorch }}"\n' pixi.toml
           sed -i '/\[environments\]/a test = { features = ["package", "dev", "test"], solve-group = "default" }' pixi.toml
 
