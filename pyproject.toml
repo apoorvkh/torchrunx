@@ -25,7 +25,9 @@ dependencies = [
     "cloudpickle>=3.0.0",
     "fabric>=3.0.0",
     "torch>=2.0.0",
-    "numpy",  # torch.distributed depends on numpy
+    # torch.distributed depends on numpy
+    "numpy<2.0",
+    "numpy>=1.26.0; python_version == '3.12'",
 ]
 
 [project.urls]
