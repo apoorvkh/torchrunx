@@ -52,11 +52,14 @@ jobs:
         id: get-pytorch-versions
         run: |
           VERSIONS=$(
-            curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' |  # get versions
-            grep -v '^1\.' | grep -E '\.[0]+$' | sort -rV | sed 's/\.0$//' |  # remove versions <2.0; strip "patch" from versions
-            jq -R . | jq -sc .  # to JSON array
+            curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' |
+            # remove versions <2.0; strip "patch" from versions
+            grep -v '^1\.' | grep -E '\.[0]+$' | sort -V | sed 's/\.0$//' |
+            # to JSON array
+            jq -R . | jq -sc .
           )
           echo "versions=$VERSIONS" >> $GITHUB_OUTPUT
+          # e.g. ["2.0","2.1","2.2","2.3","2.4"]
 
   test:
     runs-on: ubuntu-latest
@@ -70,11 +73,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject (python, pytorch) test dependencies into pixi.toml
+      - name: Inject (python / pytorch) test deps into pixi.toml / pyproject.toml
         run: |
           sed -i 's/python = "3.8.1"/python = "${{ matrix.python }}.*"/' pixi.toml
-          sed -i '/\[feature\.package\]/i [feature.test.pypi-dependencies]\ntorch = "~=${{ matrix.pytorch }}"\n' pixi.toml
-          sed -i '/\[environments\]/a test = { features = ["package", "dev", "test"], solve-group = "default" }' pixi.toml
+          sed -i 's/torch>=2.0.0/torch~=${{ matrix.pytorch }}/' pyproject.toml
 
       - uses: prefix-dev/setup-pixi@v0.8.1
         with:
@@ -82,7 +84,7 @@ jobs:
           locked: false
           frozen: false
           cache: false
-          environments: test
-          activate-environment: test
+          environments: default
+          activate-environment: default
 
       - run: pytest tests
