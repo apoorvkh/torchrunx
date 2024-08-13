@@ -79,7 +79,7 @@ def entrypoint(serialized_worker_args: bytes):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     logger.name = (
-        f"torchrunx.{worker_args.hostname}.{worker_args.local_rank}"  # overwrite root logger name
+        f"torchrunx.{worker_args.hostname}[{worker_args.local_rank}]"  # overwrite root logger name
     )
     socketHandler = RenamingSocketHandler(worker_args.log_host, worker_args.log_port, logger.name)
     logger.addHandler(socketHandler)

@@ -135,13 +135,13 @@ class DefaultLogSpec(LogSpec):
             for hostname in hostnames
         }
         workers: dict[str, list[logging.Handler]] = {
-            f"{hostname}.{j}": [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}.{j}.log")]
+            f"{hostname}[{j}]": [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}[{j}].log")]
             for j in range(num_workers)
             for hostname in hostnames
         }
 
         if stream:
-            workers[f"{hostnames[0]}.0"].append(logging.StreamHandler())
+            workers[f"{hostnames[0]}[0]"].append(logging.StreamHandler())
 
         return cls({**agents, **workers})
 
@@ -177,6 +177,9 @@ class DefaultLogSpec(LogSpec):
 
 
 class StreamLogger:
+    """
+    For logging write calls to streams such as stdout and stdin in the worker processes.
+    """
     def __init__(self, logger: logging.Logger, stream: TextIOWrapper | None):
         self.logger = logger
         self._string_io = StringIO()

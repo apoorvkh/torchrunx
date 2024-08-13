@@ -291,8 +291,8 @@ def launch(
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
-    :param log_spec: TODO
-    :type log_spec: TODO
+    :param log_spec: A :mod:torchrunx.LogSpec object specifying how to log the run.
+    :type log_spec: torchrunx.LogSpec
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
