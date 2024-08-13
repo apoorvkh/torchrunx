@@ -58,8 +58,8 @@ jobs:
     strategy: 
       fail-fast: false
       matrix:
-        python: [py38, py39, py310, py311] 
-        pytorch: [torch20, torch21, torch22, torch23, torch24]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"] 
+        pytorch: ["2.0", "2.1", "2.2", "2.3", "2.4"]
 
     steps:
       - uses: actions/checkout@v4
@@ -68,9 +68,9 @@ jobs:
         run: |
           sed -i '/\[feature.package\]/i \
           [feature.test.dependencies]\
-          python = "3.8"\
+          python = "${{ matrix.python }}"\
           [feature.test.pypi-dependencies]\
-          torch = "2.3"\n' pixi.toml
+          torch = "~=${{ matrix.pytorch }}"\n' pixi.toml
 
           sed -i '/\[environments\]/a test = { features = ["package", "dev", "test"], solve-group = "default" }' pixi.toml
 
