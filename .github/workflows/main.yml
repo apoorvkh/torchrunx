@@ -36,8 +36,8 @@ jobs:
           pixi-version: v0.27.1
           frozen: true
           cache: true
-          environments: default
-          activate-environment: default
+          environments: extra
+          activate-environment: extra
       - run: pyright
         if: success() || failure()
 

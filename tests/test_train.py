@@ -45,8 +45,6 @@ def test_distributed_train():
         backend="nccl",
     )
 
-    dist.destroy_process_group()
-
 
 if __name__ == "__main__":
     test_distributed_train()
