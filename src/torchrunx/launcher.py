@@ -20,6 +20,7 @@ from typing import Any, Callable, Literal
 import fabric
 import torch.distributed as dist
 
+from .environment import auto_hosts, auto_workers
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -78,8 +79,9 @@ def monitor_log(log_file: Path):
 
 @dataclass
 class Launcher:
-    hostnames: list[str] = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] = 1
+    auto: bool = False
+    hostnames: list[str] | None = field(default_factory=lambda: ["localhost"])
+    workers_per_host: int | list[int] | None = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_dir: os.PathLike | str = "./logs"
@@ -117,6 +119,15 @@ class Launcher:
         :return: A dictionary mapping worker ranks to their output
         :rtype: dict[int, Any]
         """
+
+        if self.auto:
+            if self.hostnames is None:
+                self.hostnames = auto_hosts()
+            if self.workers_per_host is None:
+                self.workers_per_host = auto_workers()
+
+        assert self.hostnames is not None and self.workers_per_host is not None
+
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
@@ -261,8 +272,9 @@ def launch(
     func: Callable,
     func_args: tuple[Any] = tuple(),
     func_kwargs: dict[str, Any] = {},
-    hostnames: list[str] = ["localhost"],
-    workers_per_host: int | list[int] = 1,
+    auto: bool = False,
+    hostnames: list[str] | None = ["localhost"],
+    workers_per_host: int | list[int] | None = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_dir: os.PathLike | str = "./logs",
@@ -288,10 +300,12 @@ def launch(
     :type func_args: tuple[Any]
     :param func_kwargs: Any keyword arguments to be provided when calling ``func``
     :type func_kwargs: dict[str, Any]
+    :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
+    :type auto: bool, optional
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
-    :type hostnames: list[str], optional
+    :type hostnames: list[str] | None, optional
     :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to 1
-    :type workers_per_host: int | list[int], optional
+    :type workers_per_host: int | list[int] | None, optional
     :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
@@ -309,6 +323,7 @@ def launch(
     :rtype: dict[int, Any]
     """  # noqa: E501
     return Launcher(
+        auto=auto,
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,

@@ -61,7 +61,7 @@ def test_logging():
             else:
                 contents = f.read()
                 assert "worker rank: 0" in contents
-                assert "worker rank: 1" not in contents
+                assert "worker rank: 1" in contents
 
 
 def test_error():
