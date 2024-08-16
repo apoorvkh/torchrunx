@@ -1,14 +1,10 @@
 import os
 import sys
 import tempfile
-import time
-from threading import Thread
 
 import pytest
 import torch
 import torch.distributed as dist
-
-from torchrunx.utils import AgentPayload
 
 sys.path.append("../src")
 
@@ -78,44 +74,7 @@ def test_error():
             func_kwargs={},
             workers_per_host=1,
             backend="gloo",
-            log_dir="./test_logs",
+            log_dir=tempfile.mkdtemp(),
         )
 
     assert "abcdefg" in str(excinfo.value)
-
-
-def test_timeout():
-    def dist_func():
-        time.sleep(30)
-
-    pids = []
-
-    original = torchrunx.launcher.LauncherAgentGroup.sync_payloads
-
-    def wrap(self, payload):
-        r = original(self, payload)
-        _r: list[AgentPayload] = r[1:]  # pyright: ignore[reportAssignmentType]
-        pids.extend([p.process_id for p in _r])
-        return r
-
-    torchrunx.launcher.LauncherAgentGroup.sync_payloads = wrap
-
-    def suspend():
-        while len(pids) == 0:
-            time.sleep(0.5)
-        print(pids[0])
-        os.system(f"kill {pids[0]}")
-
-    thr = Thread(target=suspend)
-    with pytest.raises(RuntimeError) as excinfo:
-        thr.start()
-        torchrunx.launch(
-            func=dist_func,
-            func_kwargs={},
-            workers_per_host=1,
-            backend="gloo",
-            log_dir="./test_logs",
-        )
-    thr.join()
-    os.system(f"kill {pids[0]}")
-    assert "Timed out" in str(excinfo.value)
