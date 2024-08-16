@@ -122,8 +122,8 @@ class DefaultLogSpec(LogSpec):
         :type num_agents: int
         :param num_workers: Number of workers per agent
         :type num_workers: int
-        :return: A logging structure to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
-        :rtype: dict[str, list[logging.Handler]]
+        :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
+        :rtype: DefaultLogSpec
         """  # noqa: E501
 
         timestamp = datetime.datetime.now().isoformat(timespec="seconds")
@@ -154,7 +154,7 @@ class DefaultLogSpec(LogSpec):
 
         :param file_map: A dictionary mapping file suffixes (filenames will be prefixed with a timestamp) to worker and agent names.
         :type file_map: dict[str, str]
-        :return: Returns an accordingly constructed DefaultLogSpec
+        :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
         :rtype: DefaultLogSpec
         """  # noqa: E501
 

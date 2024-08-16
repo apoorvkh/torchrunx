@@ -22,8 +22,13 @@ In addition to ``torchrunx.launch``, we provide the ``torchrunx.Launcher`` datac
 Logging 
 -------
 
-All logs are generated in the folder provided as the ``logs`` argument to :mod:`torchrunx.launch`. Each worker agent generates a log, named based on the current date and time, followed by the agent hostname. Each worker also has a log, named identically to their agent's log file except for the addition of the worker's local rank at the end of the name. Each agent includes the output from local worker 0 in its log. The launcher renders agent 0's log to ``stdout`` in real time.
+Logs are generated at the worker and agent level, and are specified to :mod:`torchrunx.launch` via the ``log_spec`` argument. By default, a :mod:`torchrunx.DefaultLogSpec` is instantiated, causing logs at the worker and agent levels to be logged to files under ``'./logs'``, and the rank 0 worker's output streams are streamed to the launcher ``stdout``. Logs are prefixed with a timestamp by default. Agent logs have the format ``{timestamp}-{agent hostname}.log`` and workers have the format ``{timestamp}-{agent hostname}[{worker local rank}].log``.
 
+Custom logging classes can be subclassed from the :mod:`torchrunx.LogSpec` class. Any subclass must have a ``get_map`` method returning a dictionary mapping logger names to lists of :mod:`logging.Handler` objects, in order to be passed to :mod:`torchrunx.launch`. The logger names are of the format ``{agent hostname}`` for agents and ``{agent hostname}[{worker local rank}]`` for workers. The :mod:`torchrunx.DefaultLogSpec` maps all the loggers to :mod:`logging.Filehandler` object pointing to the files mentioned in the previous paragraph. It additionally maps the global rank 0 worker to a :mod:`logging.StreamHandler`, which writes logs the launcher's ``stdout`` stream.
+
+Check out the interface of the :mod:`torchrunx.DefaultLogSpec` object below:
+
+.. autoclass:: torchrunx.DefaultLogSpec
 .. 
     TODO: example log structure
 
