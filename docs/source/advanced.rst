@@ -44,3 +44,7 @@ The :mod:`torchrunx.launch` ``env_vars`` argument allows the user to specify whi
 
 ..
     TODO: example env_file
+
+Numpy >= 2.0
+------------
+only supported if `torch>=2.3`

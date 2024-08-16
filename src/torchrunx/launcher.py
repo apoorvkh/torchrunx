@@ -20,6 +20,7 @@ import fabric
 import torch.distributed as dist
 
 from .log_utils import DefaultLogSpec, LogRecordSocketReceiver, LogSpec
+from .environment import auto_hosts, auto_workers
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -70,8 +71,9 @@ def monitor_log(log_spec: LogSpec, port: int, formatter: logging.Formatter):
 
 @dataclass
 class Launcher:
-    hostnames: list[str] = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] = 1
+    auto: bool = False
+    hostnames: list[str] | None = field(default_factory=lambda: ["localhost"])
+    workers_per_host: int | list[int] | None = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_spec: LogSpec | None = None
@@ -93,13 +95,16 @@ class Launcher:
     def run(
         self,
         func: Callable,
-        func_kwargs: dict[str, Any],
+        func_args: tuple[Any] = tuple(),
+        func_kwargs: dict[str, Any] = {},
     ) -> dict[int, Any]:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
         :param func: The distributed function to call on all workers
         :type func: Callable
+        :param func_args: Any positional arguments to be provided when calling ``func``
+        :type func_args: tuple[Any]
         :param func_kwargs: Any keyword arguments to be provided when calling ``func``
         :type func_kwargs: dict[str, Any]
         :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
@@ -132,6 +137,14 @@ class Launcher:
             target=monitor_log, args=(self.log_spec, log_port, formatter), daemon=True
         )
         log_process.start()
+        
+        if self.auto:
+            if self.hostnames is None:
+                self.hostnames = auto_hosts()
+            if self.workers_per_host is None:
+                self.workers_per_host = auto_workers()
+
+        assert self.hostnames is not None and self.workers_per_host is not None
 
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
@@ -205,7 +218,7 @@ class Launcher:
             worker_global_ranks.append(list(host_ranks))
 
         payload = LauncherPayload(
-            fn=partial(func, **func_kwargs),
+            fn=partial(func, *func_args, **func_kwargs),
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
@@ -257,9 +270,11 @@ class Launcher:
 
 def launch(
     func: Callable,
-    func_kwargs: dict[str, Any],
-    hostnames: list[str] = ["localhost"],
-    workers_per_host: int | list[int] = 1,
+    func_args: tuple[Any] = tuple(),
+    func_kwargs: dict[str, Any] = {},
+    auto: bool = False,
+    hostnames: list[str] | None = ["localhost"],
+    workers_per_host: int | list[int] | None = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_spec: LogSpec | None = None,
@@ -281,12 +296,16 @@ def launch(
 
     :param func: The distributed function to call on all workers
     :type func: Callable
+    :param func_args: Any positional arguments to be provided when calling ``func``
+    :type func_args: tuple[Any]
     :param func_kwargs: Any keyword arguments to be provided when calling ``func``
     :type func_kwargs: dict[str, Any]
+    :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
+    :type auto: bool, optional
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
-    :type hostnames: list[str], optional
+    :type hostnames: list[str] | None, optional
     :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to 1
-    :type workers_per_host: int | list[int], optional
+    :type workers_per_host: int | list[int] | None, optional
     :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
@@ -304,6 +323,7 @@ def launch(
     :rtype: dict[int, Any]
     """  # noqa: E501
     return Launcher(
+        auto=auto,
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
@@ -312,4 +332,4 @@ def launch(
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
-    ).run(func=func, func_kwargs=func_kwargs)
+    ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)

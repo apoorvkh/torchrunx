@@ -11,7 +11,6 @@ import torchrunx
 def test_launch():
     result = torchrunx.launch(
         func=simple_matmul,
-        func_kwargs={},
         hostnames=torchrunx.slurm_hosts(),
         workers_per_host=torchrunx.slurm_workers(),
     )
@@ -34,7 +33,6 @@ def simple_matmul():
 
     i = torch.rand((500, 100), device=device)  # batch, dim
     o = torch.matmul(i, w)
-
     dist.all_reduce(o, op=dist.ReduceOp.SUM)
     print(i)
     return o.detach().cpu()

@@ -13,8 +13,7 @@ from typing import Callable, Literal
 import cloudpickle
 import torch
 import torch.distributed as dist
-from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
-from torch.distributed.elastic.multiprocessing.api import MultiprocessContext
+from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
 
 from .log_utils import RenamingSocketHandler, StreamLogger
@@ -127,7 +126,7 @@ def main(launcher_agent_group: LauncherAgentGroup):
         port=get_open_port(),
         process_id=os.getpid(),
     )
-
+    # DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
     all_payloads = launcher_agent_group.sync_payloads(payload=payload)
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
@@ -144,13 +143,21 @@ def main(launcher_agent_group: LauncherAgentGroup):
         launcher_payload.log_port,
     )
     logger.addHandler(socketHandler)
+    
+    if torch.__version__ >= "2.3":
+        # DefaultLogsSpecs only exists in torch >= 2.3
+        from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
+
+        log_arg = DefaultLogsSpecs(log_dir=tempfile.mkdtemp())
+    else:
+        log_arg = tempfile.mkdtemp()
 
     # spawn workers
 
-    ctx = MultiprocessContext(
-        name=f"{hostname}_",
-        entrypoint=entrypoint,
-        args={
+    ctx = start_processes(
+        f"{hostname}_",
+        entrypoint,
+        {
             i: (
                 WorkerArgs(
                     function=launcher_payload.fn,
@@ -169,14 +176,11 @@ def main(launcher_agent_group: LauncherAgentGroup):
             )
             for i in range(num_workers)
         },
-        envs={i: {} for i in range(num_workers)},
-        logs_specs=DefaultLogsSpecs(log_dir=tempfile.mkdtemp()),
-        start_method="spawn",
+        {i: {} for i in range(num_workers)},
+        log_arg,  # type: ignore
     )
     logger.debug("starting processes")
     try:
-        ctx.start()
-
         status = AgentStatus()
         while True:
             if status.is_running():
@@ -190,10 +194,8 @@ def main(launcher_agent_group: LauncherAgentGroup):
                 break
 
             if any(s.is_failed() for s in agent_statuses):
-                raise RuntimeError("worker failure")
-
-    except Exception as e:
-        logger.error(f"encountered error: {e}")
+                raise RuntimeError()
+    except:
         raise
     finally:
         ctx.close()

@@ -47,7 +47,7 @@ def test_logging():
         logging.info(f"worker rank: {rank}")
 
     try:
-        shutil.rmtree("./test_logs")
+        shutil.rmtree("./test_logs", ignore_errors=True)
     except FileNotFoundError:
         pass
 
