@@ -101,12 +101,21 @@ class LogSpec(ABC):
     def get_map(self) -> dict[str, list[logging.Handler]]:
         """
         Called by torchrunx.launch on the log_spec argument.
+
+        :return: A mapping of logger names to lists of :mod:`logging.Handler` objects. 
+        :rtype: dict[str, list[logging.Handler]]
         """
         raise NotImplementedError
 
 
 class DefaultLogSpec(LogSpec):
     def __init__(self, log_spec_dict: dict[str, list[logging.Handler]]):
+        """
+        Constructs a ``DefaultLogSpec``.
+
+        :param log_spec_dict: A mapping of logger names to lists of :mod:`logging.Handler` objects.
+        :type log_spec_dict: dict[str, list[logging.Handler]]
+        """
         self.log_spec_dict = log_spec_dict
 
     @classmethod
