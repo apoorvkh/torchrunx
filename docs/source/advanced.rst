@@ -26,12 +26,10 @@ Logs are generated at the worker and agent level, and are specified to :mod:`tor
 
 Custom logging classes can be subclassed from the :mod:`torchrunx.LogSpec` class. Any subclass must have a ``get_map`` method returning a dictionary mapping logger names to lists of :mod:`logging.Handler` objects, in order to be passed to :mod:`torchrunx.launch`. The logger names are of the format ``{agent hostname}`` for agents and ``{agent hostname}[{worker local rank}]`` for workers. The :mod:`torchrunx.DefaultLogSpec` maps all the loggers to :mod:`logging.Filehandler` object pointing to the files mentioned in the previous paragraph. It additionally maps the global rank 0 worker to a :mod:`logging.StreamHandler`, which writes logs the launcher's ``stdout`` stream.
 
-Check out the interface of the :mod:`torchrunx.DefaultLogSpec` object below:
-
-.. autoclass:: torchrunx.DefaultLogSpec
+.. autoclass:: torchrunx.LogSpec
     :members:
 
-.. autoclass:: torchrunx.LogSpec
+.. autoclass:: torchrunx.DefaultLogSpec
     :members:
 
 .. 
