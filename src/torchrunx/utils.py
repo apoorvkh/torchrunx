@@ -26,8 +26,6 @@ class LauncherPayload:
     hostnames: list[str]
     worker_world_size: int
     worker_global_ranks: list[list[int]]
-    log_host: str
-    log_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     timeout: int
 

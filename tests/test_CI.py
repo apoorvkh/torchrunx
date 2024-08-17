@@ -6,7 +6,7 @@ import torch
 import torch.distributed as dist
 
 import torchrunx  # noqa: I001
-from torchrunx.log_utils import DefaultLogSpec
+from torchrunx.logging_utils import DefaultLogSpec
 
 
 def test_simple_localhost():

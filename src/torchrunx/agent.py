@@ -16,7 +16,7 @@ import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
 
-from .log_utils import RenamingSocketHandler, StreamLogger
+from .logging_utils import RenamingSocketHandler, StreamLogger
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -29,6 +29,8 @@ from .utils import (
 @dataclass
 class WorkerArgs:
     function: Callable
+    logger_hostname: str
+    logger_port: int
     master_hostname: str
     master_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
@@ -37,8 +39,6 @@ class WorkerArgs:
     local_world_size: int
     world_size: int
     hostname: str
-    log_host: str
-    log_port: int
     timeout: int
 
     def to_bytes(self) -> bytes:
@@ -49,30 +49,6 @@ class WorkerArgs:
         return cloudpickle.loads(serialized)
 
 
-class WorkerTee(object):
-    def __init__(self, name: os.PathLike | str, mode: str):
-        self.file = open(name, mode)
-        self.stdout = sys.stdout
-        sys.stdout = self
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exception_type, exception_value, exception_traceback):
-        self.__del__()
-
-    def __del__(self):
-        sys.stdout = self.stdout
-        self.file.close()
-
-    def write(self, data):
-        self.file.write(data)
-        self.stdout.write(data)
-
-    def flush(self):
-        self.file.flush()
-
-
 def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
     logger = logging.getLogger()
@@ -80,8 +56,11 @@ def entrypoint(serialized_worker_args: bytes):
     logger.name = (
         f"torchrunx.{worker_args.hostname}[{worker_args.local_rank}]"  # overwrite root logger name
     )
-    socketHandler = RenamingSocketHandler(worker_args.log_host, worker_args.log_port, logger.name)
-    logger.addHandler(socketHandler)
+    logger.addHandler(
+        RenamingSocketHandler(
+            host=worker_args.logger_hostname, port=worker_args.logger_port, root_name=logger.name
+        )
+    )
 
     sys.stdout = StreamLogger(logger, sys.__stdout__)
     sys.stderr = StreamLogger(logger, sys.__stderr__)
@@ -118,7 +97,7 @@ def entrypoint(serialized_worker_args: bytes):
     return worker_args.function()
 
 
-def main(launcher_agent_group: LauncherAgentGroup):
+def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int):
     agent_rank = launcher_agent_group.rank - 1
 
     payload = AgentPayload(
@@ -139,11 +118,11 @@ def main(launcher_agent_group: LauncherAgentGroup):
     logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
     logger.setLevel(logging.DEBUG)
     socketHandler = logging.handlers.SocketHandler(
-        launcher_payload.log_host,
-        launcher_payload.log_port,
+        host=logger_hostname,
+        port=logger_port,
     )
     logger.addHandler(socketHandler)
-    
+
     if torch.__version__ >= "2.3":
         # DefaultLogsSpecs only exists in torch >= 2.3
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
@@ -161,6 +140,8 @@ def main(launcher_agent_group: LauncherAgentGroup):
             i: (
                 WorkerArgs(
                     function=launcher_payload.fn,
+                    logger_hostname=logger_hostname,
+                    logger_port=logger_port,
                     master_hostname=main_agent_payload.hostname,
                     master_port=main_agent_payload.port,
                     backend=launcher_payload.backend,
@@ -169,8 +150,6 @@ def main(launcher_agent_group: LauncherAgentGroup):
                     local_world_size=num_workers,
                     world_size=worker_world_size,
                     hostname=launcher_payload.hostnames[agent_rank],
-                    log_host=launcher_payload.log_host,
-                    log_port=launcher_payload.log_port,
                     timeout=launcher_payload.timeout,
                 ).to_bytes(),
             )

@@ -87,7 +87,6 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 class RenamingSocketHandler(logging.handlers.SocketHandler):
     def __init__(self, host, port, root_name):
         super().__init__(host, port)
-
         self.root_name = root_name
 
     def emit(self, record):
@@ -102,7 +101,7 @@ class LogSpec(ABC):
         """
         Called by torchrunx.launch on the log_spec argument.
 
-        :return: A mapping of logger names to lists of :mod:`logging.Handler` objects. 
+        :return: A mapping of logger names to lists of :mod:`logging.Handler` objects.
         :rtype: dict[str, list[logging.Handler]]
         """
         raise NotImplementedError
@@ -189,6 +188,7 @@ class StreamLogger:
     """
     For logging write calls to streams such as stdout and stdin in the worker processes.
     """
+
     def __init__(self, logger: logging.Logger, stream: TextIOWrapper | None):
         self.logger = logger
         self._string_io = StringIO()

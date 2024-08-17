@@ -19,8 +19,8 @@ from typing import Any, Callable, Literal
 import fabric
 import torch.distributed as dist
 
-from .log_utils import DefaultLogSpec, LogRecordSocketReceiver, LogSpec
 from .environment import auto_hosts, auto_workers
+from .logging_utils import DefaultLogSpec, LogRecordSocketReceiver, LogSpec
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -120,10 +120,6 @@ class Launcher:
         formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
         # logger.
 
-        # log_dir = Path(self.log_dir)
-        # log_dir.mkdir(parents=True, exist_ok=True)
-        # timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-
         if self.log_spec is None:
             # TODO: this assumes the type of workers_per_host is simply int. We should consider
             # again whether it's worth supporting inhomogeneous allocations (list[int])
@@ -132,12 +128,12 @@ class Launcher:
                 num_workers=self.workers_per_host,  # type: ignore
             )
 
-        log_port = get_open_port()
+        logger_port = get_open_port()
         log_process = Process(
-            target=monitor_log, args=(self.log_spec, log_port, formatter), daemon=True
+            target=monitor_log, args=(self.log_spec, logger_port, formatter), daemon=True
         )
         log_process.start()
-        
+
         if self.auto:
             if self.hostnames is None:
                 self.hostnames = auto_hosts()
@@ -184,6 +180,7 @@ class Launcher:
             f"{sys.executable} -u -m torchrunx "
             f"--launcher-hostname {launcher_hostname} "
             f"--launcher-port {launcher_port} "
+            f"--logger-port {logger_port} "
             f"--world-size {world_size} "
             # rank set in the loop below
         )
@@ -222,8 +219,6 @@ class Launcher:
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
-            log_host=launcher_hostname,
-            log_port=log_port,
             backend=self.backend,
             timeout=self.timeout,
         )
