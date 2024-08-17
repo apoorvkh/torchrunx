@@ -3,14 +3,14 @@ import os
 import torch
 import torch.distributed as dist
 
-import torchrunx
+import torchrunx as trx
 
 
 def test_launch():
-    result = torchrunx.launch(
+    result = trx.launch(
         func=simple_matmul,
-        hostnames=torchrunx.slurm_hosts(),
-        workers_per_host=torchrunx.slurm_workers(),
+        hostnames=trx.slurm_hosts(),
+        workers_per_host=trx.slurm_workers(),
     )
 
     t = True
@@ -18,8 +18,6 @@ def test_launch():
         t = t and torch.all(result[i] == result[0])
 
     assert t, "Not all tensors equal"
-
-    dist.destroy_process_group()
 
 
 def simple_matmul():

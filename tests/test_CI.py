@@ -1,14 +1,11 @@
 import os
-import sys
 import tempfile
 
 import pytest
 import torch
 import torch.distributed as dist
 
-sys.path.append("../src")
-
-import torchrunx  # noqa: I001
+import torchrunx as trx
 
 
 def test_simple_localhost():
@@ -31,7 +28,7 @@ def test_simple_localhost():
 
         return o.detach()
 
-    r = torchrunx.launch(
+    r = trx.launch(
         func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
     )
 
@@ -44,9 +41,7 @@ def test_logging():
         print(f"worker rank: {rank}")
 
     tmp = tempfile.mkdtemp()
-    torchrunx.launch(
-        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir=tmp
-    )
+    trx.launch(func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir=tmp)
 
     log_files = next(os.walk(tmp), (None, None, []))[2]
 
@@ -69,7 +64,7 @@ def test_error():
         raise ValueError("abcdefg")
 
     with pytest.raises(RuntimeError) as excinfo:
-        torchrunx.launch(
+        trx.launch(
             func=error_func,
             func_kwargs={},
             workers_per_host=1,

@@ -1,11 +1,6 @@
 import os
-import sys
 
-sys.path.append("../src")
-
-import torch.distributed as dist
-
-import torchrunx
+import torchrunx as trx
 
 
 def worker():
@@ -38,10 +33,10 @@ def worker():
 
 
 def test_distributed_train():
-    torchrunx.launch(
+    trx.launch(
         worker,
-        hostnames=torchrunx.slurm_hosts(),
-        workers_per_host=torchrunx.slurm_workers(),
+        hostnames=trx.slurm_hosts(),
+        workers_per_host=trx.slurm_workers(),
         backend="nccl",
     )
 
