@@ -3,22 +3,21 @@ import os
 import torch
 import torch.distributed as dist
 
-import torchrunx
-
-# this is not a pytest test, but a functional test designed to be run on a slurm allocation
+import torchrunx as trx
 
 
 def test_launch():
-    result = torchrunx.launch(
+    result = trx.launch(
         func=simple_matmul,
-        hostnames=torchrunx.slurm_hosts(),
-        workers_per_host=torchrunx.slurm_workers(),
+        hostnames=trx.slurm_hosts(),
+        workers_per_host=trx.slurm_workers(),
     )
 
+    t = True
     for i in range(len(result)):
-        assert torch.all(result[i] == result[0]), "Not all tensors equal"
-    print(result[0])
-    print("PASS")
+        t = t and torch.all(result[i] == result[0])
+
+    assert t, "Not all tensors equal"
 
 
 def simple_matmul():

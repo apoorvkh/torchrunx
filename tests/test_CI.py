@@ -1,13 +1,11 @@
 import os
-import shutil
-import sys
+import tempfile
 
+import pytest
 import torch
 import torch.distributed as dist
 
-sys.path.append("../src")
-
-import torchrunx  # noqa: I001
+import torchrunx as trx
 
 
 def test_simple_localhost():
@@ -30,16 +28,11 @@ def test_simple_localhost():
 
         return o.detach()
 
-    r = torchrunx.launch(
-        func=dist_func,
-        func_kwargs={},
-        workers_per_host=2,
-        backend="gloo",
+    r = trx.launch(
+        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
     )
 
     assert torch.all(r[0] == r[1])
-
-    dist.destroy_process_group()
 
 
 def test_logging():
@@ -47,21 +40,15 @@ def test_logging():
         rank = int(os.environ["RANK"])
         print(f"worker rank: {rank}")
 
-    try:
-        shutil.rmtree("./test_logs", ignore_errors=True)
-    except FileNotFoundError:
-        pass
+    tmp = tempfile.mkdtemp()
+    trx.launch(func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir=tmp)
 
-    torchrunx.launch(
-        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
-    )
-
-    log_files = next(os.walk("./test_logs"), (None, None, []))[2]
+    log_files = next(os.walk(tmp), (None, None, []))[2]
 
     assert len(log_files) == 3
 
     for file in log_files:
-        with open("./test_logs/" + file, "r") as f:
+        with open(f"{tmp}/{file}", "r") as f:
             if file.endswith("0.log"):
                 assert f.read() == "worker rank: 0\n"
             elif file.endswith("1.log"):
@@ -71,7 +58,18 @@ def test_logging():
                 assert "worker rank: 0" in contents
                 assert "worker rank: 1" in contents
 
-    # clean up
-    shutil.rmtree("./test_logs", ignore_errors=True)
 
-    dist.destroy_process_group()
+def test_error():
+    def error_func():
+        raise ValueError("abcdefg")
+
+    with pytest.raises(RuntimeError) as excinfo:
+        trx.launch(
+            func=error_func,
+            func_kwargs={},
+            workers_per_host=1,
+            backend="gloo",
+            log_dir=tempfile.mkdtemp(),
+        )
+
+    assert "abcdefg" in str(excinfo.value)
