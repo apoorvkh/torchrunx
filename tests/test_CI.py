@@ -5,8 +5,8 @@ import shutil
 import torch
 import torch.distributed as dist
 
-import torchrunx  # noqa: I001
-from torchrunx.logging_utils import DefaultLogSpec
+import torchrunx
+from torchrunx import LogMap
 
 
 def test_simple_localhost():
@@ -56,9 +56,7 @@ def test_logging():
         func_kwargs={},
         workers_per_host=2,
         backend="gloo",
-        log_spec=DefaultLogSpec.basic(
-            hostnames=["localhost"], workers_per_host=[2], log_dir="./test_logs"
-        ),
+        log_map=LogMap.basic(hostnames=["localhost"], workers_per_host=[2], log_dir="./test_logs"),
     )
 
     log_files = next(os.walk("./test_logs"), (None, None, []))[2]
