@@ -67,14 +67,13 @@ def test_logging():
 
     for file in log_files:
         with open("./test_logs/" + file, "r") as f:
-            if file.endswith("0.log"):
+            if file.endswith("[0].log"):
                 assert "worker rank: 0\n" in f.read()
-            elif file.endswith("1.log"):
+            elif file.endswith("[1].log"):
                 assert "worker rank: 1\n" in f.read()
             else:
                 contents = f.read()
-                assert "worker rank: 0" in contents
-                assert "worker rank: 1" in contents
+                assert "starting processes" in contents
 
     # clean up
     shutil.rmtree("./test_logs", ignore_errors=True)
