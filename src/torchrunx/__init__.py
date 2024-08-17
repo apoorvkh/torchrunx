@@ -1,6 +1,6 @@
 from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
 from .launcher import Launcher, launch
-from .logging_utils import DefaultLogSpec, LogSpec
+from .logging_utils import LogMap
 
 __all__ = [
     "Launcher",
@@ -9,6 +9,5 @@ __all__ = [
     "slurm_workers",
     "auto_hosts",
     "auto_workers",
-    "LogSpec",
-    "DefaultLogSpec",
+    "LogMap",
 ]

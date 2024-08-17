@@ -7,7 +7,6 @@ import pickle
 import select
 import socketserver
 import struct
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from io import StringIO, TextIOWrapper
 from pathlib import Path
@@ -95,27 +94,11 @@ class RenamingSocketHandler(logging.handlers.SocketHandler):
         super().emit(record)
 
 
-class LogSpec(ABC):
-    @abstractmethod
-    def get_map(self) -> dict[str, list[logging.Handler]]:
-        """
-        Called by torchrunx.launch on the log_spec argument.
-
-        :return: A mapping of logger names to lists of :mod:`logging.Handler` objects.
-        :rtype: dict[str, list[logging.Handler]]
-        """
-        raise NotImplementedError
-
-
-class DefaultLogSpec(LogSpec):
-    def __init__(self, log_spec_dict: dict[str, list[logging.Handler]]):
-        """
-        Constructs a ``DefaultLogSpec``.
-
-        :param log_spec_dict: A mapping of logger names to lists of :mod:`logging.Handler` objects.
-        :type log_spec_dict: dict[str, list[logging.Handler]]
-        """
-        self.log_spec_dict = log_spec_dict
+class LogMap(dict):
+    def __or__(self, other: LogMap) -> LogMap:
+        new = LogMap(other)
+        new.update(self)
+        return new
 
     @classmethod
     def basic(
@@ -124,7 +107,7 @@ class DefaultLogSpec(LogSpec):
         workers_per_host: list[int],
         log_dir: str = "./logs",
         stream: bool = True,
-    ) -> DefaultLogSpec:
+    ) -> LogMap:
         """
         Generates torchrunx's default LogSpec
 
@@ -156,9 +139,7 @@ class DefaultLogSpec(LogSpec):
         return cls({**agents, **workers})
 
     @classmethod
-    def from_file_map(
-        cls, file_map: dict[str, list[str]], log_dir: str = "./logs"
-    ) -> DefaultLogSpec:
+    def from_file_map(cls, file_map: dict[str, list[str]], log_dir: str = "./logs") -> LogMap:
         """
         Generates DefaultLogSpec from a mapping of filenames to worker/agent names that should be logged there.
 
@@ -180,10 +161,7 @@ class DefaultLogSpec(LogSpec):
                     logging.FileHandler(f"{log_dir}/{timestamp}-{file_suffix}")
                 )
 
-        return DefaultLogSpec(reverse_map)  # re-typing
-
-    def get_map(self):
-        return self.log_spec_dict
+        return cls(reverse_map)
 
 
 class StreamLogger:

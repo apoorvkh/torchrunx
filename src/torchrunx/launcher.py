@@ -20,7 +20,7 @@ import fabric
 import torch.distributed as dist
 
 from .environment import auto_hosts, auto_workers
-from .logging_utils import DefaultLogSpec, LogRecordSocketReceiver, LogSpec
+from .logging_utils import LogMap, LogRecordSocketReceiver
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -59,8 +59,8 @@ def execute_command(
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
-def monitor_log(log_spec: LogSpec, port: int, formatter: logging.Formatter):
-    for lname, handlers in log_spec.get_map().items():  # type: ignore
+def monitor_log(log_map: LogMap, port: int, formatter: logging.Formatter):
+    for lname, handlers in log_map.items():  # type: ignore
         _logger = logging.getLogger(f"torchrunx.{lname}")
         for handler in handlers:
             handler.setFormatter(formatter)
@@ -76,7 +76,7 @@ class Launcher:
     workers_per_host: int | list[int] | None = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
-    log_spec: LogSpec | None = None
+    log_map: LogMap | None = None
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -138,15 +138,15 @@ class Launcher:
 
         formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 
-        if self.log_spec is None:
-            self.log_spec = DefaultLogSpec.basic(
+        if self.log_map is None:
+            self.log_map = LogMap.basic(
                 hostnames=self.hostnames,
                 workers_per_host=self.workers_per_host,
             )
 
         logger_port = get_open_port()
         log_process = Process(
-            target=monitor_log, args=(self.log_spec, logger_port, formatter), daemon=True
+            target=monitor_log, args=(self.log_map, logger_port, formatter), daemon=True
         )
         log_process.start()
 
@@ -268,7 +268,7 @@ def launch(
     workers_per_host: int | list[int] | None = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_spec: LogSpec | None = None,
+    log_map: LogMap | None = None,
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -301,8 +301,8 @@ def launch(
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
-    :param log_spec: A :mod:`torchrunx.LogSpec` object specifying how to log the run. When left empty, a :mod:`torchrunx.DefaultLogSpec` is constructed, defaults to None
-    :type log_spec: torchrunx.LogSpec
+    :param log_map: A :mod:`torchrunx.LogMap` object specifying how to log the run. When left empty, :mod:`torchrunx.LogMap.basic` is used to construct the default :mod:`torchrunx.LogMap`, defaults to None
+    :type log_map: torchrunx.LogMap
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
@@ -319,7 +319,7 @@ def launch(
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        log_spec=log_spec,
+        log_map=log_map,
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,
