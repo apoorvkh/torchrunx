@@ -57,7 +57,7 @@ def test_logging():
         workers_per_host=2,
         backend="gloo",
         log_spec=DefaultLogSpec.basic(
-            hostnames=["localhost"], num_workers=2, log_dir="./test_logs"
+            hostnames=["localhost"], workers_per_host=[2], log_dir="./test_logs"
         ),
     )
 

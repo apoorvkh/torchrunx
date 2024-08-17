@@ -119,17 +119,19 @@ class DefaultLogSpec(LogSpec):
 
     @classmethod
     def basic(
-        cls, hostnames: list[str], num_workers: int, log_dir: str = "./logs", stream: bool = True
+        cls,
+        hostnames: list[str],
+        workers_per_host: list[int],
+        log_dir: str = "./logs",
+        stream: bool = True,
     ) -> DefaultLogSpec:
         """
         Generates torchrunx's default LogSpec
 
         :param hostnames: The node hostnames
         :type hostnames: list[str]
-        :param num_agents: Number of agents in work group
-        :type num_agents: int
         :param num_workers: Number of workers per agent
-        :type num_workers: int
+        :type num_workers: list[int]
         :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
         :rtype: DefaultLogSpec
         """  # noqa: E501
@@ -143,9 +145,9 @@ class DefaultLogSpec(LogSpec):
             for hostname in hostnames
         }
         workers: dict[str, list[logging.Handler]] = {
-            f"{hostname}[{j}]": [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}[{j}].log")]
-            for j in range(num_workers)
-            for hostname in hostnames
+            f"{hostname}[{i}]": [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}[{i}].log")]
+            for hostname, num_workers in zip(hostnames, workers_per_host)
+            for i in range(num_workers)
         }
 
         if stream:

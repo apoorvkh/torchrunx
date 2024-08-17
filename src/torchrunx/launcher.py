@@ -111,6 +111,25 @@ class Launcher:
         :return: A dictionary mapping worker ranks to their output
         :rtype: dict[int, Any]
         """
+        if not dist.is_available():
+            raise RuntimeError("The torch.distributed package is not available.")
+
+        if self.hostnames is None:
+            assert self.auto
+            self.hostnames = auto_hosts()
+
+        num_hosts = len(self.hostnames)
+
+        if self.workers_per_host is None:
+            assert self.auto
+            self.workers_per_host = auto_workers()
+
+        if isinstance(self.workers_per_host, int):
+            self.workers_per_host = [self.workers_per_host] * num_hosts
+
+        assert num_hosts == len(self.workers_per_host)
+
+        # setup logging
 
         logger = logging.getLogger("torchrunx")
         logger.setLevel(logging.DEBUG)
@@ -118,14 +137,11 @@ class Launcher:
         logger.parent = None
 
         formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
-        # logger.
 
         if self.log_spec is None:
-            # TODO: this assumes the type of workers_per_host is simply int. We should consider
-            # again whether it's worth supporting inhomogeneous allocations (list[int])
             self.log_spec = DefaultLogSpec.basic(
                 hostnames=self.hostnames,
-                num_workers=self.workers_per_host,  # type: ignore
+                workers_per_host=self.workers_per_host,
             )
 
         logger_port = get_open_port()
@@ -134,27 +150,9 @@ class Launcher:
         )
         log_process.start()
 
-        if self.auto:
-            if self.hostnames is None:
-                self.hostnames = auto_hosts()
-            if self.workers_per_host is None:
-                self.workers_per_host = auto_workers()
-
-        assert self.hostnames is not None and self.workers_per_host is not None
-
-        if not dist.is_available():
-            raise RuntimeError("The torch.distributed package is not available.")
-
-        num_hosts = len(self.hostnames)
-
-        workers_per_host = self.workers_per_host
-        if isinstance(self.workers_per_host, int):
-            workers_per_host = [workers_per_host] * num_hosts
-
-        assert workers_per_host is not None
-        assert len(workers_per_host) == num_hosts  # type: ignore
-
         # launch command
+
+        current_dir = os.getcwd()
 
         env_exports = []
         for k, v in os.environ.items():
@@ -173,22 +171,20 @@ class Launcher:
         launcher_port = get_open_port()
         world_size = num_hosts + 1  # launcher + agents
 
-        command = (
-            f"cd {os.getcwd()} && "
-            f"{env_export_string}"
-            f"{env_file_string}"
-            f"{sys.executable} -u -m torchrunx "
-            f"--launcher-hostname {launcher_hostname} "
-            f"--launcher-port {launcher_port} "
-            f"--logger-port {logger_port} "
-            f"--world-size {world_size} "
-            # rank set in the loop below
-        )
-
         # start agents on each node
         for i, hostname in enumerate(self.hostnames):
             execute_command(
-                command=f"{command} --rank {i+1}",
+                command=(
+                    f"cd {current_dir} && "
+                    f"{env_export_string}"
+                    f"{env_file_string}"
+                    f"{sys.executable} -u -m torchrunx "
+                    f"--launcher-hostname {launcher_hostname} "
+                    f"--launcher-port {launcher_port} "
+                    f"--logger-port {logger_port} "
+                    f"--world-size {world_size} "
+                    f"--rank {i+1}"
+                ),
                 hostname=hostname,
                 ssh_config_file=self.ssh_config_file,
             )
@@ -205,7 +201,7 @@ class Launcher:
 
         # build and sync payloads between launcher and agents
 
-        _cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))  # type: ignore
+        _cumulative_workers = [0] + list(itertools.accumulate(self.workers_per_host))
 
         worker_world_size = _cumulative_workers[-1]
 
