@@ -10,6 +10,7 @@ import struct
 from collections import defaultdict
 from io import StringIO, TextIOWrapper
 from pathlib import Path
+from typing import DefaultDict, List, Tuple, Union
 
 
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -94,11 +95,26 @@ class RenamingSocketHandler(logging.handlers.SocketHandler):
         super().emit(record)
 
 
-class LogMap(dict):
+class LogMap(DefaultDict[Tuple[str, Union[int, None]], List[logging.Handler]]):
+    def __init__(self):
+        super().__init__(list)
+
+    def add_handler(self, hostname: str, worker_id: int | None, handler: logging.Handler):
+        self[(hostname, worker_id)].append(handler)
+
     def __or__(self, other: LogMap) -> LogMap:
-        new = LogMap(other)
-        new.update(self)
-        return new
+        m = LogMap()
+        for k in self.keys() | other.keys():
+            m[k] = self[k] + other[k]
+        return m
+
+    def iter(self):
+        for (hostname, worker_id), v in self.items():
+            _name = f"torchrunx.{hostname}"
+            if worker_id is not None:
+                _name += f"[{worker_id}]"
+            _logger = logging.getLogger(_name)
+            yield _logger, v
 
     @classmethod
     def basic(
@@ -108,60 +124,70 @@ class LogMap(dict):
         log_dir: str = "./logs",
         stream: bool = True,
     ) -> LogMap:
-        """
-        Generates torchrunx's default LogSpec
+        return LogMap()
 
-        :param hostnames: The node hostnames
-        :type hostnames: list[str]
-        :param num_workers: Number of workers per agent
-        :type num_workers: list[int]
-        :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
-        :rtype: DefaultLogSpec
-        """  # noqa: E501
+    # @classmethod
+    # def basic(
+    #     cls,
+    #     hostnames: list[str],
+    #     workers_per_host: list[int],
+    #     log_dir: str = "./logs",
+    #     stream: bool = True,
+    # ) -> LogMap:
+    #     """
+    #     Generates torchrunx's default LogSpec
 
-        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+    #     :param hostnames: The node hostnames
+    #     :type hostnames: list[str]
+    #     :param num_workers: Number of workers per agent
+    #     :type num_workers: list[int]
+    #     :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
+    #     :rtype: DefaultLogSpec
+    #     """  # noqa: E501
 
-        Path(log_dir).mkdir(parents=True, exist_ok=True)
+    #     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
-        agents: dict[str, list[logging.Handler]] = {
-            hostname: [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}.log")]
-            for hostname in hostnames
-        }
-        workers: dict[str, list[logging.Handler]] = {
-            f"{hostname}[{i}]": [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}[{i}].log")]
-            for hostname, num_workers in zip(hostnames, workers_per_host)
-            for i in range(num_workers)
-        }
+    #     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
-        if stream:
-            workers[f"{hostnames[0]}[0]"].append(logging.StreamHandler())
+    #     agents: dict[str, list[logging.Handler]] = {
+    #         hostname: [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}.log")]
+    #         for hostname in hostnames
+    #     }
+    #     workers: dict[str, list[logging.Handler]] = {
+    #         f"{hostname}[{i}]": [logging.FileHandler(f"{log_dir}/{timestamp}-{hostname}[{i}].log")]
+    #         for hostname, num_workers in zip(hostnames, workers_per_host)
+    #         for i in range(num_workers)
+    #     }
 
-        return cls({**agents, **workers})
+    #     if stream:
+    #         workers[f"{hostnames[0]}[0]"].append(logging.StreamHandler())
 
-    @classmethod
-    def from_file_map(cls, file_map: dict[str, list[str]], log_dir: str = "./logs") -> LogMap:
-        """
-        Generates DefaultLogSpec from a mapping of filenames to worker/agent names that should be logged there.
+    #     return cls({**agents, **workers})
 
-        :param file_map: A dictionary mapping file suffixes (filenames will be prefixed with a timestamp) to worker and agent names.
-        :type file_map: dict[str, str]
-        :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
-        :rtype: DefaultLogSpec
-        """  # noqa: E501
+    # @classmethod
+    # def from_file_map(cls, file_map: dict[str, list[str]], log_dir: str = "./logs") -> LogMap:
+    #     """
+    #     Generates DefaultLogSpec from a mapping of filenames to worker/agent names that should be logged there.
 
-        reverse_map: defaultdict[str, list[logging.Handler]] = defaultdict(lambda: [])
+    #     :param file_map: A dictionary mapping file suffixes (filenames will be prefixed with a timestamp) to worker and agent names.
+    #     :type file_map: dict[str, str]
+    #     :return: A DefaultLogSpec object to be passed to :mod:`torchrunx.launch` as the ``log_spec`` argument
+    #     :rtype: DefaultLogSpec
+    #     """  # noqa: E501
 
-        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+    #     reverse_map: defaultdict[str, list[logging.Handler]] = defaultdict(lambda: [])
 
-        Path(log_dir).mkdir(parents=True, exist_ok=True)
+    #     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
-        for file_suffix, loggers in file_map.items():
-            for logger in loggers:
-                reverse_map[logger].append(
-                    logging.FileHandler(f"{log_dir}/{timestamp}-{file_suffix}")
-                )
+    #     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
-        return cls(reverse_map)
+    #     for file_suffix, loggers in file_map.items():
+    #         for logger in loggers:
+    #             reverse_map[logger].append(
+    #                 logging.FileHandler(f"{log_dir}/{timestamp}-{file_suffix}")
+    #             )
+
+    #     return cls(reverse_map)
 
 
 class StreamLogger:

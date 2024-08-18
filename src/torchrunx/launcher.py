@@ -60,11 +60,10 @@ def execute_command(
 
 
 def monitor_log(log_map: LogMap, port: int, formatter: logging.Formatter):
-    for lname, handlers in log_map.items():  # type: ignore
-        _logger = logging.getLogger(f"torchrunx.{lname}")
+    for logger, handlers in log_map.iter():
         for handler in handlers:
             handler.setFormatter(formatter)
-            _logger.addHandler(handler)
+            logger.addHandler(handler)
 
     LogRecordSocketReceiver(host=socket.getfqdn(), port=port).serve_until_stopped()
 
