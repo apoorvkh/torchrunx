@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import datetime
 import logging
 import logging.handlers
 import pickle
 import select
 import socketserver
 import struct
-from collections import defaultdict
 from io import StringIO, TextIOWrapper
-from pathlib import Path
 from typing import DefaultDict, List, Tuple, Union
 
 
@@ -95,26 +92,24 @@ class RenamingSocketHandler(logging.handlers.SocketHandler):
         super().emit(record)
 
 
-class LogMap(DefaultDict[Tuple[str, Union[int, None]], List[logging.Handler]]):
+class LogMap:
     def __init__(self):
-        super().__init__(list)
+        self.mapping = DefaultDict[Tuple[str, Union[int, None]], List[logging.Handler]](list)
 
     def add_handler(self, hostname: str, worker_id: int | None, handler: logging.Handler):
-        self[(hostname, worker_id)].append(handler)
+        self.mapping[(hostname, worker_id)].append(handler)
 
     def __or__(self, other: LogMap) -> LogMap:
         m = LogMap()
-        for k in self.keys() | other.keys():
-            m[k] = self[k] + other[k]
+        for k in self.mapping.keys() | other.mapping.keys():
+            m.mapping[k] = self.mapping[k] + other.mapping[k]
         return m
 
-    def iter(self):
-        for (hostname, worker_id), v in self.items():
-            _name = f"torchrunx.{hostname}"
-            if worker_id is not None:
-                _name += f"[{worker_id}]"
+    def __iter__(self):
+        for (hostname, worker_id), handlers in self.mapping.items():
+            _name = f"torchrunx.{hostname}" + (f"[{worker_id}]" if worker_id is not None else "")
             _logger = logging.getLogger(_name)
-            yield _logger, v
+            yield _logger, handlers
 
     @classmethod
     def basic(

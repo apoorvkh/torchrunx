@@ -60,7 +60,7 @@ def execute_command(
 
 
 def monitor_log(log_map: LogMap, port: int, formatter: logging.Formatter):
-    for logger, handlers in log_map.iter():
+    for logger, handlers in log_map:
         for handler in handlers:
             handler.setFormatter(formatter)
             logger.addHandler(handler)
