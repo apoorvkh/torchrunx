@@ -99,7 +99,7 @@ class LogMap:
     def add_handler(self, hostname: str, worker_id: int | None, handler: logging.Handler):
         self.mapping[(hostname, worker_id)].append(handler)
 
-    def __or__(self, other: LogMap) -> LogMap:
+    def __add__(self, other: LogMap) -> LogMap:
         m = LogMap()
         for k in self.mapping.keys() | other.mapping.keys():
             m.mapping[k] = self.mapping[k] + other.mapping[k]
