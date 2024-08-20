@@ -44,27 +44,29 @@ def slurm_workers() -> int:
         return int(os.environ["SLURM_CPUS_ON_NODE"])
 
 
-def auto_hosts() -> list[str]:
-    """
-    Automatically determine hostname list
+class Auto:
+    @staticmethod
+    def hosts() -> list[str]:
+        """
+        Automatically determine hostname list
 
-    :return: Hostnames in Slurm allocation, or ['localhost']
-    :rtype: list[str]
-    """
-    if in_slurm_job():
-        slurm_hosts()
+        :return: Hostnames in Slurm allocation, or ['localhost']
+        :rtype: list[str]
+        """
+        if in_slurm_job():
+            slurm_hosts()
 
-    return ["localhost"]
+        return ["localhost"]
 
+    @staticmethod
+    def workers() -> int:
+        """
+        Automatically determine number of workers per host
 
-def auto_workers() -> int:
-    """
-    Automatically determine number of workers per host
+        :return: Workers per host
+        :rtype: int
+        """
+        if in_slurm_job():
+            return slurm_workers()
 
-    :return: Workers per host
-    :rtype: int
-    """
-    if in_slurm_job():
-        return slurm_workers()
-
-    return torch.cuda.device_count() or os.cpu_count() or 1
+        return torch.cuda.device_count() or os.cpu_count() or 1

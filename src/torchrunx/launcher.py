@@ -19,7 +19,7 @@ from typing import Any, Callable, Literal
 import fabric
 import torch.distributed as dist
 
-from .environment import auto_hosts, auto_workers
+from .environment import Auto
 from .logging_utils import LogMap, LogRecordSocketReceiver
 from .utils import (
     AgentPayload,
@@ -70,9 +70,8 @@ def monitor_log(log_map: LogMap, port: int, formatter: logging.Formatter):
 
 @dataclass
 class Launcher:
-    auto: bool = False
-    hostnames: list[str] | None = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] | None = 1
+    hostnames: list[str] | Auto = field(default_factory=lambda: ["localhost"])
+    workers_per_host: int | list[int] | Auto = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_map: LogMap | None = None
@@ -113,15 +112,13 @@ class Launcher:
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
-        if self.hostnames is None:
-            assert self.auto
-            self.hostnames = auto_hosts()
+        if isinstance(self.hostnames, Auto):
+            self.hostnames = Auto.hosts()
 
         num_hosts = len(self.hostnames)
 
-        if self.workers_per_host is None:
-            assert self.auto
-            self.workers_per_host = auto_workers()
+        if isinstance(self.workers_per_host, Auto):
+            self.workers_per_host = Auto.workers()
 
         if isinstance(self.workers_per_host, int):
             self.workers_per_host = [self.workers_per_host] * num_hosts
@@ -262,9 +259,8 @@ def launch(
     func: Callable,
     func_args: tuple[Any] = tuple(),
     func_kwargs: dict[str, Any] = {},
-    auto: bool = False,
-    hostnames: list[str] | None = ["localhost"],
-    workers_per_host: int | list[int] | None = 1,
+    hostnames: list[str] | Auto = ["localhost"],
+    workers_per_host: int | list[int] | Auto = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_map: LogMap | None = None,
@@ -313,7 +309,6 @@ def launch(
     :rtype: dict[int, Any]
     """  # noqa: E501
     return Launcher(
-        auto=auto,
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
