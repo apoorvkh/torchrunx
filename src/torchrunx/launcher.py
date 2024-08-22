@@ -3,9 +3,6 @@ from __future__ import annotations
 import fnmatch
 import ipaddress
 import itertools
-import logging
-import logging.config
-import logging.handlers
 import os
 import socket
 import subprocess
@@ -13,6 +10,7 @@ import sys
 from collections import ChainMap
 from dataclasses import dataclass, field
 from functools import partial
+from logging import Handler
 from multiprocessing import Process
 from typing import Any, Callable, Literal
 
@@ -20,7 +18,7 @@ import fabric
 import torch.distributed as dist
 
 from .environment import Auto
-from .logging_utils import LogMap, LogRecordSocketReceiver
+from .logging_utils import LogRecordSocketReceiver
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -59,22 +57,13 @@ def execute_command(
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
-def monitor_log(log_map: LogMap, port: int, formatter: logging.Formatter):
-    for logger, handlers in log_map:
-        for handler in handlers:
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-
-    LogRecordSocketReceiver(host=socket.getfqdn(), port=port).serve_until_stopped()
-
-
 @dataclass
 class Launcher:
     hostnames: list[str] | Auto = field(default_factory=lambda: ["localhost"])
     workers_per_host: int | list[int] | Auto = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
-    log_map: LogMap | None = None
+    log_handlers: list[Handler] = []
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -125,24 +114,18 @@ class Launcher:
 
         assert num_hosts == len(self.workers_per_host)
 
+        #
+
+        launcher_hostname = socket.getfqdn()
+
         # setup logging
-
-        logger = logging.getLogger("torchrunx")
-        logger.setLevel(logging.DEBUG)
-        logger.propagate = False
-        logger.parent = None
-
-        formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s:%(message)s")
-
-        if self.log_map is None:
-            self.log_map = LogMap.basic(
-                hostnames=self.hostnames,
-                workers_per_host=self.workers_per_host,
-            )
 
         logger_port = get_open_port()
         log_process = Process(
-            target=monitor_log, args=(self.log_map, logger_port, formatter), daemon=True
+            target=LogRecordSocketReceiver(
+                host=launcher_hostname, port=logger_port, handlers=self.log_handlers
+            ).serve_forever,
+            daemon=True,
         )
         log_process.start()
 
@@ -163,7 +146,6 @@ class Launcher:
         if self.env_file is not None:
             env_file_string = f"source {self.env_file} && "
 
-        launcher_hostname = socket.getfqdn()
         launcher_port = get_open_port()
         world_size = num_hosts + 1  # launcher + agents
 
@@ -263,7 +245,7 @@ def launch(
     workers_per_host: int | list[int] | Auto = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_map: LogMap | None = None,
+    log_handlers: list[Handler] = [],
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -296,8 +278,8 @@ def launch(
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
-    :param log_map: A :mod:`torchrunx.LogMap` object specifying how to log the run. When left empty, :mod:`torchrunx.LogMap.basic` is used to construct the default :mod:`torchrunx.LogMap`, defaults to None
-    :type log_map: torchrunx.LogMap
+    :param log_handlers: A list of handlers to manage agent and worker logs, defaults to []
+    :type log_handlers: list[Handler], optional
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
@@ -313,7 +295,7 @@ def launch(
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        log_map=log_map,
+        log_handlers=log_handlers,
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,

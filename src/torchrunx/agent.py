@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import datetime
-import logging
-import logging.handlers
 import os
 import socket
 import sys
 import tempfile
 from dataclasses import dataclass
+import logging
 from typing import Callable, Literal
 
 import cloudpickle
@@ -16,7 +15,7 @@ import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
 
-from .logging_utils import RenamingSocketHandler, StreamLogger
+from .logging_utils import StreamLogger, log_records_to_socket
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -51,19 +50,19 @@ class WorkerArgs:
 
 def entrypoint(serialized_worker_args: bytes):
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
+
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.name = (
-        f"torchrunx.{worker_args.hostname}[{worker_args.local_rank}]"  # overwrite root logger name
-    )
-    logger.addHandler(
-        RenamingSocketHandler(
-            host=worker_args.logger_hostname, port=worker_args.logger_port, root_name=logger.name
-        )
+
+    log_records_to_socket(
+        logger=logger,
+        hostname=worker_args.hostname,
+        worker_rank=worker_args.local_rank,
+        logger_hostname=worker_args.logger_hostname,
+        logger_port=worker_args.logger_port,
     )
 
-    sys.stdout = StreamLogger(logger, sys.__stdout__)
     sys.stderr = StreamLogger(logger, sys.__stderr__)
+    sys.stdout = StreamLogger(logger, sys.__stdout__)
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.master_hostname,
@@ -76,7 +75,7 @@ def entrypoint(serialized_worker_args: bytes):
     if backend is None:
         backend = "nccl" if torch.cuda.is_available() else "gloo"
 
-    logging.debug(f"using backend: {backend}")
+    logger.debug(f"using backend: {backend}")
 
     dist.init_process_group(
         backend=backend,
@@ -93,7 +92,7 @@ def entrypoint(serialized_worker_args: bytes):
     os.environ["MASTER_ADDR"] = worker_args.master_hostname
     os.environ["MASTER_PORT"] = str(worker_args.master_port)
 
-    logging.debug(f"executing function: {worker_args.function}")
+    logger.debug(f"executing function: {worker_args.function}")
     return worker_args.function()
 
 
@@ -105,7 +104,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         port=get_open_port(),
         process_id=os.getpid(),
     )
-    # DefaultLogsSpecs(log_dir=None, tee=Std.ALL, local_ranks_filter={0}),
+
     all_payloads = launcher_agent_group.sync_payloads(payload=payload)
     launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
     main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
@@ -115,28 +114,29 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    logger = logging.getLogger(f"torchrunx.{launcher_payload.hostnames[agent_rank]}")
-    logger.setLevel(logging.DEBUG)
-    socketHandler = logging.handlers.SocketHandler(
-        host=logger_hostname,
-        port=logger_port,
+    logger = logging.getLogger()
+
+    log_records_to_socket(
+        logger=logger,
+        hostname=hostname,
+        worker_rank=None,
+        logger_hostname=logger_hostname,
+        logger_port=logger_port,
     )
-    logger.addHandler(socketHandler)
 
     if torch.__version__ >= "2.3":
-        # DefaultLogsSpecs only exists in torch >= 2.3
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
 
-        log_arg = DefaultLogsSpecs(log_dir=tempfile.mkdtemp())
+        log_kwargs = {"logs_specs": DefaultLogsSpecs(log_dir=tempfile.mkdtemp())}
     else:
-        log_arg = tempfile.mkdtemp()
+        log_kwargs = {"log_dir": tempfile.mkdtemp()}
 
     # spawn workers
 
     ctx = start_processes(
-        f"{hostname}_",
-        entrypoint,
-        {
+        name=f"{hostname}_",
+        entrypoint=entrypoint,
+        args={
             i: (
                 WorkerArgs(
                     function=launcher_payload.fn,
@@ -155,10 +155,11 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             )
             for i in range(num_workers)
         },
-        {i: {} for i in range(num_workers)},
-        log_arg,  # type: ignore
+        envs={i: {} for i in range(num_workers)},
+        **log_kwargs,  # pyright: ignore [reportArgumentType]
     )
     logger.debug("starting processes")
+
     try:
         status = AgentStatus()
         while True:
