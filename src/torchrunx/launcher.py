@@ -18,7 +18,7 @@ import fabric
 import torch.distributed as dist
 
 from .environment import Auto
-from .logging_utils import LogRecordSocketReceiver
+from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -123,7 +123,7 @@ class Launcher:
         if self.log_handlers is None:
             self.log_handlers = []
         elif isinstance(self.log_handlers, Auto):
-            self.log_handlers = Auto.handlers(
+            self.log_handlers = default_handlers(
                 hostnames=self.hostnames, workers_per_host=self.workers_per_host
             )
 

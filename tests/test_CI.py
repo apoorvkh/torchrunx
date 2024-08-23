@@ -1,4 +1,3 @@
-import logging
 import os
 import tempfile
 
@@ -7,6 +6,7 @@ import torch
 import torch.distributed as dist
 
 import torchrunx as trx
+from torchrunx.logging_utils import default_handlers
 
 
 def test_simple_localhost():
@@ -42,7 +42,7 @@ def test_simple_localhost():
 def test_logging():
     def dist_func():
         rank = int(os.environ["RANK"])
-        logging.info(f"worker rank: {rank}")
+        print(f"worker rank: {rank}")
 
     tmp = tempfile.mkdtemp()
     trx.launch(
@@ -50,14 +50,7 @@ def test_logging():
         func_kwargs={},
         workers_per_host=2,
         backend="gloo",
-    )  # log_dir=tmp)
-
-    trx.launch(
-        func=dist_func,
-        func_kwargs={},
-        workers_per_host=2,
-        backend="gloo",
-        # log_map=LogMap.basic(hostnames=["localhost"], workers_per_host=[2], log_dir="./test_logs")
+        log_handlers=default_handlers(hostnames=["localhost"], workers_per_host=[2], log_dir=tmp),
     )
 
     log_files = next(os.walk(tmp), (None, None, []))[2]
@@ -66,12 +59,12 @@ def test_logging():
 
     for file in log_files:
         with open(f"{tmp}/{file}", "r") as f:
-            if file.endswith("0.log"):
-                assert f.read() == "worker rank: 0\n"
-            elif file.endswith("1.log"):
-                assert f.read() == "worker rank: 1\n"
+            contents = f.read()
+            if file.endswith("[0].log"):
+                assert "worker rank: 0\n" in contents
+            elif file.endswith("[1].log"):
+                assert "worker rank: 1\n" in contents
             else:
-                contents = f.read()
                 assert "starting processes" in contents
 
 

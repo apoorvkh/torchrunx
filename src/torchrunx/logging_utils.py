@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import pickle
 import struct
 from io import StringIO, TextIOWrapper
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
-from socketserver import StreamRequestHandler, TCPServer
+from socketserver import StreamRequestHandler, ThreadingTCPServer
 
 
 def log_records_to_socket(
     logger: Logger, hostname: str, worker_rank: int | None, logger_hostname: str, logger_port: int
 ):
-    logger.setLevel(logging.NOTSET)
+    logger.setLevel(logging.DEBUG)
 
     old_factory = logging.getLogRecordFactory()
 
@@ -27,7 +28,44 @@ def log_records_to_socket(
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
 
 
-class LogRecordSocketReceiver(TCPServer):
+def default_handlers(
+    hostnames: list[str], workers_per_host: list[int], log_dir: str = "./logs"
+) -> list[Handler]:
+    handlers = []
+
+    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+    def make_handler(hostname: str, rank: int | None = None, stream: bool = False) -> Handler:
+        if stream:
+            handler = logging.StreamHandler()
+        else:
+            handler = logging.FileHandler(
+                f"{log_dir}/{timestamp}-{hostname}{'' if rank is None else f'[{rank}]'}.log"
+            )
+
+        def handler_filter(record: logging.LogRecord) -> bool:
+            return record.hostname == hostname and record.worker_rank == rank
+
+        handler.addFilter(handler_filter)
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(
+            "%(asctime)s:%(levelname)s:%(hostname)s:worker-%(worker_rank)s:%(message)s"
+        )
+        handler.setFormatter(formatter)
+
+        return handler
+
+    for i, hostname in enumerate(hostnames):
+        handlers.append(make_handler(hostname=hostname))
+        for j in range(workers_per_host[i]):
+            handlers.append(make_handler(hostname=hostname, rank=j))
+            if i == 0 and j == 0:
+                handlers.append(make_handler(hostname=hostname, rank=j, stream=True))
+
+    return handlers
+
+
+class LogRecordSocketReceiver(ThreadingTCPServer):
     def __init__(self, host: str, port: int, handlers: list[Handler]):
         class _LogRecordStreamHandler(StreamRequestHandler):
             def handle(self):
@@ -46,6 +84,7 @@ class LogRecordSocketReceiver(TCPServer):
                         handler.handle(record)
 
         super().__init__((host, port), _LogRecordStreamHandler)
+        self.daemon_threads = True
 
 
 class StreamLogger:
