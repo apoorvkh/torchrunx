@@ -240,6 +240,7 @@ class Launcher:
             raise
         finally:
             log_process.kill()
+            dist.destroy_process_group()
 
         return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
         return return_values

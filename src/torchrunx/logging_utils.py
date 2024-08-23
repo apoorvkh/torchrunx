@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 import pickle
-from socketserver import TCPServer, StreamRequestHandler
 import struct
 from io import StringIO, TextIOWrapper
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
+from socketserver import StreamRequestHandler, TCPServer
 
 
 def log_records_to_socket(

@@ -19,6 +19,13 @@ pytest = "*"
 build = "*"
 twine = "*"
 
+[feature.extra.pypi-dependencies]
+transformers = "*"
+submitit = "*"
+setuptools = "*"
+accelerate = "*"
+
 [environments]
 default = { features = ["package", "dev"], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
+extra = { features = ["package", "dev", "extra"], solve-group = "default"}
