@@ -63,7 +63,7 @@ class Launcher:
     workers_per_host: int | list[int] | Auto = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
-    log_handlers: list[Handler] = []
+    log_handlers: list[Handler] | Auto | None = Auto()
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -120,11 +120,19 @@ class Launcher:
 
         # setup logging
 
+        if self.log_handlers is None:
+            self.log_handlers = []
+        elif isinstance(self.log_handlers, Auto):
+            self.log_handlers = Auto.handlers(
+                hostnames=self.hostnames, workers_per_host=self.workers_per_host
+            )
+
         logger_port = get_open_port()
+        log_receiver = LogRecordSocketReceiver(
+            host=launcher_hostname, port=logger_port, handlers=self.log_handlers
+        )
         log_process = Process(
-            target=LogRecordSocketReceiver(
-                host=launcher_hostname, port=logger_port, handlers=self.log_handlers
-            ).serve_forever,
+            target=log_receiver.serve_forever,
             daemon=True,
         )
         log_process.start()

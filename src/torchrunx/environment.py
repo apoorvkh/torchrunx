@@ -70,3 +70,7 @@ class Auto:
             return slurm_workers()
 
         return torch.cuda.device_count() or os.cpu_count() or 1
+
+    @staticmethod
+    def handlers(hostnames: list[str], workers_per_host: list[int]):
+        return []

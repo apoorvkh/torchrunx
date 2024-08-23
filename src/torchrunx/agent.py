@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import os
 import socket
 import sys
 import tempfile
 from dataclasses import dataclass
-import logging
 from typing import Callable, Literal
 
 import cloudpickle
@@ -30,8 +30,8 @@ class WorkerArgs:
     function: Callable
     logger_hostname: str
     logger_port: int
-    master_hostname: str
-    master_port: int
+    main_agent_hostname: str
+    main_agent_port: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     rank: int
     local_rank: int
@@ -65,8 +65,8 @@ def entrypoint(serialized_worker_args: bytes):
     sys.stdout = StreamLogger(logger, sys.__stdout__)
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
-        host_name=worker_args.master_hostname,
-        port=worker_args.master_port,
+        host_name=worker_args.main_agent_hostname,
+        port=worker_args.main_agent_port,
         world_size=worker_args.world_size,
         is_master=(worker_args.rank == 0),
     )
@@ -89,8 +89,8 @@ def entrypoint(serialized_worker_args: bytes):
     os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
     os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
     os.environ["WORLD_SIZE"] = str(worker_args.world_size)
-    os.environ["MASTER_ADDR"] = worker_args.master_hostname
-    os.environ["MASTER_PORT"] = str(worker_args.master_port)
+    os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
+    os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
 
     logger.debug(f"executing function: {worker_args.function}")
     return worker_args.function()
@@ -142,8 +142,8 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
                     function=launcher_payload.fn,
                     logger_hostname=logger_hostname,
                     logger_port=logger_port,
-                    master_hostname=main_agent_payload.hostname,
-                    master_port=main_agent_payload.port,
+                    main_agent_hostname=main_agent_payload.hostname,
+                    main_agent_port=main_agent_payload.port,
                     backend=launcher_payload.backend,
                     rank=worker_global_ranks[i],
                     local_rank=i,
