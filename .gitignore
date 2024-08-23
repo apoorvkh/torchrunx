@@ -4,6 +4,8 @@ test_logs/
 _build/
 out/
 output/
+.vscode/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
