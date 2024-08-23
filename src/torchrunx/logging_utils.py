@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import pickle
-import socketserver
+from socketserver import TCPServer, StreamRequestHandler
 import struct
 from io import StringIO, TextIOWrapper
 from logging import Handler, Logger
@@ -27,13 +27,9 @@ def log_records_to_socket(
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
 
 
-class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
+class LogRecordSocketReceiver(TCPServer):
     def __init__(self, host: str, port: int, handlers: list[Handler]):
-        class _LogRecordStreamHandler(socketserver.StreamRequestHandler):
-            """
-            https://docs.python.org/3.8/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network
-            """
-
+        class _LogRecordStreamHandler(StreamRequestHandler):
             def handle(self):
                 while True:
                     chunk = self.connection.recv(4)
@@ -45,7 +41,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
                         chunk = chunk + self.connection.recv(slen - len(chunk))
                     obj = pickle.loads(chunk)
                     record = logging.makeLogRecord(obj)
-
+                    #
                     for handler in handlers:
                         handler.handle(record)
 
