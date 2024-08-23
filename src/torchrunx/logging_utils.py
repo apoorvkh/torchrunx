@@ -11,7 +11,11 @@ from socketserver import StreamRequestHandler, ThreadingTCPServer
 
 
 def log_records_to_socket(
-    logger: Logger, hostname: str, worker_rank: int | None, logger_hostname: str, logger_port: int
+    logger: Logger,
+    hostname: str,
+    worker_rank: int | None,
+    logger_hostname: str,
+    logger_port: int,
 ):
     logger.setLevel(logging.DEBUG)
 
@@ -44,7 +48,7 @@ def default_handlers(
             )
 
         def handler_filter(record: logging.LogRecord) -> bool:
-            return record.hostname == hostname and record.worker_rank == rank
+            return record.hostname == hostname and record.worker_rank == rank  # pyright: ignore
 
         handler.addFilter(handler_filter)
         handler.setLevel(logging.DEBUG)
