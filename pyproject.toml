@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "torchrunx"
-version = "0.1.2"
+version = "0.1.3"
 authors = [
     {name = "Apoorv Khandelwal", email = "mail@apoorvkh.com"},
     {name = "Peter Curtin", email = "peter_curtin@brown.edu"},
