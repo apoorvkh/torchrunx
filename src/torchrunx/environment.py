@@ -39,6 +39,8 @@ def slurm_workers() -> int:
     if "SLURM_JOB_GPUS" in os.environ:
         # TODO: is it possible to allocate uneven GPUs across nodes?
         return len(os.environ["SLURM_JOB_GPUS"].split(","))
+    elif "SLURM_GPUS_PER_NODE" in os.environ:
+        return int(os.environ['SLURM_GPUS_PER_NODE'])
     else:
         # TODO: should we assume that we plan to do one worker per CPU?
         return int(os.environ["SLURM_CPUS_ON_NODE"])
@@ -52,7 +54,7 @@ def auto_hosts() -> list[str]:
     :rtype: list[str]
     """
     if in_slurm_job():
-        slurm_hosts()
+        return slurm_hosts()
 
     return ["localhost"]
 
