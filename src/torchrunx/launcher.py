@@ -17,7 +17,7 @@ from typing import Any, Callable, Literal
 import fabric
 import torch.distributed as dist
 
-from .environment import Auto
+from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
 from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import (
     AgentPayload,
@@ -59,11 +59,11 @@ def execute_command(
 
 @dataclass
 class Launcher:
-    hostnames: list[str] | Auto = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] | Auto = 1
+    hostnames: list[str] | Literal["auto", "slurm"] = field(default_factory=lambda: ["localhost"])
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
-    log_handlers: list[Handler] | Auto | None = Auto()
+    log_handlers: list[Handler] | Literal["auto"] | None = "auto"
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -101,13 +101,17 @@ class Launcher:
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
-        if isinstance(self.hostnames, Auto):
-            self.hostnames = Auto.hosts()
+        if self.hostnames == "auto":
+            self.hostnames = auto_hosts()
+        elif self.hostnames == "slurm":
+            self.hostnames = slurm_hosts()
 
         num_hosts = len(self.hostnames)
 
-        if isinstance(self.workers_per_host, Auto):
-            self.workers_per_host = Auto.workers()
+        if self.workers_per_host == "auto":
+            self.workers_per_host = auto_workers()
+        elif self.workers_per_host == "slurm":
+            self.workers_per_host = slurm_workers()
 
         if isinstance(self.workers_per_host, int):
             self.workers_per_host = [self.workers_per_host] * num_hosts
@@ -122,7 +126,7 @@ class Launcher:
 
         if self.log_handlers is None:
             self.log_handlers = []
-        elif isinstance(self.log_handlers, Auto):
+        elif self.log_handlers == "auto":
             self.log_handlers = default_handlers(
                 hostnames=self.hostnames, workers_per_host=self.workers_per_host
             )
@@ -250,11 +254,11 @@ def launch(
     func: Callable,
     func_args: tuple[Any] = tuple(),
     func_kwargs: dict[str, Any] = {},
-    hostnames: list[str] | Auto = ["localhost"],
-    workers_per_host: int | list[int] | Auto = 1,
+    hostnames: list[str] | Literal["auto", "slurm"] = ["localhost"],
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_handlers: list[Handler] = [],
+    log_handlers: list[Handler] | Literal["auto"] = "auto",
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -280,15 +284,15 @@ def launch(
     :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
     :type auto: bool, optional
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
-    :type hostnames: list[str] | None, optional
+    :type hostnames: list[str] | Literal["auto", "slurm"] | None, optional
     :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to 1
-    :type workers_per_host: int | list[int] | None, optional
+    :type workers_per_host: int | list[int] | Literal["auto", "slurm"] | None, optional
     :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
     :param log_handlers: A list of handlers to manage agent and worker logs, defaults to []
-    :type log_handlers: list[Handler], optional
+    :type log_handlers: list[Handler] | Literal["auto"], optional
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None

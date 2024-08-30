@@ -9,8 +9,8 @@ import torchrunx as trx
 def test_launch():
     result = trx.launch(
         func=simple_matmul,
-        hostnames=trx.slurm_hosts(),
-        workers_per_host=trx.slurm_workers(),
+        hostnames="slurm",
+        workers_per_host="slurm",
     )
 
     t = True

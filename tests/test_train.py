@@ -35,8 +35,8 @@ def worker():
 def test_distributed_train():
     trx.launch(
         worker,
-        hostnames=trx.slurm_hosts(),
-        workers_per_host=trx.slurm_workers(),
+        hostnames="slurm",
+        workers_per_host="slurm",
         backend="nccl",
     )
 
