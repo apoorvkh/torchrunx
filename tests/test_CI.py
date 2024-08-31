@@ -45,12 +45,14 @@ def test_logging():
         print(f"worker rank: {rank}")
 
     tmp = tempfile.mkdtemp()
+    os.environ["TORCHRUNX_DIR"] = tmp
+
     trx.launch(
         func=dist_func,
         func_kwargs={},
         workers_per_host=2,
         backend="gloo",
-        log_handlers=default_handlers(hostnames=["localhost"], workers_per_host=[2], log_dir=tmp),
+        log_handlers=default_handlers(hostnames=["localhost"], workers_per_host=[2]),
     )
 
     log_files = next(os.walk(tmp), (None, None, []))[2]
@@ -78,7 +80,10 @@ def test_error():
             func_kwargs={},
             workers_per_host=1,
             backend="gloo",
-            # log_dir=tempfile.mkdtemp(),
         )
 
     assert "abcdefg" in str(excinfo.value)
+
+
+if __name__ == "__main__":
+    test_simple_localhost()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 import pickle
 import struct
 from io import StringIO, TextIOWrapper
@@ -32,19 +33,27 @@ def log_records_to_socket(
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
 
 
-def default_handlers(
-    hostnames: list[str], workers_per_host: list[int], log_dir: str = "./logs"
-) -> list[Handler]:
+def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
     handlers = []
 
+    log_dir = os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs")
+    os.makedirs(log_dir, exist_ok=True)
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
     def make_handler(hostname: str, rank: int | None = None, stream: bool = False) -> Handler:
         if stream:
             handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                "%(asctime)s:%(levelname)s:%(hostname)s"
+                + ("[%(worker_rank)s]" if rank is not None else "")
+                + ": %(message)s"
+            )
         else:
             handler = logging.FileHandler(
                 f"{log_dir}/{timestamp}-{hostname}{'' if rank is None else f'[{rank}]'}.log"
+            )
+            formatter = logging.Formatter(
+                "%(asctime)s:%(levelname)s: %(message)s"
             )
 
         def handler_filter(record: logging.LogRecord) -> bool:
@@ -52,19 +61,16 @@ def default_handlers(
 
         handler.addFilter(handler_filter)
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(
-            "%(asctime)s:%(levelname)s:%(hostname)s:worker-%(worker_rank)s:%(message)s"
-        )
         handler.setFormatter(formatter)
 
         return handler
 
-    for i, hostname in enumerate(hostnames):
-        handlers.append(make_handler(hostname=hostname))
-        for j in range(workers_per_host[i]):
+    for r in [None, 0]:
+        handlers.append(make_handler(hostname=hostnames[0], rank=r, stream=True))
+
+    for hostname, num_workers in zip(hostnames, workers_per_host):
+        for j in [None] + list(range(num_workers)):
             handlers.append(make_handler(hostname=hostname, rank=j))
-            if i == 0 and j == 0:
-                handlers.append(make_handler(hostname=hostname, rank=j, stream=True))
 
     return handlers
 

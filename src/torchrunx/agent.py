@@ -61,6 +61,8 @@ def entrypoint(serialized_worker_args: bytes):
         logger_port=worker_args.logger_port,
     )
 
+    logging.captureWarnings(True)  # TODO ?
+
     sys.stderr = StreamLogger(logger, sys.__stderr__)
     sys.stdout = StreamLogger(logger, sys.__stdout__)
 
