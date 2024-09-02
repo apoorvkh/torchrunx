@@ -14,8 +14,9 @@ import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
+from contextlib import redirect_stderr, redirect_stdout
 
-from .logging_utils import StreamLogger, log_records_to_socket
+from .logging_utils import LoggingStream, log_records_to_socket
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -61,10 +62,9 @@ def entrypoint(serialized_worker_args: bytes):
         logger_port=worker_args.logger_port,
     )
 
-    logging.captureWarnings(True)  # TODO ?
-
-    sys.stderr = StreamLogger(logger, sys.__stderr__)
-    sys.stdout = StreamLogger(logger, sys.__stdout__)
+    logging.captureWarnings(True)
+    redirect_stderr(LoggingStream(logger)).__enter__()
+    redirect_stdout(LoggingStream(logger)).__enter__()
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.main_agent_hostname,
@@ -125,9 +125,6 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
 
     logger = logging.getLogger()
 
-    sys.stderr = StreamLogger(logger, sys.__stderr__)
-    sys.stdout = StreamLogger(logger, sys.__stdout__)
-
     log_records_to_socket(
         logger=logger,
         hostname=hostname,
@@ -135,6 +132,10 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         logger_hostname=logger_hostname,
         logger_port=logger_port,
     )
+
+    logging.captureWarnings(True)
+    redirect_stderr(LoggingStream(logger)).__enter__()
+    redirect_stdout(LoggingStream(logger)).__enter__()
 
     if torch.__version__ >= "2.3":
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs

@@ -5,7 +5,7 @@ import logging
 import os
 import pickle
 import struct
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from socketserver import StreamRequestHandler, ThreadingTCPServer
@@ -95,25 +95,15 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
         self.daemon_threads = True
 
 
-class StreamLogger:
-    """
-    For logging write calls to streams such as stdout and stdin in the worker processes.
-    """
-
-    def __init__(self, logger: Logger, stream: TextIOWrapper | None):
+class LoggingStream(StringIO):
+    def __init__(self, logger: Logger):
+        super().__init__()
         self.logger = logger
-        self._string_io = StringIO()
-        if stream is None:
-            raise ValueError("stream cannot be None")
-        self.stream: TextIOWrapper = stream  # type: ignore
-
-    def write(self, data: str):
-        self._string_io.write(data)
-        self.stream.write(data)
 
     def flush(self):
-        value = self._string_io.getvalue()
+        super().flush()
+        value = self.getvalue()
         if value != "":
             self.logger.info(f"\n{value}")
-            self._string_io = StringIO()  # "create a new one, it's faster" - someone online
-        self.stream.flush()
+            self.truncate(0)
+            self.seek(0)
