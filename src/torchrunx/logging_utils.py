@@ -8,7 +8,7 @@ import struct
 from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
-from socketserver import StreamRequestHandler, ThreadingTCPServer
+from socketserver import StreamRequestHandler, TCPServer
 
 
 def log_records_to_socket(
@@ -73,7 +73,7 @@ def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[
     return handlers
 
 
-class LogRecordSocketReceiver(ThreadingTCPServer):
+class LogRecordSocketReceiver(TCPServer):
     def __init__(self, host: str, port: int, handlers: list[Handler]):
         class _LogRecordStreamHandler(StreamRequestHandler):
             def handle(self):
@@ -91,8 +91,11 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
                     for handler in handlers:
                         handler.handle(record)
 
-        super().__init__((host, port), _LogRecordStreamHandler)
-        self.daemon_threads = True
+        super().__init__(
+            server_address=(host, port),
+            RequestHandlerClass=_LogRecordStreamHandler,
+            bind_and_activate=True,
+        )
 
 
 class LoggingStream(StringIO):
