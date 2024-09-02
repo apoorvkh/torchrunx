@@ -63,8 +63,8 @@ def entrypoint(serialized_worker_args: bytes):
     )
 
     logging.captureWarnings(True)
-    redirect_stderr(LoggingStream(logger)).__enter__()
-    redirect_stdout(LoggingStream(logger)).__enter__()
+    redirect_stderr(LoggingStream(logger, level=logging.ERROR)).__enter__()
+    redirect_stdout(LoggingStream(logger, level=logging.INFO)).__enter__()
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.main_agent_hostname,
@@ -134,8 +134,8 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     )
 
     logging.captureWarnings(True)
-    redirect_stderr(LoggingStream(logger)).__enter__()
-    redirect_stdout(LoggingStream(logger)).__enter__()
+    redirect_stderr(LoggingStream(logger, level=logging.ERROR)).__enter__()
+    redirect_stdout(LoggingStream(logger, level=logging.INFO)).__enter__()
 
     if torch.__version__ >= "2.3":
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs

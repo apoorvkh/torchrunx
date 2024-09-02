@@ -96,14 +96,15 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
 
 
 class LoggingStream(StringIO):
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, level: int = logging.NOTSET):
         super().__init__()
         self.logger = logger
+        self.level = level
 
     def flush(self):
         super().flush()
         value = self.getvalue()
         if value != "":
-            self.logger.info(f"\n{value}")
+            self.logger.log(self.level, f"\n{value}")
             self.truncate(0)
             self.seek(0)
