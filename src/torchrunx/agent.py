@@ -6,6 +6,7 @@ import os
 import socket
 import sys
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -14,7 +15,6 @@ import torch
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
-from contextlib import redirect_stderr, redirect_stdout
 
 from .logging_utils import LoggingStream, log_records_to_socket
 from .utils import (
