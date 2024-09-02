@@ -95,7 +95,14 @@ def entrypoint(serialized_worker_args: bytes):
     os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
 
     logger.debug(f"executing function: {worker_args.function}")
-    return worker_args.function()
+
+    r = worker_args.function()
+
+    # flush streams
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    return r
 
 
 def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int):
@@ -117,6 +124,9 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     num_workers = len(worker_global_ranks)
 
     logger = logging.getLogger()
+
+    sys.stderr = StreamLogger(logger, sys.__stderr__)
+    sys.stdout = StreamLogger(logger, sys.__stdout__)
 
     log_records_to_socket(
         logger=logger,
@@ -181,3 +191,5 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         raise
     finally:
         ctx.close()
+        sys.stdout.flush()
+        sys.stderr.flush()

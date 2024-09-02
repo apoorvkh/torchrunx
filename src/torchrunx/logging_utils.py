@@ -18,7 +18,7 @@ def log_records_to_socket(
     logger_hostname: str,
     logger_port: int,
 ):
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.NOTSET)
 
     old_factory = logging.getLogRecordFactory()
 
@@ -52,15 +52,13 @@ def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[
             handler = logging.FileHandler(
                 f"{log_dir}/{timestamp}-{hostname}{'' if rank is None else f'[{rank}]'}.log"
             )
-            formatter = logging.Formatter(
-                "%(asctime)s:%(levelname)s: %(message)s"
-            )
+            formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
 
         def handler_filter(record: logging.LogRecord) -> bool:
             return record.hostname == hostname and record.worker_rank == rank  # pyright: ignore
 
         handler.addFilter(handler_filter)
-        handler.setLevel(logging.DEBUG)
+        handler.setLevel(logging.NOTSET)
         handler.setFormatter(formatter)
 
         return handler
