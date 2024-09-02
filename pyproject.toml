@@ -40,8 +40,6 @@ Documentation = "https://torchrunx.readthedocs.io"
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
 line-length = 100
 src = ["src", "tests"]
-[tool.ruff.lint]
-select = ["E", "F", "I"]
 
 [tool.pyright]
 include = ["src", "tests"]
