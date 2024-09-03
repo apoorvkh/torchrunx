@@ -3,6 +3,7 @@ from __future__ import annotations
 import fnmatch
 import ipaddress
 import itertools
+import logging
 import os
 import socket
 import subprocess
@@ -47,7 +48,6 @@ def execute_command(
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
 ) -> None:
-    # TODO: permit different stderr / stdout
     if is_localhost(hostname):
         subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
@@ -128,7 +128,10 @@ class Launcher:
             self.log_handlers = []
         elif self.log_handlers == "auto":
             self.log_handlers = default_handlers(
-                hostnames=self.hostnames, workers_per_host=self.workers_per_host
+                hostnames=self.hostnames,
+                workers_per_host=self.workers_per_host,
+                log_dir=os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs"),
+                log_level=getattr(logging, os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")),
             )
 
         logger_port = get_open_port()
@@ -243,6 +246,9 @@ class Launcher:
                 )
             raise
         finally:
+            # log_receiver.timeout = 1
+            # log_receiver.shutdown()
+            # log_receiver.server_close()
             log_process.kill()
             dist.destroy_process_group()
 

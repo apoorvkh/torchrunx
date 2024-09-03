@@ -41,11 +41,13 @@ def file_handler(
 
 
 def file_handlers(
-    hostnames: list[str], workers_per_host: list[int], log_level: int = logging.NOTSET
+    hostnames: list[str],
+    workers_per_host: list[int],
+    log_dir: str = "./torchrunx_logs",
+    log_level: int = logging.NOTSET,
 ) -> list[Handler]:
     handlers = []
 
-    log_dir = os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs")
     os.makedirs(log_dir, exist_ok=True)
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
@@ -75,13 +77,15 @@ def stream_handler(hostname: str, rank: int | None, log_level: int = logging.NOT
 
 
 def default_handlers(
-    hostnames: list[str], workers_per_host: list[int], log_level: int = logging.INFO
+    hostnames: list[str],
+    workers_per_host: list[int],
+    log_dir: str = "./torchrunx_logs",
+    log_level: int = logging.INFO,
 ) -> list[Handler]:
-    stream_handlers = [
+    return [
         stream_handler(hostname=hostnames[0], rank=None, log_level=log_level),
         stream_handler(hostname=hostnames[0], rank=0, log_level=log_level),
-    ]
-    return stream_handlers + file_handlers(hostnames, workers_per_host, log_level=log_level)
+    ] + file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level)
 
 
 ## Agent/worker utilities
@@ -110,24 +114,23 @@ def log_records_to_socket(
 
 
 def redirect_stdio_to_logger(logger: Logger):
+    class _LoggingStream(StringIO):
+        def __init__(self, logger: Logger, level: int = logging.NOTSET):
+            super().__init__()
+            self.logger = logger
+            self.level = level
+
+        def flush(self):
+            super().flush()
+            value = self.getvalue()
+            if value != "":
+                self.logger.log(self.level, f"\n{value}")
+                self.truncate(0)
+                self.seek(0)
+
     logging.captureWarnings(True)
-    redirect_stderr(LoggingStream(logger, level=logging.ERROR)).__enter__()
-    redirect_stdout(LoggingStream(logger, level=logging.INFO)).__enter__()
-
-
-class LoggingStream(StringIO):
-    def __init__(self, logger: Logger, level: int = logging.NOTSET):
-        super().__init__()
-        self.logger = logger
-        self.level = level
-
-    def flush(self):
-        super().flush()
-        value = self.getvalue()
-        if value != "":
-            self.logger.log(self.level, f"\n{value}")
-            self.truncate(0)
-            self.seek(0)
+    redirect_stderr(_LoggingStream(logger, level=logging.ERROR)).__enter__()
+    redirect_stdout(_LoggingStream(logger, level=logging.INFO)).__enter__()
 
 
 ## Launcher utilities
