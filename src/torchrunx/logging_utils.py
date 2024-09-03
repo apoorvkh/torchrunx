@@ -10,14 +10,15 @@ from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from socketserver import StreamRequestHandler, TCPServer
-from typing import Callable
 
 
-def get_filter(hostname: str, rank: int | None = None) -> Callable[[logging.LogRecord], bool]:
-    def _handler_filter(record: logging.LogRecord) -> bool:
-        return record.hostname == hostname and record.worker_rank == rank
+class WorkerLogFilter(logging.Filter):
+    def __init__(self, hostname: str, worker_rank: int | None):
+        self.hostname = hostname
+        self.worker_rank = worker_rank
 
-    return _handler_filter
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.hostname == self.hostname and record.worker_rank == self.worker_rank
 
 
 def file_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
@@ -34,7 +35,7 @@ def file_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Han
             )
             formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
 
-            handler.addFilter(get_filter(hostname, rank))
+            handler.addFilter(WorkerLogFilter(hostname, rank))
             handler.setLevel(logging.NOTSET)
             handler.setFormatter(formatter)
 
@@ -50,7 +51,7 @@ def stream_handler(hostname: str, rank: int | None) -> Handler:
         + ("[%(worker_rank)s]" if rank is not None else "")
         + ": %(message)s"
     )
-    handler.addFilter(get_filter(hostname, rank))
+    handler.addFilter(WorkerLogFilter(hostname, rank))
     handler.setLevel(logging.NOTSET)
     handler.setFormatter(formatter)
     return handler
