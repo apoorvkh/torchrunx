@@ -23,8 +23,8 @@ def add_filter_to_handler(
 ) -> None:
     def _filter(record: logging.LogRecord) -> bool:
         return (
-            record.hostname == hostname
-            and record.worker_rank == worker_rank
+            record.hostname == hostname  # pyright: ignore[reportAttributeAccessIssue]
+            and record.worker_rank == worker_rank  # pyright: ignore[reportAttributeAccessIssue]
             and record.levelno >= log_level
         )
 
@@ -166,6 +166,6 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
         self.daemon_threads = True
 
     def shutdown(self):
-        """ override BaseServer.shutdown() with added timeout """
+        """override BaseServer.shutdown() with added timeout"""
         self._BaseServer__shutdown_request = True
-        self._BaseServer__is_shut_down.wait(timeout=3)
+        self._BaseServer__is_shut_down.wait(timeout=3)  # pyright: ignore[reportAttributeAccessIssue]
