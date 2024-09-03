@@ -5,10 +5,66 @@ import logging
 import os
 import pickle
 import struct
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from socketserver import StreamRequestHandler, TCPServer
+from typing import Callable
+
+
+def get_filter(hostname: str, rank: int | None = None) -> Callable[[logging.LogRecord], bool]:
+    def _handler_filter(record: logging.LogRecord) -> bool:
+        return record.hostname == hostname and record.worker_rank == rank
+
+    return _handler_filter
+
+
+def file_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
+    handlers = []
+
+    log_dir = os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs")
+    os.makedirs(log_dir, exist_ok=True)
+    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+    for hostname, num_workers in zip(hostnames, workers_per_host):
+        for rank in [None] + list(range(num_workers)):
+            handler = logging.FileHandler(
+                f"{log_dir}/{timestamp}-{hostname}{'' if rank is None else f'[{rank}]'}.log"
+            )
+            formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
+
+            handler.addFilter(get_filter(hostname, rank))
+            handler.setLevel(logging.NOTSET)
+            handler.setFormatter(formatter)
+
+            handlers.append(handler)
+
+    return handlers
+
+
+def stream_handler(hostname: str, rank: int | None) -> Handler:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "%(asctime)s:%(levelname)s:%(hostname)s"
+        + ("[%(worker_rank)s]" if rank is not None else "")
+        + ": %(message)s"
+    )
+    handler.addFilter(get_filter(hostname, rank))
+    handler.setLevel(logging.NOTSET)
+    handler.setFormatter(formatter)
+    return handler
+
+
+def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
+    stream_handlers = [
+        stream_handler(hostname=hostnames[0], rank=None),
+        stream_handler(hostname=hostnames[0], rank=0),
+    ]
+    return stream_handlers + file_handlers(hostnames, workers_per_host)
+
+
+## Agent/worker utilities
 
 
 def log_records_to_socket(
@@ -33,44 +89,28 @@ def log_records_to_socket(
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
 
 
-def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
-    handlers = []
+def redirect_stdio_to_logger(logger: Logger):
+    logging.captureWarnings(True)
+    redirect_stderr(LoggingStream(logger, level=logging.ERROR)).__enter__()
+    redirect_stdout(LoggingStream(logger, level=logging.INFO)).__enter__()
 
-    log_dir = os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs")
-    os.makedirs(log_dir, exist_ok=True)
-    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
-    def make_handler(hostname: str, rank: int | None = None, stream: bool = False) -> Handler:
-        if stream:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(asctime)s:%(levelname)s:%(hostname)s"
-                + ("[%(worker_rank)s]" if rank is not None else "")
-                + ": %(message)s"
-            )
-        else:
-            handler = logging.FileHandler(
-                f"{log_dir}/{timestamp}-{hostname}{'' if rank is None else f'[{rank}]'}.log"
-            )
-            formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
+class LoggingStream(StringIO):
+    def __init__(self, logger: Logger, level: int = logging.NOTSET):
+        super().__init__()
+        self.logger = logger
+        self.level = level
 
-        def handler_filter(record: logging.LogRecord) -> bool:
-            return record.hostname == hostname and record.worker_rank == rank  # pyright: ignore
+    def flush(self):
+        super().flush()
+        value = self.getvalue()
+        if value != "":
+            self.logger.log(self.level, f"\n{value}")
+            self.truncate(0)
+            self.seek(0)
 
-        handler.addFilter(handler_filter)
-        handler.setLevel(logging.NOTSET)
-        handler.setFormatter(formatter)
 
-        return handler
-
-    for r in [None, 0]:
-        handlers.append(make_handler(hostname=hostnames[0], rank=r, stream=True))
-
-    for hostname, num_workers in zip(hostnames, workers_per_host):
-        for j in [None] + list(range(num_workers)):
-            handlers.append(make_handler(hostname=hostname, rank=j))
-
-    return handlers
+## Launcher utilities
 
 
 class LogRecordSocketReceiver(TCPServer):
@@ -96,18 +136,3 @@ class LogRecordSocketReceiver(TCPServer):
             RequestHandlerClass=_LogRecordStreamHandler,
             bind_and_activate=True,
         )
-
-
-class LoggingStream(StringIO):
-    def __init__(self, logger: Logger, level: int = logging.NOTSET):
-        super().__init__()
-        self.logger = logger
-        self.level = level
-
-    def flush(self):
-        super().flush()
-        value = self.getvalue()
-        if value != "":
-            self.logger.log(self.level, f"\n{value}")
-            self.truncate(0)
-            self.seek(0)

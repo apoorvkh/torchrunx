@@ -6,7 +6,6 @@ import os
 import socket
 import sys
 import tempfile
-from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -16,7 +15,7 @@ import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing import start_processes
 from typing_extensions import Self
 
-from .logging_utils import LoggingStream, log_records_to_socket
+from .logging_utils import log_records_to_socket, redirect_stdio_to_logger
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -62,9 +61,7 @@ def entrypoint(serialized_worker_args: bytes):
         logger_port=worker_args.logger_port,
     )
 
-    logging.captureWarnings(True)
-    redirect_stderr(LoggingStream(logger, level=logging.ERROR)).__enter__()
-    redirect_stdout(LoggingStream(logger, level=logging.INFO)).__enter__()
+    redirect_stdio_to_logger(logger)
 
     store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
         host_name=worker_args.main_agent_hostname,
@@ -133,9 +130,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         logger_port=logger_port,
     )
 
-    logging.captureWarnings(True)
-    redirect_stderr(LoggingStream(logger, level=logging.ERROR)).__enter__()
-    redirect_stdout(LoggingStream(logger, level=logging.INFO)).__enter__()
+    redirect_stdio_to_logger(logger)
 
     if torch.__version__ >= "2.3":
         from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
