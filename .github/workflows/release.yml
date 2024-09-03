@@ -9,9 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-env
+      - uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          environment: dev
+          pixi-version: v0.27.1
+          frozen: true
+          cache: true
+          environments: dev
+          activate-environment: dev
       - run: python -m build
       - run: twine upload dist/*
         env:
