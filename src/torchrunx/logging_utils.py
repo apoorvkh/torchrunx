@@ -11,17 +11,38 @@ from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from socketserver import StreamRequestHandler, TCPServer
 
-
-class WorkerLogFilter(logging.Filter):
-    def __init__(self, hostname: str, worker_rank: int | None):
-        self.hostname = hostname
-        self.worker_rank = worker_rank
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        return record.hostname == self.hostname and record.worker_rank == self.worker_rank
+## Handler utilities
 
 
-def file_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
+def add_filter_to_handler(
+    handler: Handler,
+    hostname: str,
+    worker_rank: int | None,
+    log_level: int = logging.NOTSET,
+) -> None:
+    def _filter(record: logging.LogRecord) -> bool:
+        return (
+            record.hostname == hostname
+            and record.worker_rank == worker_rank
+            and record.levelno >= log_level
+        )
+
+    handler.addFilter(_filter)
+
+
+def file_handler(
+    hostname: str, worker_rank: int | None, file_path: str, log_level: int = logging.NOTSET
+) -> Handler:
+    handler = logging.FileHandler(file_path)
+    add_filter_to_handler(handler, hostname, worker_rank, log_level=log_level)
+    formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
+    handler.setFormatter(formatter)
+    return handler
+
+
+def file_handlers(
+    hostnames: list[str], workers_per_host: list[int], log_level: int = logging.NOTSET
+) -> list[Handler]:
     handlers = []
 
     log_dir = os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs")
@@ -30,39 +51,37 @@ def file_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Han
 
     for hostname, num_workers in zip(hostnames, workers_per_host):
         for rank in [None] + list(range(num_workers)):
-            handler = logging.FileHandler(
-                f"{log_dir}/{timestamp}-{hostname}{'' if rank is None else f'[{rank}]'}.log"
+            file_path = (
+                f"{log_dir}/{timestamp}-{hostname}"
+                + (f"[{rank}]" if rank is not None else "")
+                + ".log"
             )
-            formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
-
-            handler.addFilter(WorkerLogFilter(hostname, rank))
-            handler.setLevel(logging.NOTSET)
-            handler.setFormatter(formatter)
-
-            handlers.append(handler)
+            handlers.append(file_handler(hostname, rank, file_path, log_level=log_level))
 
     return handlers
 
 
-def stream_handler(hostname: str, rank: int | None) -> Handler:
+def stream_handler(hostname: str, rank: int | None, log_level: int = logging.NOTSET) -> Handler:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s:%(levelname)s:%(hostname)s"
-        + ("[%(worker_rank)s]" if rank is not None else "")
-        + ": %(message)s"
+    add_filter_to_handler(handler, hostname, rank, log_level=log_level)
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s:%(levelname)s:%(hostname)s[%(worker_rank)s]: %(message)s"
+            if rank is not None
+            else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s"
+        )
     )
-    handler.addFilter(WorkerLogFilter(hostname, rank))
-    handler.setLevel(logging.NOTSET)
-    handler.setFormatter(formatter)
     return handler
 
 
-def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[Handler]:
+def default_handlers(
+    hostnames: list[str], workers_per_host: list[int], log_level: int = logging.INFO
+) -> list[Handler]:
     stream_handlers = [
-        stream_handler(hostname=hostnames[0], rank=None),
-        stream_handler(hostname=hostnames[0], rank=0),
+        stream_handler(hostname=hostnames[0], rank=None, log_level=log_level),
+        stream_handler(hostname=hostnames[0], rank=0, log_level=log_level),
     ]
-    return stream_handlers + file_handlers(hostnames, workers_per_host)
+    return stream_handlers + file_handlers(hostnames, workers_per_host, log_level=log_level)
 
 
 ## Agent/worker utilities
