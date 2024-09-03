@@ -131,7 +131,9 @@ class Launcher:
                 hostnames=self.hostnames,
                 workers_per_host=self.workers_per_host,
                 log_dir=os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs"),
-                log_level=getattr(logging, os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")),
+                log_level=logging._nameToLevel.get(
+                    os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO"), logging.NOTSET
+                ),
             )
 
         logger_port = get_open_port()

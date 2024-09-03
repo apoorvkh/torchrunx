@@ -9,6 +9,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
+from pathlib import Path
 from socketserver import StreamRequestHandler, TCPServer
 
 ## Handler utilities
@@ -31,7 +32,10 @@ def add_filter_to_handler(
 
 
 def file_handler(
-    hostname: str, worker_rank: int | None, file_path: str, log_level: int = logging.NOTSET
+    hostname: str,
+    worker_rank: int | None,
+    file_path: str | os.PathLike,
+    log_level: int = logging.NOTSET,
 ) -> Handler:
     handler = logging.FileHandler(file_path)
     add_filter_to_handler(handler, hostname, worker_rank, log_level=log_level)
@@ -43,7 +47,7 @@ def file_handler(
 def file_handlers(
     hostnames: list[str],
     workers_per_host: list[int],
-    log_dir: str = "./torchrunx_logs",
+    log_dir: str | os.PathLike = Path("torchrunx_logs"),
     log_level: int = logging.NOTSET,
 ) -> list[Handler]:
     handlers = []
@@ -79,7 +83,7 @@ def stream_handler(hostname: str, rank: int | None, log_level: int = logging.NOT
 def default_handlers(
     hostnames: list[str],
     workers_per_host: list[int],
-    log_dir: str = "./torchrunx_logs",
+    log_dir: str | os.PathLike = Path("torchrunx_logs"),
     log_level: int = logging.INFO,
 ) -> list[Handler]:
     return [
