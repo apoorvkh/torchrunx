@@ -248,9 +248,8 @@ class Launcher:
                 )
             raise
         finally:
-            # log_receiver.timeout = 1
-            # log_receiver.shutdown()
-            # log_receiver.server_close()
+            log_receiver.shutdown()
+            log_receiver.server_close()
             log_process.kill()
             dist.destroy_process_group()
 

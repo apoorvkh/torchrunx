@@ -10,7 +10,7 @@ from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from pathlib import Path
-from socketserver import StreamRequestHandler, TCPServer
+from socketserver import StreamRequestHandler, ThreadingTCPServer
 
 ## Handler utilities
 
@@ -140,7 +140,7 @@ def redirect_stdio_to_logger(logger: Logger):
 ## Launcher utilities
 
 
-class LogRecordSocketReceiver(TCPServer):
+class LogRecordSocketReceiver(ThreadingTCPServer):
     def __init__(self, host: str, port: int, handlers: list[Handler]):
         class _LogRecordStreamHandler(StreamRequestHandler):
             def handle(self):
@@ -163,3 +163,9 @@ class LogRecordSocketReceiver(TCPServer):
             RequestHandlerClass=_LogRecordStreamHandler,
             bind_and_activate=True,
         )
+        self.daemon_threads = True
+
+    def shutdown(self):
+        """ override BaseServer.shutdown() with added timeout """
+        self._BaseServer__shutdown_request = True
+        self._BaseServer__is_shut_down.wait(timeout=3)
