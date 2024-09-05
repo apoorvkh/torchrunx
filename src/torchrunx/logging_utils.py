@@ -102,7 +102,7 @@ def log_records_to_socket(
     logger_hostname: str,
     logger_port: int,
 ):
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.NOTSET)
 
     old_factory = logging.getLogRecordFactory()
 
