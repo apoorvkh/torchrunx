@@ -225,19 +225,11 @@ class Launcher:
                 if all(s.is_done() for s in agent_statuses):
                     break
 
-                if any(s.is_failed() for s in agent_statuses):
-                    # TODO: cleaner way to print these?
-                    e = ""
-                    for i, s in enumerate(agent_statuses):
-                        if s is not None and s.is_failed():
-                            for k, v in s.failures.items():
-                                e += f"Node {i}, local worker {k} exited with error: "
-                                if isinstance(v.message, str):
-                                    e += f"{v.message}\n"
-                                else:
-                                    e += f"{v.message['message']}\n"
-                                    e += f"{v.message['extraInfo']['py_callstack']}\n\n"
-                    raise RuntimeError(e)
+                for s in agent_statuses:
+                    if s.is_failed:
+                        for _, failure in s.failures.items():
+                            if failure is not None:
+                                raise failure
         except:
             # cleanup: SIGTERM all agents
             for agent_pid, agent_hostname in zip(agent_pids, self.hostnames):

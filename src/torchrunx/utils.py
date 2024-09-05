@@ -21,6 +21,12 @@ def get_open_port() -> int:
 
 
 @dataclass
+class WorkerResult:
+    result: Any
+    exception: Exception
+
+
+@dataclass
 class LauncherPayload:
     fn: Callable
     hostnames: list[str]
@@ -42,9 +48,9 @@ class AgentStatus:
     running: bool = True
     failed: bool = False
     return_values: dict[int, Any] = field(default_factory=dict)
-    failures: dict[int, ProcessFailure] = field(default_factory=dict)
-    stdouts: dict[int, str] = field(default_factory=dict)
-    stderrs: dict[int, str] = field(default_factory=dict)
+    failures: dict[int, Exception] = field(default_factory=dict)
+    # stdouts: dict[int, str] = field(default_factory=dict)
+    # stderrs: dict[int, str] = field(default_factory=dict)
 
     @classmethod
     def from_result(cls, result: RunProcsResult | None, worker_global_ranks: list[int]) -> Self:
@@ -53,9 +59,15 @@ class AgentStatus:
 
         return cls(
             running=False,
-            failed=result.is_failed(),
-            return_values={worker_global_ranks[k]: v for k, v in result.return_values.items()},
-            failures={worker_global_ranks[k]: v for k, v in result.failures.items()},
+            failed=any(
+                wr.exception is not None for _, wr in result.return_values.items()
+            ),  #  result.is_failed(),
+            return_values={
+                worker_global_ranks[k]: wr.result for k, wr in result.return_values.items()
+            },
+            failures={
+                worker_global_ranks[k]: wr.exception for k, wr in result.return_values.items()
+            },
         )
 
     def is_running(self) -> bool:

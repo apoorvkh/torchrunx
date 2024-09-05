@@ -79,7 +79,7 @@ def test_error():
     tmp = tempfile.mkdtemp()
     os.environ["TORCHRUNX_DIR"] = tmp
 
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         trx.launch(
             func=error_func,
             func_kwargs={},

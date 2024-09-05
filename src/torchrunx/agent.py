@@ -21,6 +21,7 @@ from .utils import (
     AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
+    WorkerResult,
     get_open_port,
 )
 
@@ -48,7 +49,7 @@ class WorkerArgs:
         return cloudpickle.loads(serialized)
 
 
-def entrypoint(serialized_worker_args: bytes):
+def entrypoint(serialized_worker_args: bytes) -> WorkerResult:
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
     logger = logging.getLogger()
@@ -93,7 +94,13 @@ def entrypoint(serialized_worker_args: bytes):
 
     logger.debug(f"executing function: {worker_args.function}")
 
-    r = worker_args.function()
+    r = WorkerResult(None, None)
+
+    try:
+        r.result = worker_args.function()
+    except Exception as e:
+        r.exception = e
+        logger.error(e)
 
     # flush streams
     sys.stdout.flush()
