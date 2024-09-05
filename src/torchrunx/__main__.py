@@ -7,6 +7,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--launcher-hostname", type=str)
     parser.add_argument("--launcher-port", type=int)
+    parser.add_argument("--logger-port", type=int)
     parser.add_argument("--world-size", type=int)
     parser.add_argument("--rank", type=int)
     args = parser.parse_args()
@@ -18,4 +19,8 @@ if __name__ == "__main__":
         rank=args.rank,
     )
 
-    main(launcher_agent_group)
+    main(
+        launcher_agent_group,
+        logger_hostname=args.launcher_hostname,
+        logger_port=args.logger_port,
+    )

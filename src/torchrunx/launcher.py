@@ -1,26 +1,25 @@
 from __future__ import annotations
 
-import datetime
 import fnmatch
-import io
 import ipaddress
 import itertools
+import logging
 import os
 import socket
 import subprocess
 import sys
-import time
 from collections import ChainMap
 from dataclasses import dataclass, field
 from functools import partial
+from logging import Handler
 from multiprocessing import Process
-from pathlib import Path
 from typing import Any, Callable, Literal
 
 import fabric
 import torch.distributed as dist
 
-from .environment import auto_hosts, auto_workers
+from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
+from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import (
     AgentPayload,
     AgentStatus,
@@ -48,43 +47,23 @@ def execute_command(
     command: str,
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
-    outfile: str | os.PathLike | None = None,
 ) -> None:
-    # TODO: permit different stderr / stdout
     if is_localhost(hostname):
-        _outfile = subprocess.DEVNULL
-        if outfile is not None:
-            _outfile = open(outfile, "w")
-        subprocess.Popen(command, shell=True, stdout=_outfile, stderr=_outfile)
+        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         with fabric.Connection(
             host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
         ) as conn:
-            if outfile is None:
-                outfile = "/dev/null"
-            conn.run(f"{command} >> {outfile} 2>&1 &", asynchronous=True)
-
-
-def monitor_log(log_file: Path):
-    log_file.touch()
-    f = open(log_file, "r")
-    print(f.read())
-    f.seek(0, io.SEEK_END)
-    while True:
-        new = f.read()
-        if len(new) != 0:
-            print(new)
-        time.sleep(0.1)
+            conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
 @dataclass
 class Launcher:
-    auto: bool = False
-    hostnames: list[str] | None = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] | None = 1
+    hostnames: list[str] | Literal["auto", "slurm"] = field(default_factory=lambda: ["localhost"])
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = 1
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
-    log_dir: os.PathLike | str = "./logs"
+    log_handlers: list[Handler] | Literal["auto"] | None = "auto"
     env_vars: list[str] = field(
         default_factory=lambda: [
             "PATH",
@@ -119,28 +98,57 @@ class Launcher:
         :return: A dictionary mapping worker ranks to their output
         :rtype: dict[int, Any]
         """
-
-        if self.auto:
-            if self.hostnames is None:
-                self.hostnames = auto_hosts()
-            if self.workers_per_host is None:
-                self.workers_per_host = auto_workers()
-
-        assert self.hostnames is not None and self.workers_per_host is not None
-
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
+        if self.hostnames == "auto":
+            self.hostnames = auto_hosts()
+        elif self.hostnames == "slurm":
+            self.hostnames = slurm_hosts()
+
         num_hosts = len(self.hostnames)
 
-        workers_per_host = self.workers_per_host
-        if isinstance(self.workers_per_host, int):
-            workers_per_host = [workers_per_host] * num_hosts
+        if self.workers_per_host == "auto":
+            self.workers_per_host = auto_workers()
+        elif self.workers_per_host == "slurm":
+            self.workers_per_host = slurm_workers()
 
-        assert workers_per_host is not None
-        assert len(workers_per_host) == num_hosts  # type: ignore
+        if isinstance(self.workers_per_host, int):
+            self.workers_per_host = [self.workers_per_host] * num_hosts
+
+        assert num_hosts == len(self.workers_per_host)
+
+        #
+
+        launcher_hostname = socket.getfqdn()
+
+        # setup logging
+
+        if self.log_handlers is None:
+            self.log_handlers = []
+        elif self.log_handlers == "auto":
+            self.log_handlers = default_handlers(
+                hostnames=self.hostnames,
+                workers_per_host=self.workers_per_host,
+                log_dir=os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs"),
+                log_level=logging._nameToLevel.get(
+                    os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO"), logging.NOTSET
+                ),
+            )
+
+        logger_port = get_open_port()
+        log_receiver = LogRecordSocketReceiver(
+            host=launcher_hostname, port=logger_port, handlers=self.log_handlers
+        )
+        log_process = Process(
+            target=log_receiver.serve_forever,
+            daemon=True,
+        )
+        log_process.start()
 
         # launch command
+
+        current_dir = os.getcwd()
 
         env_exports = []
         for k, v in os.environ.items():
@@ -155,37 +163,25 @@ class Launcher:
         if self.env_file is not None:
             env_file_string = f"source {self.env_file} && "
 
-        launcher_hostname = socket.getfqdn()
         launcher_port = get_open_port()
         world_size = num_hosts + 1  # launcher + agents
-
-        command = (
-            f"cd {os.getcwd()} && "
-            f"{env_export_string}"
-            f"{env_file_string}"
-            f"{sys.executable} -u -m torchrunx "
-            f"--launcher-hostname {launcher_hostname} "
-            f"--launcher-port {launcher_port} "
-            f"--world-size {world_size} "
-            # rank set in the loop below
-        )
-
-        log_dir = Path(self.log_dir)
-        log_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-        agent_log_files = [log_dir / f"{timestamp}_{hostname}.log" for hostname in self.hostnames]
-
-        # start process to read from agent 0 log
-        print_process = Process(target=monitor_log, args=(agent_log_files[0],), daemon=True)
-        print_process.start()
 
         # start agents on each node
         for i, hostname in enumerate(self.hostnames):
             execute_command(
-                command=f"{command} --rank {i+1}",
+                command=(
+                    f"cd {current_dir} && "
+                    f"{env_export_string}"
+                    f"{env_file_string}"
+                    f"{sys.executable} -u -m torchrunx "
+                    f"--launcher-hostname {launcher_hostname} "
+                    f"--launcher-port {launcher_port} "
+                    f"--logger-port {logger_port} "
+                    f"--world-size {world_size} "
+                    f"--rank {i+1}"
+                ),
                 hostname=hostname,
                 ssh_config_file=self.ssh_config_file,
-                outfile=agent_log_files[i],
             )
 
         # initialize launcher–agent process group
@@ -200,7 +196,7 @@ class Launcher:
 
         # build and sync payloads between launcher and agents
 
-        _cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))  # type: ignore
+        _cumulative_workers = [0] + list(itertools.accumulate(self.workers_per_host))
 
         worker_world_size = _cumulative_workers[-1]
 
@@ -209,20 +205,11 @@ class Launcher:
             host_ranks = range(_cumulative_workers[n], _cumulative_workers[n + 1])
             worker_global_ranks.append(list(host_ranks))
 
-        worker_log_files = [
-            [
-                log_dir / f"{timestamp}_{hostname}_{local_rank}.log"
-                for local_rank in range(workers_per_host[i])  # type: ignore
-            ]
-            for i, hostname in enumerate(self.hostnames)
-        ]
-
         payload = LauncherPayload(
             fn=partial(func, *func_args, **func_kwargs),
             hostnames=self.hostnames,
             worker_world_size=worker_world_size,
             worker_global_ranks=worker_global_ranks,
-            worker_log_files=worker_log_files,
             backend=self.backend,
             timeout=self.timeout,
         )
@@ -261,7 +248,9 @@ class Launcher:
                 )
             raise
         finally:
-            print_process.kill()
+            log_receiver.shutdown()
+            log_receiver.server_close()
+            log_process.kill()
             dist.destroy_process_group()
 
         return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
@@ -272,12 +261,11 @@ def launch(
     func: Callable,
     func_args: tuple[Any] = tuple(),
     func_kwargs: dict[str, Any] = {},
-    auto: bool = False,
-    hostnames: list[str] | None = ["localhost"],
-    workers_per_host: int | list[int] | None = 1,
+    hostnames: list[str] | Literal["auto", "slurm"] = ["localhost"],
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = 1,
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_dir: os.PathLike | str = "./logs",
+    log_handlers: list[Handler] | Literal["auto"] = "auto",
     env_vars: list[str] = [
         "PATH",
         "LD_LIBRARY",
@@ -303,15 +291,15 @@ def launch(
     :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
     :type auto: bool, optional
     :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
-    :type hostnames: list[str] | None, optional
+    :type hostnames: list[str] | Literal["auto", "slurm"] | None, optional
     :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to 1
-    :type workers_per_host: int | list[int] | None, optional
+    :type workers_per_host: int | list[int] | Literal["auto", "slurm"] | None, optional
     :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
     :type ssh_config_file: str | os.PathLike | None, optional
     :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
     :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
-    :param log_dir: A directory in which logs should be written, defaults to "./logs"
-    :type log_dir: os.PathLike | str, optional
+    :param log_handlers: A list of handlers to manage agent and worker logs, defaults to []
+    :type log_handlers: list[Handler] | Literal["auto"], optional
     :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
     :type env_vars: list[str], optional
     :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
@@ -323,12 +311,11 @@ def launch(
     :rtype: dict[int, Any]
     """  # noqa: E501
     return Launcher(
-        auto=auto,
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        log_dir=log_dir,
+        log_handlers=log_handlers,
         env_vars=env_vars,
         env_file=env_file,
         timeout=timeout,

@@ -47,9 +47,7 @@ def main():
 
 
 def launch():
-    trx.launch(
-        func=main, func_kwargs={}, hostnames=trx.slurm_hosts(), workers_per_host=trx.slurm_workers()
-    )
+    trx.launch(func=main, func_kwargs={}, hostnames="slurm", workers_per_host="slurm")
 
 
 def test_submitit():

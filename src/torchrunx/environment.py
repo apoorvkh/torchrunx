@@ -40,7 +40,7 @@ def slurm_workers() -> int:
         # TODO: is it possible to allocate uneven GPUs across nodes?
         return len(os.environ["SLURM_JOB_GPUS"].split(","))
     elif "SLURM_GPUS_PER_NODE" in os.environ:
-        return int(os.environ['SLURM_GPUS_PER_NODE'])
+        return int(os.environ["SLURM_GPUS_PER_NODE"])
     else:
         # TODO: should we assume that we plan to do one worker per CPU?
         return int(os.environ["SLURM_CPUS_ON_NODE"])

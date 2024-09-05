@@ -28,8 +28,14 @@ def test_simple_localhost():
 
         return o.detach()
 
+    tmp = tempfile.mkdtemp()
+    os.environ["TORCHRUNX_DIR"] = tmp
+
     r = trx.launch(
-        func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir="./test_logs"
+        func=dist_func,
+        func_kwargs={},
+        workers_per_host=2,
+        backend="gloo",  # log_dir="./test_logs"
     )
 
     assert torch.all(r[0] == r[1])
@@ -41,7 +47,14 @@ def test_logging():
         print(f"worker rank: {rank}")
 
     tmp = tempfile.mkdtemp()
-    trx.launch(func=dist_func, func_kwargs={}, workers_per_host=2, backend="gloo", log_dir=tmp)
+    os.environ["TORCHRUNX_DIR"] = tmp
+
+    trx.launch(
+        func=dist_func,
+        func_kwargs={},
+        workers_per_host=2,
+        backend="gloo",
+    )
 
     log_files = next(os.walk(tmp), (None, None, []))[2]
 
@@ -49,19 +62,22 @@ def test_logging():
 
     for file in log_files:
         with open(f"{tmp}/{file}", "r") as f:
-            if file.endswith("0.log"):
-                assert f.read() == "worker rank: 0\n"
-            elif file.endswith("1.log"):
-                assert f.read() == "worker rank: 1\n"
+            contents = f.read()
+            print(contents)
+            if file.endswith("[0].log"):
+                assert "worker rank: 0\n" in contents
+            elif file.endswith("[1].log"):
+                assert "worker rank: 1\n" in contents
             else:
-                contents = f.read()
-                assert "worker rank: 0" in contents
-                assert "worker rank: 1" in contents
+                assert "starting processes" in contents
 
 
 def test_error():
     def error_func():
         raise ValueError("abcdefg")
+
+    tmp = tempfile.mkdtemp()
+    os.environ["TORCHRUNX_DIR"] = tmp
 
     with pytest.raises(RuntimeError) as excinfo:
         trx.launch(
@@ -69,7 +85,10 @@ def test_error():
             func_kwargs={},
             workers_per_host=1,
             backend="gloo",
-            log_dir=tempfile.mkdtemp(),
         )
 
     assert "abcdefg" in str(excinfo.value)
+
+
+if __name__ == "__main__":
+    test_simple_localhost()
