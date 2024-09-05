@@ -166,7 +166,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         envs={i: {} for i in range(num_workers)},
         **log_kwargs,  # pyright: ignore [reportArgumentType]
     )
-    logger.debug("starting processes")
+    logger.info("starting processes")
 
     try:
         status = AgentStatus()

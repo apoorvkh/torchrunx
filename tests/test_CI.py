@@ -6,7 +6,6 @@ import torch
 import torch.distributed as dist
 
 import torchrunx as trx
-from torchrunx.logging_utils import default_handlers
 
 
 def test_simple_localhost():
@@ -28,6 +27,9 @@ def test_simple_localhost():
         print(i)
 
         return o.detach()
+
+    tmp = tempfile.mkdtemp()
+    os.environ["TORCHRUNX_DIR"] = tmp
 
     r = trx.launch(
         func=dist_func,
@@ -52,7 +54,6 @@ def test_logging():
         func_kwargs={},
         workers_per_host=2,
         backend="gloo",
-        log_handlers=default_handlers(hostnames=["localhost"], workers_per_host=[2]),
     )
 
     log_files = next(os.walk(tmp), (None, None, []))[2]
@@ -62,6 +63,7 @@ def test_logging():
     for file in log_files:
         with open(f"{tmp}/{file}", "r") as f:
             contents = f.read()
+            print(contents)
             if file.endswith("[0].log"):
                 assert "worker rank: 0\n" in contents
             elif file.endswith("[1].log"):
@@ -73,6 +75,9 @@ def test_logging():
 def test_error():
     def error_func():
         raise ValueError("abcdefg")
+
+    tmp = tempfile.mkdtemp()
+    os.environ["TORCHRUNX_DIR"] = tmp
 
     with pytest.raises(RuntimeError) as excinfo:
         trx.launch(
