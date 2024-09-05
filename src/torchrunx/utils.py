@@ -9,7 +9,6 @@ from typing import Any, Callable, Literal
 import cloudpickle
 import torch.distributed as dist
 from torch.distributed.elastic.multiprocessing.api import RunProcsResult
-from torch.distributed.elastic.multiprocessing.errors import ProcessFailure
 from typing_extensions import Self
 
 
@@ -22,8 +21,8 @@ def get_open_port() -> int:
 
 @dataclass
 class WorkerResult:
-    result: Any
-    exception: Exception
+    result: Any | None
+    exception: Exception | None
 
 
 @dataclass
