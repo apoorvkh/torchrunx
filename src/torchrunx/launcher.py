@@ -9,11 +9,11 @@ import socket
 import subprocess
 import sys
 from collections import ChainMap
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import partial
 from logging import Handler
 from multiprocessing import Process
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Sequence
 
 import fabric
 import torch.distributed as dist
@@ -58,22 +58,20 @@ def execute_command(
 
 @dataclass
 class Launcher:
-    hostnames: list[str] | Literal["auto", "slurm"] = field(default_factory=lambda: ["localhost"])
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = 1
+    hostnames: list[str] | Literal["auto", "slurm"] = "auto"
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    env_vars: list[str] = field(
-        default_factory=lambda: [
-            "PATH",
-            "LD_LIBRARY",
-            "LIBRARY_PATH",
-            "PYTHON*",
-            "CUDA*",
-            "TORCH*",
-            "PYTORCH*",
-            "NCCL*",
-        ]
+    env_vars: Sequence[str] = (
+        "PATH",
+        "LD_LIBRARY",
+        "LIBRARY_PATH",
+        "PYTHON*",
+        "CUDA*",
+        "TORCH*",
+        "PYTORCH*",
+        "NCCL*",
     )
     env_file: str | os.PathLike | None = None
     timeout: int = 600
@@ -81,8 +79,8 @@ class Launcher:
     def run(
         self,
         func: Callable,
-        func_args: tuple[Any] = tuple(),
-        func_kwargs: dict[str, Any] = {},
+        func_args: tuple[Any] | None = None,
+        func_kwargs: dict[str, Any] | None = None,
     ) -> dict[int, Any]:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
@@ -204,6 +202,11 @@ class Launcher:
             host_ranks = range(_cumulative_workers[n], _cumulative_workers[n + 1])
             worker_global_ranks.append(list(host_ranks))
 
+        if func_args is None:
+            func_args = tuple()
+        if func_kwargs is None:
+            func_kwargs = dict()
+
         payload = LauncherPayload(
             fn=partial(func, *func_args, **func_kwargs),
             hostnames=self.hostnames,
@@ -251,14 +254,14 @@ class Launcher:
 
 def launch(
     func: Callable,
-    func_args: tuple[Any] = tuple(),
-    func_kwargs: dict[str, Any] = {},
-    hostnames: list[str] | Literal["auto", "slurm"] = ["localhost"],
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = 1,
+    func_args: tuple[Any] | None = None,
+    func_kwargs: dict[str, Any] | None = None,
+    hostnames: list[str] | Literal["auto", "slurm"] = "auto",
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
     log_handlers: list[Handler] | Literal["auto"] = "auto",
-    env_vars: list[str] = [
+    env_vars: Sequence[str] = (
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -267,7 +270,7 @@ def launch(
         "TORCH*",
         "PYTORCH*",
         "NCCL*",
-    ],
+    ),
     env_file: str | os.PathLike | None = None,
     timeout: int = 600,
 ) -> dict[int, Any]:

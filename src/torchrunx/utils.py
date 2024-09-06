@@ -47,9 +47,7 @@ class AgentStatus:
     return_values: dict[int, Any | WorkerException] = field(default_factory=dict)
 
     @classmethod
-    def from_result(
-        cls, result: RunProcsResult | None, worker_global_ranks: list[int]
-    ) -> Self:
+    def from_result(cls, result: RunProcsResult | None, worker_global_ranks: list[int]) -> Self:
         if result is None:
             return cls(state="running")
 
@@ -96,10 +94,8 @@ class LauncherAgentGroup:
     def _all_gather(self, object: Any) -> list:
         """gather object from every rank to list on every rank"""
         object_bytes = self._serialize(object)
-        object_list = [bytes()] * self.world_size
-        dist.all_gather_object(
-            object_list=object_list, obj=object_bytes, group=self.group
-        )
+        object_list = [b""] * self.world_size
+        dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
         object_list = [self._deserialize(o) for o in object_list]
         return object_list
 
