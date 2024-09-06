@@ -21,10 +21,9 @@ import torch.distributed as dist
 from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
 from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import (
-    AgentPayload,
-    AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
+    WorkerException,
     get_open_port,
 )
 
@@ -214,22 +213,23 @@ class Launcher:
             timeout=self.timeout,
         )
 
-        agent_payloads: list[AgentPayload] = launcher_agent_group.sync_payloads(payload=payload)[1:]  # pyright: ignore[reportAssignmentType]
+        launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
         agent_pids = [p.process_id for p in agent_payloads]
 
         # loop to monitor agent statuses (until failed or done)
         try:
             while True:
-                agent_statuses = launcher_agent_group.sync_agent_statuses(status=AgentStatus())
-
-                if all(s.is_done() for s in agent_statuses):
-                    break
+                agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
 
                 for s in agent_statuses:
-                    if s.is_failed:
-                        for _, failure in s.failures.items():
-                            if failure is not None:
-                                raise failure
+                    if s.state == "failed":
+                        for value in s.return_values.values():
+                            if isinstance(value, WorkerException):
+                                raise value.exception
+
+                if all(s.state == "done" for s in agent_statuses):
+                    break
+
         except:
             # cleanup: SIGTERM all agents
             for agent_pid, agent_hostname in zip(agent_pids, self.hostnames):

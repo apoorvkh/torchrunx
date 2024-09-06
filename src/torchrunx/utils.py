@@ -20,9 +20,8 @@ def get_open_port() -> int:
 
 
 @dataclass
-class WorkerResult:
-    result: Any | None
-    exception: Exception | None
+class WorkerException:
+    exception: Exception
 
 
 @dataclass
@@ -44,39 +43,27 @@ class AgentPayload:
 
 @dataclass
 class AgentStatus:
-    running: bool = True
-    failed: bool = False
-    return_values: dict[int, Any] = field(default_factory=dict)
-    failures: dict[int, Exception] = field(default_factory=dict)
-    # stdouts: dict[int, str] = field(default_factory=dict)
-    # stderrs: dict[int, str] = field(default_factory=dict)
+    state: Literal["running", "failed", "done"]
+    return_values: dict[int, Any | WorkerException] = field(default_factory=dict)
 
     @classmethod
-    def from_result(cls, result: RunProcsResult | None, worker_global_ranks: list[int]) -> Self:
+    def from_result(
+        cls, result: RunProcsResult | None, worker_global_ranks: list[int]
+    ) -> Self:
         if result is None:
-            return cls()
+            return cls(state="running")
+
+        return_values = result.return_values
+
+        if any(isinstance(v, WorkerException) for v in return_values.values()):
+            state = "failed"
+        else:
+            state = "done"
 
         return cls(
-            running=False,
-            failed=any(
-                wr.exception is not None for _, wr in result.return_values.items()
-            ),  #  result.is_failed(),
-            return_values={
-                worker_global_ranks[k]: wr.result for k, wr in result.return_values.items()
-            },
-            failures={
-                worker_global_ranks[k]: wr.exception for k, wr in result.return_values.items()
-            },
+            state=state,
+            return_values={worker_global_ranks[k]: v for k, v in return_values.items()},
         )
-
-    def is_running(self) -> bool:
-        return self.running
-
-    def is_failed(self) -> bool:
-        return self.failed
-
-    def is_done(self) -> bool:
-        return not self.running and not self.failed
 
 
 @dataclass
@@ -110,14 +97,19 @@ class LauncherAgentGroup:
         """gather object from every rank to list on every rank"""
         object_bytes = self._serialize(object)
         object_list = [bytes()] * self.world_size
-        dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
+        dist.all_gather_object(
+            object_list=object_list, obj=object_bytes, group=self.group
+        )
         object_list = [self._deserialize(o) for o in object_list]
         return object_list
 
     def sync_payloads(
         self, payload: LauncherPayload | AgentPayload
-    ) -> list[LauncherPayload | AgentPayload]:
-        return self._all_gather(object=payload)
+    ) -> tuple[LauncherPayload, list[AgentPayload]]:
+        payloads = self._all_gather(object=payload)
+        launcher_payload = payloads[0]
+        agent_payloads = payloads[1:]
+        return launcher_payload, agent_payloads
 
-    def sync_agent_statuses(self, status: AgentStatus) -> list[AgentStatus]:
-        return self._all_gather(object=status)[1:]
+    def sync_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
+        return self._all_gather(object=status)[1:]  # [0] is launcher (status=None)
