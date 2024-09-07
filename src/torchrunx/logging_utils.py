@@ -142,6 +142,9 @@ def redirect_stdio_to_logger(logger: Logger):
 
 class LogRecordSocketReceiver(ThreadingTCPServer):
     def __init__(self, host: str, port: int, handlers: list[Handler]):
+        self.host = host
+        self.port = port
+
         class _LogRecordStreamHandler(StreamRequestHandler):
             def handle(self):
                 while True:

@@ -28,8 +28,8 @@ class WorkerException:
 class LauncherPayload:
     fn: Callable
     hostnames: list[str]
-    worker_world_size: int
     worker_global_ranks: list[list[int]]
+    worker_world_size: int
     backend: Literal["mpi", "gloo", "nccl", "ucc", None]
     timeout: int
 
@@ -60,7 +60,7 @@ class AgentStatus:
 
         return cls(
             state=state,
-            return_values={worker_global_ranks[k]: v for k, v in return_values.items()},
+            return_values=return_values,
         )
 
 

@@ -8,11 +8,11 @@ import os
 import socket
 import subprocess
 import sys
-from collections import ChainMap
 from dataclasses import dataclass
 from functools import partial
 from logging import Handler
 from multiprocessing import Process
+from pathlib import Path
 from typing import Any, Callable, Literal, Sequence
 
 import fabric
@@ -26,6 +26,57 @@ from .utils import (
     WorkerException,
     get_open_port,
 )
+
+
+def resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
+    if hostnames == "auto":
+        return auto_hosts()
+    elif hostnames == "slurm":
+        return slurm_hosts()
+    return hostnames
+
+
+def resolve_workers_per_host(
+    workers_per_host: int | list[int] | Literal["auto", "slurm"], num_hosts: int
+) -> list[int]:
+    if workers_per_host == "auto":
+        workers_per_host = auto_workers()
+    elif workers_per_host == "slurm":
+        workers_per_host = slurm_workers()
+
+    if isinstance(workers_per_host, int):
+        workers_per_host = [workers_per_host] * num_hosts
+    else:
+        assert len(workers_per_host) == num_hosts
+
+    return workers_per_host
+
+
+def build_logging_server(
+    log_handlers: list[Handler] | Literal["auto"] | None,
+    launcher_hostname: str,
+    hostnames: list[str],
+    workers_per_host: list[int],
+    log_dir: str | os.PathLike,
+    log_level: int,
+) -> LogRecordSocketReceiver:
+    if log_handlers is None:
+        log_handlers = []
+    elif log_handlers == "auto":
+        log_handlers = default_handlers(
+            hostnames=hostnames,
+            workers_per_host=workers_per_host,
+            log_dir=log_dir,
+            log_level=log_level,
+        )
+
+    log_receiver = LogRecordSocketReceiver(
+        host=launcher_hostname,
+        port=get_open_port(),
+        handlers=log_handlers,
+    )
+
+    return log_receiver
 
 
 def is_localhost(hostname_or_ip: str) -> bool:
@@ -56,6 +107,43 @@ def execute_command(
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
 
+def build_command(
+    launcher_hostname: str,
+    launcher_port: int,
+    logger_port: int,
+    world_size: int,
+    rank: int,
+    env_vars: Sequence[str],
+    env_file: str | os.PathLike | None,
+) -> str:
+    current_dir = os.getcwd()
+
+    env_exports = []
+    for k, v in os.environ.items():
+        if any(fnmatch.fnmatch(k, e) for e in env_vars):
+            env_exports.append(f"{k}={v}")
+
+    env_export_string = ""
+    if len(env_exports) > 0:
+        env_export_string = f"export {' '.join(env_exports)} && "
+
+    env_file_string = ""
+    if env_file is not None:
+        env_file_string = f"source {env_file} && "
+
+    return (
+        f"cd {current_dir} && "
+        f"{env_export_string}"
+        f"{env_file_string}"
+        f"{sys.executable} -u -m torchrunx "
+        f"--launcher-hostname {launcher_hostname} "
+        f"--launcher-port {launcher_port} "
+        f"--logger-port {logger_port} "
+        f"--world-size {world_size} "
+        f"--rank {rank}"
+    )
+
+
 @dataclass
 class Launcher:
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
@@ -81,7 +169,7 @@ class Launcher:
         func: Callable,
         func_args: tuple[Any] | None = None,
         func_kwargs: dict[str, Any] | None = None,
-    ) -> dict[int, Any]:
+    ) -> dict[str, dict[int, Any]]:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
@@ -98,91 +186,50 @@ class Launcher:
         if not dist.is_available():
             raise RuntimeError("The torch.distributed package is not available.")
 
-        if self.hostnames == "auto":
-            self.hostnames = auto_hosts()
-        elif self.hostnames == "slurm":
-            self.hostnames = slurm_hosts()
-
-        num_hosts = len(self.hostnames)
-
-        if self.workers_per_host == "auto":
-            self.workers_per_host = auto_workers()
-        elif self.workers_per_host == "slurm":
-            self.workers_per_host = slurm_workers()
-
-        if isinstance(self.workers_per_host, int):
-            self.workers_per_host = [self.workers_per_host] * num_hosts
-
-        assert num_hosts == len(self.workers_per_host)
-
-        #
+        hostnames = resolve_hostnames(self.hostnames)
+        workers_per_host = resolve_workers_per_host(self.workers_per_host, len(hostnames))
 
         launcher_hostname = socket.getfqdn()
+        launcher_port = get_open_port()
+        world_size = len(hostnames) + 1
 
-        # setup logging
+        # start logging server
 
-        if self.log_handlers is None:
-            self.log_handlers = []
-        elif self.log_handlers == "auto":
-            self.log_handlers = default_handlers(
-                hostnames=self.hostnames,
-                workers_per_host=self.workers_per_host,
-                log_dir=os.environ.get("TORCHRUNX_DIR", "./torchrunx_logs"),
-                log_level=logging._nameToLevel.get(
-                    os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO"), logging.NOTSET
-                ),
-            )
-
-        logger_port = get_open_port()
-        log_receiver = LogRecordSocketReceiver(
-            host=launcher_hostname, port=logger_port, handlers=self.log_handlers
+        log_receiver = build_logging_server(
+            log_handlers=self.log_handlers,
+            launcher_hostname=launcher_hostname,
+            hostnames=hostnames,
+            workers_per_host=workers_per_host,
+            log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
+            log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],
         )
+
         log_process = Process(
             target=log_receiver.serve_forever,
             daemon=True,
         )
+
         log_process.start()
 
-        # launch command
-
-        current_dir = os.getcwd()
-
-        env_exports = []
-        for k, v in os.environ.items():
-            if any(fnmatch.fnmatch(k, e) for e in self.env_vars):
-                env_exports.append(f"{k}={v}")
-
-        env_export_string = ""
-        if len(env_exports) > 0:
-            env_export_string = f"export {' '.join(env_exports)} && "
-
-        env_file_string = ""
-        if self.env_file is not None:
-            env_file_string = f"source {self.env_file} && "
-
-        launcher_port = get_open_port()
-        world_size = num_hosts + 1  # launcher + agents
-
         # start agents on each node
-        for i, hostname in enumerate(self.hostnames):
+
+        for i, hostname in enumerate(hostnames):
             execute_command(
-                command=(
-                    f"cd {current_dir} && "
-                    f"{env_export_string}"
-                    f"{env_file_string}"
-                    f"{sys.executable} -u -m torchrunx "
-                    f"--launcher-hostname {launcher_hostname} "
-                    f"--launcher-port {launcher_port} "
-                    f"--logger-port {logger_port} "
-                    f"--world-size {world_size} "
-                    f"--rank {i+1}"
+                command=build_command(
+                    launcher_hostname=launcher_hostname,
+                    launcher_port=launcher_port,
+                    logger_port=log_receiver.port,
+                    world_size=world_size,
+                    rank=i + 1,
+                    env_vars=self.env_vars,
+                    env_file=self.env_file,
                 ),
                 hostname=hostname,
                 ssh_config_file=self.ssh_config_file,
             )
 
         # initialize launcher–agent process group
-        # ranks = (launcher, agent_0, ..., agent_{num_hosts-1})
+        # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
 
         launcher_agent_group = LauncherAgentGroup(
             launcher_hostname=launcher_hostname,
@@ -193,36 +240,30 @@ class Launcher:
 
         # build and sync payloads between launcher and agents
 
-        _cumulative_workers = [0] + list(itertools.accumulate(self.workers_per_host))
+        _cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
 
-        worker_world_size = _cumulative_workers[-1]
-
-        worker_global_ranks = []  # list of worker ranks per host
-        for n in range(num_hosts):
-            host_ranks = range(_cumulative_workers[n], _cumulative_workers[n + 1])
-            worker_global_ranks.append(list(host_ranks))
-
-        if func_args is None:
-            func_args = tuple()
-        if func_kwargs is None:
-            func_kwargs = dict()
+        worker_global_ranks = [
+            list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
+            for n in range(len(hostnames))
+        ]
 
         payload = LauncherPayload(
-            fn=partial(func, *func_args, **func_kwargs),
-            hostnames=self.hostnames,
-            worker_world_size=worker_world_size,
+            fn=partial(func, *(func_args or ()), **(func_kwargs or {})),
+            hostnames=hostnames,
             worker_global_ranks=worker_global_ranks,
+            worker_world_size=sum(workers_per_host),
             backend=self.backend,
             timeout=self.timeout,
         )
 
         launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
-        agent_pids = [p.process_id for p in agent_payloads]
 
         # loop to monitor agent statuses (until failed or done)
+
         try:
             while True:
                 agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
+                # raises exception if communication timeout due to death of any agent
 
                 for s in agent_statuses:
                     if s.state == "failed":
@@ -235,9 +276,9 @@ class Launcher:
 
         except:
             # cleanup: SIGTERM all agents
-            for agent_pid, agent_hostname in zip(agent_pids, self.hostnames):
+            for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
                 execute_command(
-                    command=f"kill {agent_pid}",
+                    command=f"kill {agent_payload.process_id}",
                     hostname=agent_hostname,
                     ssh_config_file=self.ssh_config_file,
                 )
@@ -248,8 +289,10 @@ class Launcher:
             log_process.kill()
             dist.destroy_process_group()
 
-        return_values: dict[int, Any] = dict(ChainMap(*[s.return_values for s in agent_statuses]))
-        return return_values
+        return {
+            hostname: agent_status.return_values
+            for hostname, agent_status in zip(hostnames, agent_statuses)
+        }
 
 
 def launch(
@@ -273,7 +316,7 @@ def launch(
     ),
     env_file: str | os.PathLike | None = None,
     timeout: int = 600,
-) -> dict[int, Any]:
+) -> dict[str, dict[int, Any]]:
     """
     Launch a distributed PyTorch function on the specified nodes.
 

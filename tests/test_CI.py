@@ -38,7 +38,8 @@ def test_simple_localhost():
         backend="gloo",  # log_dir="./test_logs"
     )
 
-    assert torch.all(r[0] == r[1])
+    results = next(iter(r.values()))
+    assert torch.all(results[0] == results[1])
 
 
 def test_logging():
@@ -47,7 +48,7 @@ def test_logging():
         print(f"worker rank: {rank}")
 
     tmp = tempfile.mkdtemp()
-    os.environ["TORCHRUNX_DIR"] = tmp
+    os.environ["TORCHRUNX_LOG_DIR"] = tmp
 
     trx.launch(
         func=dist_func,

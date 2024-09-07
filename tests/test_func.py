@@ -13,9 +13,11 @@ def test_launch():
         workers_per_host="slurm",
     )
 
+    result_values = [v for host_results in result.values() for v in host_results.values()]
+
     t = True
-    for i in range(len(result)):
-        t = t and torch.all(result[i] == result[0])
+    for i in range(len(result_values)):
+        t = t and torch.all(result_values[i] == result_values[0])
 
     assert t, "Not all tensors equal"
 
