@@ -7,7 +7,7 @@ import socket
 import sys
 import tempfile
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Any, Callable, Literal
 
 import cloudpickle
 import torch
@@ -20,7 +20,7 @@ from .utils import (
     AgentPayload,
     AgentStatus,
     LauncherAgentGroup,
-    LauncherPayload,
+    WorkerException,
     get_open_port,
 )
 
@@ -48,7 +48,7 @@ class WorkerArgs:
         return cloudpickle.loads(serialized)
 
 
-def entrypoint(serialized_worker_args: bytes):
+def entrypoint(serialized_worker_args: bytes) -> Any | WorkerException:
     worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
     logger = logging.getLogger()
@@ -93,13 +93,14 @@ def entrypoint(serialized_worker_args: bytes):
 
     logger.debug(f"executing function: {worker_args.function}")
 
-    r = worker_args.function()
-
-    # flush streams
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-    return r
+    try:
+        return worker_args.function()
+    except Exception as e:
+        logger.error(e)
+        return WorkerException(exception=e)
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
 
 
 def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int):
@@ -111,9 +112,8 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         process_id=os.getpid(),
     )
 
-    all_payloads = launcher_agent_group.sync_payloads(payload=payload)
-    launcher_payload: LauncherPayload = all_payloads[0]  # pyright: ignore[reportAssignmentType]
-    main_agent_payload: AgentPayload = all_payloads[1]  # pyright: ignore[reportAssignmentType]
+    launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
+    main_agent_payload = agent_payloads[0]
 
     hostname = launcher_payload.hostnames[agent_rank]
     worker_world_size = launcher_payload.worker_world_size
@@ -169,20 +169,19 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     logger.info("starting processes")
 
     try:
-        status = AgentStatus()
+        status = None
         while True:
-            if status.is_running():
+            if status is None or status.state == "running":
                 status = AgentStatus.from_result(
                     result=ctx.wait(5), worker_global_ranks=worker_global_ranks
                 )
 
             agent_statuses = launcher_agent_group.sync_agent_statuses(status=status)
 
-            if all(s.is_done() for s in agent_statuses):
+            if all(s.state == "done" for s in agent_statuses):
                 break
-
-            if any(s.is_failed() for s in agent_statuses):
-                raise RuntimeError()
+            elif any(s.state == "failed" for s in agent_statuses):
+                break
     except:
         raise
     finally:

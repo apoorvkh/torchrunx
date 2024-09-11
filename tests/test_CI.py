@@ -61,7 +61,7 @@ def test_logging():
     assert len(log_files) == 3
 
     for file in log_files:
-        with open(f"{tmp}/{file}", "r") as f:
+        with open(f"{tmp}/{file}") as f:
             contents = f.read()
             print(contents)
             if file.endswith("[0].log"):
@@ -79,7 +79,7 @@ def test_error():
     tmp = tempfile.mkdtemp()
     os.environ["TORCHRUNX_DIR"] = tmp
 
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         trx.launch(
             func=error_func,
             func_kwargs={},
