@@ -3,23 +3,23 @@ import os
 import torchrunx as trx
 
 
-def worker():
+def worker() -> None:
     import torch
 
-    class TwoLinLayerNet(torch.nn.Module):
-        def __init__(self):
+    class TwoLayerNN(torch.nn.Module):
+        def __init__(self) -> None:
             super().__init__()
             self.a = torch.nn.Linear(10, 10, bias=False)
             self.b = torch.nn.Linear(10, 1, bias=False)
 
-        def forward(self, x):
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
             a = self.a(x)
-            b = self.b(x)
-            return (a, b)
+            b = self.b(a)
+            return b
 
     local_rank = int(os.environ["LOCAL_RANK"])
     print("init model")
-    model = TwoLinLayerNet().to(local_rank)
+    model = TwoLayerNN().to(local_rank)
     print("init ddp")
     ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 
@@ -28,11 +28,11 @@ def worker():
 
     for _ in range(20):
         output = ddp_model(inp)
-        loss = output[0] + output[1]
-        loss.sum().backward()
+        loss = output.sum()
+        loss.backward()
 
 
-def test_distributed_train():
+def test_distributed_train() -> None:
     trx.launch(
         worker,
         hostnames="slurm",

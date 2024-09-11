@@ -103,7 +103,7 @@ def entrypoint(serialized_worker_args: bytes) -> Any | WorkerException:
         sys.stderr.flush()
 
 
-def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int):
+def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int) -> None:
     agent_rank = launcher_agent_group.rank - 1
 
     payload = AgentPayload(

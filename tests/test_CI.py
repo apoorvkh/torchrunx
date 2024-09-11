@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import NoReturn
 
 import pytest
 import torch
@@ -8,8 +9,8 @@ import torch.distributed as dist
 import torchrunx as trx
 
 
-def test_simple_localhost():
-    def dist_func():
+def test_simple_localhost() -> None:
+    def dist_func() -> torch.Tensor:
         rank = int(os.environ["RANK"])
 
         if rank == 0:
@@ -42,8 +43,8 @@ def test_simple_localhost():
     assert torch.all(results[0] == results[1])
 
 
-def test_logging():
-    def dist_func():
+def test_logging() -> None:
+    def dist_func() -> None:
         rank = int(os.environ["RANK"])
         print(f"worker rank: {rank}")
 
@@ -73,8 +74,8 @@ def test_logging():
                 assert "starting processes" in contents
 
 
-def test_error():
-    def error_func():
+def test_error() -> None:
+    def error_func() -> NoReturn:
         raise ValueError("abcdefg")
 
     tmp = tempfile.mkdtemp()

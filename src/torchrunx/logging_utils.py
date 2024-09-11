@@ -101,12 +101,12 @@ def log_records_to_socket(
     worker_rank: int | None,
     logger_hostname: str,
     logger_port: int,
-):
+) -> None:
     logger.setLevel(logging.NOTSET)
 
     old_factory = logging.getLogRecordFactory()
 
-    def record_factory(*args, **kwargs):
+    def record_factory(*args, **kwargs) -> logging.LogRecord:  # noqa: ANN002, ANN003
         record = old_factory(*args, **kwargs)
         record.hostname = hostname
         record.worker_rank = worker_rank
@@ -117,14 +117,14 @@ def log_records_to_socket(
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
 
 
-def redirect_stdio_to_logger(logger: Logger):
+def redirect_stdio_to_logger(logger: Logger) -> None:
     class _LoggingStream(StringIO):
-        def __init__(self, logger: Logger, level: int = logging.NOTSET):
+        def __init__(self, logger: Logger, level: int = logging.NOTSET) -> None:
             super().__init__()
             self.logger = logger
             self.level = level
 
-        def flush(self):
+        def flush(self) -> None:
             super().flush()
             value = self.getvalue()
             if value != "":
@@ -141,12 +141,12 @@ def redirect_stdio_to_logger(logger: Logger):
 
 
 class LogRecordSocketReceiver(ThreadingTCPServer):
-    def __init__(self, host: str, port: int, handlers: list[Handler]):
+    def __init__(self, host: str, port: int, handlers: list[Handler]) -> None:
         self.host = host
         self.port = port
 
         class _LogRecordStreamHandler(StreamRequestHandler):
-            def handle(self):
+            def handle(self) -> None:
                 while True:
                     chunk = self.connection.recv(4)
                     if len(chunk) < 4:
@@ -168,7 +168,7 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
         )
         self.daemon_threads = True
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """override BaseServer.shutdown() with added timeout"""
         self._BaseServer__shutdown_request = True
         self._BaseServer__is_shut_down.wait(timeout=3)  # pyright: ignore[reportAttributeAccessIssue]

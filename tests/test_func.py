@@ -6,7 +6,7 @@ import torch.distributed as dist
 import torchrunx as trx
 
 
-def test_launch():
+def test_launch() -> None:
     result = trx.launch(
         func=simple_matmul,
         hostnames="slurm",
@@ -22,7 +22,7 @@ def test_launch():
     assert t, "Not all tensors equal"
 
 
-def simple_matmul():
+def simple_matmul() -> torch.Tensor:
     rank = int(os.environ["RANK"])
     local_rank = int(os.environ["LOCAL_RANK"])
     device = torch.device(local_rank) if torch.cuda.is_available() else torch.device("cpu")
