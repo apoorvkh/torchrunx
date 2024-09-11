@@ -6,13 +6,14 @@ import os
 import socket
 import sys
 import tempfile
+import traceback
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
 import cloudpickle
 import torch
 import torch.distributed as dist
-from torch.distributed.elastic.multiprocessing import start_processes
+import torch.distributed.elastic.multiprocessing as dist_mp
 from typing_extensions import Self
 
 from .logging_utils import log_records_to_socket, redirect_stdio_to_logger
@@ -70,11 +71,7 @@ def entrypoint(serialized_worker_args: bytes) -> Any | WorkerException:
         is_master=(worker_args.rank == 0),
     )
 
-    backend = worker_args.backend
-    if backend is None:
-        backend = "nccl" if torch.cuda.is_available() else "gloo"
-
-    logger.debug(f"using backend: {backend}")
+    backend = worker_args.backend or ("nccl" if torch.cuda.is_available() else "gloo")
 
     dist.init_process_group(
         backend=backend,
@@ -91,12 +88,10 @@ def entrypoint(serialized_worker_args: bytes) -> Any | WorkerException:
     os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
     os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
 
-    logger.debug(f"executing function: {worker_args.function}")
-
     try:
         return worker_args.function()
     except Exception as e:
-        logger.error(e)
+        traceback.print_exc()
         return WorkerException(exception=e)
     finally:
         sys.stdout.flush()
@@ -132,16 +127,9 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
 
     redirect_stdio_to_logger(logger)
 
-    if torch.__version__ >= "2.3":
-        from torch.distributed.elastic.multiprocessing import DefaultLogsSpecs
-
-        log_kwargs = {"logs_specs": DefaultLogsSpecs(log_dir=tempfile.mkdtemp())}
-    else:
-        log_kwargs = {"log_dir": tempfile.mkdtemp()}
-
     # spawn workers
 
-    ctx = start_processes(
+    ctx = dist_mp.start_processes(
         name=f"{hostname}_",
         entrypoint=entrypoint,
         args={
@@ -164,9 +152,12 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             for i in range(num_workers)
         },
         envs={i: {} for i in range(num_workers)},
-        **log_kwargs,  # pyright: ignore [reportArgumentType]
+        **(
+            {"logs_specs": dist_mp.DefaultLogsSpecs(log_dir=tempfile.mkdtemp())}
+            if torch.__version__ >= "2.3"
+            else {"log_dir": tempfile.mkdtemp()}
+        ),  # pyright: ignore [reportArgumentType]
     )
-    logger.info("starting processes")
 
     try:
         status = None
@@ -182,8 +173,6 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
                 break
             elif any(s.state == "failed" for s in agent_statuses):
                 break
-    except:
-        raise
     finally:
         ctx.close()
         sys.stdout.flush()
