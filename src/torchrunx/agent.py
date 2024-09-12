@@ -67,7 +67,7 @@ def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerExce
 
     redirect_stdio_to_logger(logger)
 
-    store = dist.TCPStore(  # pyright: ignore[reportPrivateImportUsage]
+    store = dist.TCPStore(  # pyright: ignore [reportPrivateImportUsage]
         host_name=worker_args.main_agent_hostname,
         port=worker_args.main_agent_port,
         world_size=worker_args.world_size,
