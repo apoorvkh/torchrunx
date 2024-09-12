@@ -6,20 +6,18 @@ import torchrunx as trx
 def worker() -> None:
     import torch
 
-    class TwoLayerNN(torch.nn.Module):
+    class MLP(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
             self.a = torch.nn.Linear(10, 10, bias=False)
             self.b = torch.nn.Linear(10, 1, bias=False)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            a = self.a(x)
-            b = self.b(a)
-            return b
+            return self.b(self.a(x))
 
     local_rank = int(os.environ["LOCAL_RANK"])
     print("init model")
-    model = TwoLayerNN().to(local_rank)
+    model = MLP().to(local_rank)
     print("init ddp")
     ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 

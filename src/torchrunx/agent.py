@@ -163,15 +163,13 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         status = None
         while True:
             if status is None or status.state == "running":
-                status = AgentStatus.from_result(
-                    result=ctx.wait(5), worker_global_ranks=worker_global_ranks
-                )
+                status = AgentStatus.from_result(ctx.wait(5))
 
             agent_statuses = launcher_agent_group.sync_agent_statuses(status=status)
 
-            if all(s.state == "done" for s in agent_statuses):
-                break
-            elif any(s.state == "failed" for s in agent_statuses):
+            all_done = all(s.state == "done" for s in agent_statuses)
+            any_failed = any(s.state == "failed" for s in agent_statuses)
+            if all_done or any_failed:
                 break
     finally:
         ctx.close()

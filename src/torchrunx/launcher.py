@@ -5,6 +5,7 @@ import ipaddress
 import itertools
 import logging
 import os
+import shlex
 import socket
 import subprocess
 import sys
@@ -31,13 +32,14 @@ from .utils import (
 def resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
     if hostnames == "auto":
         return auto_hosts()
-    elif hostnames == "slurm":
+    if hostnames == "slurm":
         return slurm_hosts()
     return hostnames
 
 
 def resolve_workers_per_host(
-    workers_per_host: int | list[int] | Literal["auto", "slurm"], num_hosts: int
+    workers_per_host: int | list[int] | Literal["auto", "slurm"],
+    num_hosts: int,
 ) -> list[int]:
     if workers_per_host == "auto":
         workers_per_host = auto_workers()
@@ -46,8 +48,9 @@ def resolve_workers_per_host(
 
     if isinstance(workers_per_host, int):
         workers_per_host = [workers_per_host] * num_hosts
-    else:
-        assert len(workers_per_host) == num_hosts
+    elif len(workers_per_host) != num_hosts:
+        msg = "len(workers_per_host) != len(hostnames)"
+        raise ValueError(msg)
 
     return workers_per_host
 
@@ -70,13 +73,53 @@ def build_logging_server(
             log_level=log_level,
         )
 
-    log_receiver = LogRecordSocketReceiver(
+    return LogRecordSocketReceiver(
         host=launcher_hostname,
         port=get_open_port(),
         handlers=log_handlers,
     )
 
-    return log_receiver
+
+def build_command(
+    launcher_hostname: str,
+    launcher_port: int,
+    logger_port: int,
+    world_size: int,
+    rank: int,
+    env_vars: Sequence[str],
+    env_file: str | os.PathLike | None,
+) -> str:
+    # shlex.quote prevents shell injection here (resolves S602 in execute_command)
+
+    commands = []
+
+    current_dir = shlex.quote(str(Path.cwd()))
+    commands.append("cd " + current_dir)
+
+    env_exports = []
+    for k, v in os.environ.items():
+        if any(fnmatch.fnmatch(k, e) for e in env_vars):
+            env_exports.append(shlex.quote(f"{k}={v}"))
+
+    if len(env_exports) > 0:
+        commands.append("export " + " ".join(env_exports))
+
+    if env_file is not None:
+        commands.append("source " + shlex.quote(str(env_file)))
+
+    python = shlex.quote(sys.executable)
+    launcher_hostname = shlex.quote(launcher_hostname)
+
+    commands.append(
+        f"{python} -u -m torchrunx "
+        f"--launcher-hostname {launcher_hostname} "
+        f"--launcher-port {launcher_port} "
+        f"--logger-port {logger_port} "
+        f"--world-size {world_size} "
+        f"--rank {rank}",
+    )
+
+    return " && ".join(commands)
 
 
 def is_localhost(hostname_or_ip: str) -> bool:
@@ -99,49 +142,15 @@ def execute_command(
     ssh_config_file: str | os.PathLike | None = None,
 ) -> None:
     if is_localhost(hostname):
-        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # S602: subprocess.Popen is called with shell=True (https://docs.python.org/3.8/library/subprocess.html#security-considerations)
+        # Made sure to shlex.quote arguments in build_command to prevent shell injection
+        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # noqa: S602
     else:
         with fabric.Connection(
-            host=hostname, config=fabric.Config(runtime_ssh_path=ssh_config_file)
+            host=hostname,
+            config=fabric.Config(runtime_ssh_path=ssh_config_file),
         ) as conn:
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
-
-
-def build_command(
-    launcher_hostname: str,
-    launcher_port: int,
-    logger_port: int,
-    world_size: int,
-    rank: int,
-    env_vars: Sequence[str],
-    env_file: str | os.PathLike | None,
-) -> str:
-    current_dir = os.getcwd()
-
-    env_exports = []
-    for k, v in os.environ.items():
-        if any(fnmatch.fnmatch(k, e) for e in env_vars):
-            env_exports.append(f"{k}={v}")
-
-    env_export_string = ""
-    if len(env_exports) > 0:
-        env_export_string = f"export {' '.join(env_exports)} && "
-
-    env_file_string = ""
-    if env_file is not None:
-        env_file_string = f"source {env_file} && "
-
-    return (
-        f"cd {current_dir} && "
-        f"{env_export_string}"
-        f"{env_file_string}"
-        f"{sys.executable} -u -m torchrunx "
-        f"--launcher-hostname {launcher_hostname} "
-        f"--launcher-port {launcher_port} "
-        f"--logger-port {logger_port} "
-        f"--world-size {world_size} "
-        f"--rank {rank}"
-    )
 
 
 @dataclass
@@ -184,7 +193,8 @@ class Launcher:
         :rtype: dict[int, Any]
         """
         if not dist.is_available():
-            raise RuntimeError("The torch.distributed package is not available.")
+            msg = "The torch.distributed package is not available."
+            raise RuntimeError(msg)
 
         hostnames = resolve_hostnames(self.hostnames)
         workers_per_host = resolve_workers_per_host(self.workers_per_host, len(hostnames))
@@ -201,7 +211,7 @@ class Launcher:
             hostnames=hostnames,
             workers_per_host=workers_per_host,
             log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
-            log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],
+            log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],  # noqa: SLF001
         )
 
         log_process = Process(
@@ -228,7 +238,7 @@ class Launcher:
                 ssh_config_file=self.ssh_config_file,
             )
 
-        # initialize launcher–agent process group
+        # initialize launcher-agent process group
         # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
 
         launcher_agent_group = LauncherAgentGroup(
@@ -240,7 +250,7 @@ class Launcher:
 
         # build and sync payloads between launcher and agents
 
-        _cumulative_workers = [0] + list(itertools.accumulate(workers_per_host))
+        _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
 
         worker_global_ranks = [
             list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
@@ -262,14 +272,14 @@ class Launcher:
 
         try:
             while True:
-                agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
                 # raises exception if communication timeout due to death of any agent
+                agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
 
+                # raises exception if any agent failed
                 for s in agent_statuses:
-                    if s.state == "failed":
-                        for value in s.return_values.values():
-                            if isinstance(value, WorkerException):
-                                raise value.exception
+                    for value in s.return_values.values():
+                        if isinstance(value, WorkerException):
+                            raise value.exception
 
                 if all(s.state == "done" for s in agent_statuses):
                     break

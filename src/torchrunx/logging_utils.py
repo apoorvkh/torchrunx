@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
+import os  # noqa: TCH003
 import pickle
 import struct
 from contextlib import redirect_stderr, redirect_stdout
@@ -52,11 +52,11 @@ def file_handlers(
 ) -> list[Handler]:
     handlers = []
 
-    os.makedirs(log_dir, exist_ok=True)
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
 
     for hostname, num_workers in zip(hostnames, workers_per_host):
-        for rank in [None] + list(range(num_workers)):
+        for rank in [None, *range(num_workers)]:
             file_path = (
                 f"{log_dir}/{timestamp}-{hostname}"
                 + (f"[{rank}]" if rank is not None else "")
@@ -74,8 +74,8 @@ def stream_handler(hostname: str, rank: int | None, log_level: int = logging.NOT
         logging.Formatter(
             "%(asctime)s:%(levelname)s:%(hostname)s[%(worker_rank)s]: %(message)s"
             if rank is not None
-            else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s"
-        )
+            else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s",
+        ),
     )
     return handler
 
@@ -89,7 +89,8 @@ def default_handlers(
     return [
         stream_handler(hostname=hostnames[0], rank=None, log_level=log_level),
         stream_handler(hostname=hostnames[0], rank=0, log_level=log_level),
-    ] + file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level)
+        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level),
+    ]
 
 
 ## Agent/worker utilities
@@ -128,11 +129,11 @@ def redirect_stdio_to_logger(logger: Logger) -> None:
             super().flush()
             value = self.getvalue()
             if value != "":
-                self.logger.log(self.level, f"\n{value}")
+                self.logger.log(self.level, value)
                 self.truncate(0)
                 self.seek(0)
 
-    logging.captureWarnings(True)
+    logging.captureWarnings(capture=True)
     redirect_stderr(_LoggingStream(logger, level=logging.ERROR)).__enter__()
     redirect_stdout(_LoggingStream(logger, level=logging.INFO)).__enter__()
 
@@ -148,8 +149,9 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
         class _LogRecordStreamHandler(StreamRequestHandler):
             def handle(self) -> None:
                 while True:
-                    chunk = self.connection.recv(4)
-                    if len(chunk) < 4:
+                    chunk_size = 4
+                    chunk = self.connection.recv(chunk_size)
+                    if len(chunk) < chunk_size:
                         break
                     slen = struct.unpack(">L", chunk)[0]
                     chunk = self.connection.recv(slen)
@@ -157,7 +159,7 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
                         chunk = chunk + self.connection.recv(slen - len(chunk))
                     obj = pickle.loads(chunk)
                     record = logging.makeLogRecord(obj)
-                    #
+
                     for handler in handlers:
                         handler.handle(record)
 

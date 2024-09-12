@@ -40,7 +40,7 @@ def main() -> None:
     )
 
     trainer = Trainer(
-        model=model,  # type: ignore
+        model=model,
         args=training_arguments,
         train_dataset=train_dataset,
     )
