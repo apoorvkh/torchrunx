@@ -14,7 +14,6 @@ import cloudpickle
 import torch
 import torch.distributed as dist
 import torch.distributed.elastic.multiprocessing as dist_mp
-from typing_extensions import Self
 
 from .logging_utils import log_records_to_socket, redirect_stdio_to_logger
 from .utils import (
@@ -41,16 +40,20 @@ class WorkerArgs:
     hostname: str
     timeout: int
 
-    def to_bytes(self) -> bytes:
-        return cloudpickle.dumps(self)
-
-    @classmethod
-    def from_bytes(cls, serialized: bytes) -> Self:
-        return cloudpickle.loads(serialized)
+    def serialize(self) -> SerializedWorkerArgs:
+        return SerializedWorkerArgs(worker_args=self)
 
 
-def entrypoint(serialized_worker_args: bytes) -> Any | WorkerException:
-    worker_args = WorkerArgs.from_bytes(serialized_worker_args)
+class SerializedWorkerArgs:
+    def __init__(self, worker_args: WorkerArgs) -> None:
+        self.bytes = cloudpickle.dumps(worker_args)
+
+    def deserialize(self) -> WorkerArgs:
+        return cloudpickle.loads(self.bytes)
+
+
+def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerException:
+    worker_args: WorkerArgs = serialized_worker_args.deserialize()
 
     logger = logging.getLogger()
 
@@ -147,7 +150,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
                     world_size=worker_world_size,
                     hostname=launcher_payload.hostnames[agent_rank],
                     timeout=launcher_payload.timeout,
-                ).to_bytes(),
+                ).serialize(),
             )
             for i in range(num_workers)
         },
