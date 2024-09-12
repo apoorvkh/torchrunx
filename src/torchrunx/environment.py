@@ -17,7 +17,9 @@ def slurm_hosts() -> list[str]:
     :rtype: list[str]
     """
     # TODO: sanity check SLURM variables, commands
-    assert in_slurm_job()
+    if not in_slurm_job():
+        msg = "Not in a SLURM job"
+        raise RuntimeError(msg)
     return (
         subprocess.check_output(["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]])
         .decode()
@@ -35,15 +37,18 @@ def slurm_workers() -> int:
     :rtype: int
     """
     # TODO: sanity check SLURM variables, commands
-    assert in_slurm_job()
+    if not in_slurm_job():
+        msg = "Not in a SLURM job"
+        raise RuntimeError(msg)
+
     if "SLURM_JOB_GPUS" in os.environ:
         # TODO: is it possible to allocate uneven GPUs across nodes?
         return len(os.environ["SLURM_JOB_GPUS"].split(","))
-    elif "SLURM_GPUS_PER_NODE" in os.environ:
+    if "SLURM_GPUS_PER_NODE" in os.environ:
         return int(os.environ["SLURM_GPUS_PER_NODE"])
-    else:
-        # TODO: should we assume that we plan to do one worker per CPU?
-        return int(os.environ["SLURM_CPUS_ON_NODE"])
+
+    # TODO: should we assume that we plan to do one worker per CPU?
+    return int(os.environ["SLURM_CPUS_ON_NODE"])
 
 
 def auto_hosts() -> list[str]:

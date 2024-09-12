@@ -86,4 +86,4 @@ jobs:
           cache: false
           environments: default
           activate-environment: default
-      - run: pytest tests/test_CI.py
+      - run: pytest tests/test_ci.py

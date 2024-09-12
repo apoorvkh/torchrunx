@@ -2601,9 +2601,9 @@ packages:
   requires_python: '>=3.8.0'
 - kind: pypi
   name: torchrunx
-  version: 0.1.3
+  version: 0.2.0
   path: .
-  sha256: 7352054b1212a4ce0d60c055288dd4f51cea2093a84d0a1a48ea97bdaa703fad
+  sha256: 1753f43bee54bc0da38cdd524dc501c0c2be9fbaaa7036bced9c9d03a7a8e810
   requires_dist:
   - cloudpickle>=3.0.0
   - fabric>=3.0.0
