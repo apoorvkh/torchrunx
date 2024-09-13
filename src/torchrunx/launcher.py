@@ -203,79 +203,83 @@ class Launcher:
         launcher_port = get_open_port()
         world_size = len(hostnames) + 1
 
-        # start logging server
-
-        log_receiver = build_logging_server(
-            log_handlers=self.log_handlers,
-            launcher_hostname=launcher_hostname,
-            hostnames=hostnames,
-            workers_per_host=workers_per_host,
-            log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
-            log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],  # noqa: SLF001
-        )
-
-        log_process = Process(
-            target=log_receiver.serve_forever,
-            daemon=True,
-        )
-
-        log_process.start()
-
-        # start agents on each node
-
-        for i, hostname in enumerate(hostnames):
-            execute_command(
-                command=build_command(
-                    launcher_hostname=launcher_hostname,
-                    launcher_port=launcher_port,
-                    logger_port=log_receiver.port,
-                    world_size=world_size,
-                    rank=i + 1,
-                    env_vars=self.env_vars,
-                    env_file=self.env_file,
-                ),
-                hostname=hostname,
-                ssh_config_file=self.ssh_config_file,
-            )
-
-        # initialize launcher-agent process group
-        # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
-
-        launcher_agent_group = LauncherAgentGroup(
-            launcher_hostname=launcher_hostname,
-            launcher_port=launcher_port,
-            world_size=world_size,
-            rank=0,
-        )
-
-        # build and sync payloads between launcher and agents
-
-        _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
-
-        worker_global_ranks = [
-            list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
-            for n in range(len(hostnames))
-        ]
-
-        payload = LauncherPayload(
-            fn=partial(func, *(func_args or ()), **(func_kwargs or {})),
-            hostnames=hostnames,
-            worker_global_ranks=worker_global_ranks,
-            worker_world_size=sum(workers_per_host),
-            backend=self.backend,
-            timeout=self.timeout,
-        )
-
-        launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
-
-        # loop to monitor agent statuses (until failed or done)
+        log_receiver = None
+        log_process = None
+        launcher_agent_group = None
 
         try:
+            # start logging server
+
+            log_receiver = build_logging_server(
+                log_handlers=self.log_handlers,
+                launcher_hostname=launcher_hostname,
+                hostnames=hostnames,
+                workers_per_host=workers_per_host,
+                log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
+                log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],  # noqa: SLF001
+            )
+
+            log_process = Process(
+                target=log_receiver.serve_forever,
+                daemon=True,
+            )
+
+            log_process.start()
+
+            # start agents on each node
+
+            for i, hostname in enumerate(hostnames):
+                execute_command(
+                    command=build_command(
+                        launcher_hostname=launcher_hostname,
+                        launcher_port=launcher_port,
+                        logger_port=log_receiver.port,
+                        world_size=world_size,
+                        rank=i + 1,
+                        env_vars=self.env_vars,
+                        env_file=self.env_file,
+                    ),
+                    hostname=hostname,
+                    ssh_config_file=self.ssh_config_file,
+                )
+
+            # initialize launcher-agent process group
+            # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
+
+            launcher_agent_group = LauncherAgentGroup(
+                launcher_hostname=launcher_hostname,
+                launcher_port=launcher_port,
+                world_size=world_size,
+                rank=0,
+            )
+
+            # build and sync payloads between launcher and agents
+
+            _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
+
+            worker_global_ranks = [
+                list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
+                for n in range(len(hostnames))
+            ]
+
+            payload = LauncherPayload(
+                fn=partial(func, *(func_args or ()), **(func_kwargs or {})),
+                hostnames=hostnames,
+                worker_global_ranks=worker_global_ranks,
+                worker_world_size=sum(workers_per_host),
+                backend=self.backend,
+                timeout=self.timeout,
+            )
+
+            launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
+
+            # loop to monitor agent statuses (until failed or done)
+
             while True:
-                # raises exception if communication timeout due to death of any agent
+                # raises RuntimeError if communication timeout due to death of any agent
                 agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
 
-                # raises exception if any agent failed
+                # raises specific exception if any agent fails
                 for s in agent_statuses:
                     for value in s.return_values.values():
                         if isinstance(value, WorkerException):
@@ -294,10 +298,13 @@ class Launcher:
                 )
             raise
         finally:
-            log_receiver.shutdown()
-            log_receiver.server_close()
-            log_process.kill()
-            dist.destroy_process_group()
+            if log_receiver is not None:
+                log_receiver.shutdown()
+                log_receiver.server_close()
+            if log_process is not None:
+                log_process.kill()
+            if launcher_agent_group is not None:
+                launcher_agent_group.shutdown()
 
         return {
             hostname: agent_status.return_values

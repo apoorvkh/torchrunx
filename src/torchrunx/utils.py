@@ -73,6 +73,7 @@ class LauncherAgentGroup:
     rank: int
 
     def __post_init__(self) -> None:
+        # timeout will raise torch.distributed.DistStoreError
         self.group = dist.init_process_group(
             backend="gloo",
             world_size=self.world_size,
@@ -96,6 +97,7 @@ class LauncherAgentGroup:
         """gather object from every rank to list on every rank"""
         object_bytes = self._serialize(obj)
         object_list = [b""] * self.world_size
+        # raises RuntimeError if timeout
         dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
         return [self._deserialize(o) for o in object_list]
 
@@ -110,3 +112,6 @@ class LauncherAgentGroup:
 
     def sync_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
         return self._all_gather(status)[1:]  # [0] is launcher (status=None)
+
+    def shutdown(self) -> None:
+        dist.destroy_process_group(group=self.group)
