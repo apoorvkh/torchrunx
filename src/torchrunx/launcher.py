@@ -173,7 +173,7 @@ class Launcher:
     env_file: str | os.PathLike | None = None
     timeout: int = 600
 
-    def run(
+    def run(  # noqa: C901, PLR0912
         self,
         func: Callable,
         func_args: tuple[Any] | None = None,
@@ -206,6 +206,7 @@ class Launcher:
         log_receiver = None
         log_process = None
         launcher_agent_group = None
+        agent_payloads = None
 
         try:
             # start logging server
@@ -287,24 +288,24 @@ class Launcher:
 
                 if all(s.state == "done" for s in agent_statuses):
                     break
-
-        except:
-            # cleanup: SIGTERM all agents
-            for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
-                execute_command(
-                    command=f"kill {agent_payload.process_id}",
-                    hostname=agent_hostname,
-                    ssh_config_file=self.ssh_config_file,
-                )
-            raise
         finally:
             if log_receiver is not None:
                 log_receiver.shutdown()
-                log_receiver.server_close()
-            if log_process is not None:
-                log_process.kill()
+                if log_process is not None:
+                    log_receiver.server_close()
+                    log_process.kill()
+
             if launcher_agent_group is not None:
                 launcher_agent_group.shutdown()
+
+            # cleanup: SIGTERM all agents
+            if agent_payloads is not None:
+                for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
+                    execute_command(
+                        command=f"kill {agent_payload.process_id}",
+                        hostname=agent_hostname,
+                        ssh_config_file=self.ssh_config_file,
+                    )
 
         return {
             hostname: agent_status.return_values
