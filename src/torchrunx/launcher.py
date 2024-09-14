@@ -158,7 +158,7 @@ class Launcher:
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
     env_vars: list[str] | tuple[str] = (  # pyright: ignore [reportAssignmentType]
         "PATH",
@@ -320,7 +320,7 @@ def launch(
     hostnames: list[str] | Literal["auto", "slurm"] = "auto",
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
     log_handlers: list[Handler] | Literal["auto"] | None = "auto",
     env_vars: list[str] | tuple[str] = (  # pyright: ignore [reportArgumentType]
         "PATH",

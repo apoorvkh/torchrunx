@@ -31,7 +31,7 @@ class LauncherPayload:
     hostnames: list[str]
     worker_global_ranks: list[list[int]]
     worker_world_size: int
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None]
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None
     timeout: int
 
 
