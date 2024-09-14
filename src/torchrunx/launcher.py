@@ -14,7 +14,7 @@ from functools import partial
 from logging import Handler
 from multiprocessing import Process
 from pathlib import Path
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Callable, Literal
 
 import fabric
 import torch.distributed as dist
@@ -86,7 +86,7 @@ def build_command(
     logger_port: int,
     world_size: int,
     rank: int,
-    env_vars: Sequence[str],
+    env_vars: list[str] | tuple[str],
     env_file: str | os.PathLike | None,
 ) -> str:
     # shlex.quote prevents shell injection here (resolves S602 in execute_command)
@@ -160,7 +160,7 @@ class Launcher:
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    env_vars: Sequence[str] = (
+    env_vars: list[str] | tuple[str] = (  # pyright: ignore [reportAssignmentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -321,8 +321,8 @@ def launch(
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_handlers: list[Handler] | Literal["auto"] = "auto",
-    env_vars: Sequence[str] = (
+    log_handlers: list[Handler] | Literal["auto"] | None = "auto",
+    env_vars: list[str] | tuple[str] = (  # pyright: ignore [reportArgumentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
