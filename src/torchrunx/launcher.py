@@ -80,7 +80,7 @@ def build_logging_server(
     )
 
 
-def build_command(
+def build_launch_command(
     launcher_hostname: str,
     launcher_port: int,
     logger_port: int,
@@ -122,33 +122,35 @@ def build_command(
     return " && ".join(commands)
 
 
-def is_localhost(hostname_or_ip: str) -> bool:
-    # check if host is "loopback" address (i.e. designated to send to self)
-    try:
-        ip = ipaddress.ip_address(hostname_or_ip)
-    except ValueError:
-        ip = ipaddress.ip_address(socket.gethostbyname(hostname_or_ip))
-    if ip.is_loopback:
-        return True
-    # else compare local interface addresses between host and localhost
-    host_addrs = [addr[4][0] for addr in socket.getaddrinfo(str(ip), None)]
-    localhost_addrs = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
-    return len(set(host_addrs) & set(localhost_addrs)) > 0
-
-
 def execute_command(
     command: str,
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
 ) -> None:
-    if is_localhost(hostname):
+    is_localhost = True
+    _hostname_or_ip = hostname
+    try:
+        _ip = ipaddress.ip_address(_hostname_or_ip)
+    except ValueError:
+        _ip = ipaddress.ip_address(socket.gethostbyname(_hostname_or_ip))
+    if not _ip.is_loopback:
+        # compare local interface addresses between host and localhost
+        _host_addrs = [addr[4][0] for addr in socket.getaddrinfo(str(_ip), None)]
+        _localhost_addrs = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
+        is_localhost = len(set(_host_addrs) & set(_localhost_addrs)) > 0
+
+    if is_localhost:
         # S602: subprocess.Popen is called with shell=True (https://docs.python.org/3.8/library/subprocess.html#security-considerations)
         # Made sure to shlex.quote arguments in build_command to prevent shell injection
         subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # noqa: S602
     else:
+        runtime_ssh_path = ssh_config_file
+        if isinstance(ssh_config_file, os.PathLike):
+            runtime_ssh_path = str(ssh_config_file)
+
         with fabric.Connection(
             host=hostname,
-            config=fabric.Config(runtime_ssh_path=ssh_config_file),
+            config=fabric.Config(runtime_ssh_path=runtime_ssh_path),
         ) as conn:
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
@@ -160,7 +162,7 @@ class Launcher:
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    env_vars: list[str] | tuple[str] = (  # pyright: ignore [reportAssignmentType]
+    env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -231,7 +233,7 @@ class Launcher:
 
             for i, hostname in enumerate(hostnames):
                 execute_command(
-                    command=build_command(
+                    command=build_launch_command(
                         launcher_hostname=launcher_hostname,
                         launcher_port=launcher_port,
                         logger_port=log_receiver.port,
@@ -322,7 +324,7 @@ def launch(
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
     log_handlers: list[Handler] | Literal["auto"] | None = "auto",
-    env_vars: list[str] | tuple[str] = (  # pyright: ignore [reportArgumentType]
+    env_vars: tuple[str] = (  # pyright: ignore [reportArgumentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
