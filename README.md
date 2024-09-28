@@ -1,14 +1,14 @@
 # torchrunx 🔥
 
-By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
-
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/pyproject.toml)
 [![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)](https://pypi.org/project/torchrunx/)
 ![Tests](https://img.shields.io/github/actions/workflow/status/apoorvkh/torchrunx/.github%2Fworkflows%2Fmain.yml)
 [![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
 [![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/LICENSE)
 
-Automatically launch PyTorch functions onto multiple machines or GPUs
+By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
+
+**Automatically distribute PyTorch functions onto multiple machines or GPUs**
 
 ## Installation
 
@@ -16,24 +16,37 @@ Automatically launch PyTorch functions onto multiple machines or GPUs
 pip install torchrunx
 ```
 
-Requirements:
-- Operating System: Linux
-- Python >= 3.8.1
-- PyTorch >= 2.0
-- Shared filesystem & SSH between hosts
+Requires: Linux, Python >= 3.8.1, PyTorch >= 2.0
 
-## Features
+Shared filesystem & SSH access if using multiple machines
 
-- Distribute PyTorch functions to multiple GPUs or machines
-- `torchrun` with the convenience of a Python function
-- Integration with SLURM
+## Why should I use this?
 
-Advantages:
+[`torchrun`](https://pytorch.org/docs/stable/elastic/run.html) is a hammer. `torchrunx` is a chisel.
 
-- Self-cleaning: avoid memory leaks!
-- Better for complex workflows
-- Doesn't parallelize the whole script: just what you want
-- Run distributed functions from Python Notebooks
+Whether you have 1 GPU, 8 GPUs, or 8 machines:
+
+Convenience:
+
+- If you don't want to set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
+- If you want to run `python myscript.py` instead of `torchrun myscript.py`
+- If you don't want to manually SSH and run `torchrun --master-ip --master-port ...` on every machine (and if you don't want to babysit these machines for hanging failures)
+
+Robustness:
+
+- If you want to run a complex, _modular_ workflow in one script
+  - no worries about memory leaks or OS failures
+  - don't parallelize your entire script: just the functions you want
+
+Features:
+
+- Our launch utility is super _Pythonic_
+- If you want to run distributed PyTorch functions from Python Notebooks.
+- Automatic integration with SLURM
+
+Why not?
+
+- We don't support fault tolerance via torch elastic. Probably only useful if you are using 1000 GPUs. Maybe someone can make a PR.
 
 ## Usage
 
