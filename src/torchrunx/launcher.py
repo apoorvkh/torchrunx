@@ -14,19 +14,14 @@ from functools import partial
 from logging import Handler
 from multiprocessing import Process
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, overload
 
 import fabric
 import torch.distributed as dist
 
 from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
 from .logging_utils import LogRecordSocketReceiver, default_handlers
-from .utils import (
-    LauncherAgentGroup,
-    LauncherPayload,
-    WorkerException,
-    get_open_port,
-)
+from .utils import AgentStatus, LauncherAgentGroup, LauncherPayload, WorkerException, get_open_port
 
 
 def resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
@@ -180,7 +175,7 @@ class Launcher:
         func: Callable,
         func_args: tuple[Any] | None = None,
         func_kwargs: dict[str, Any] | None = None,
-    ) -> dict[str, dict[int, Any]]:
+    ) -> LaunchResult:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
@@ -309,10 +304,7 @@ class Launcher:
                         ssh_config_file=self.ssh_config_file,
                     )
 
-        return {
-            hostname: agent_status.return_values
-            for hostname, agent_status in zip(hostnames, agent_statuses)
-        }
+        return LaunchResult(hostnames=hostnames, agent_statuses=agent_statuses)
 
 
 def launch(
@@ -336,7 +328,7 @@ def launch(
     ),
     env_file: str | os.PathLike | None = None,
     timeout: int = 600,
-) -> dict[str, dict[int, Any]]:
+) -> LaunchResult:
     """
     Launch a distributed PyTorch function on the specified nodes.
 
@@ -378,3 +370,26 @@ def launch(
         env_file=env_file,
         timeout=timeout,
     ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
+
+
+class LaunchResult:
+    def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
+        self.results = {
+            hostname: agent_status.return_values
+            for hostname, agent_status in zip(hostnames, agent_statuses)
+        }
+
+    def all(self) -> dict[str, list[Any]]:
+        return self.results
+
+    # all(by='rank')
+
+    # value(rank: int)
+
+    @overload
+    def value(self, hostname: str) -> list[Any]:
+        return list(self.results[hostname].values())
+
+    @overload
+    def value(self, hostname: str, rank: int) -> Any:
+        return self.results[hostname][rank]
