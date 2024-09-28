@@ -20,6 +20,32 @@ Requires: Linux, Python >= 3.8.1, PyTorch >= 2.0
 
 Shared filesystem & SSH access if using multiple machines
 
+## Minimal example
+
+Here's a simple example where we distribute `distributed_function` to two hosts (with 2 GPUs each):
+
+```python
+def train_model(model, dataset):
+    trained_model = train(model, dataset)
+
+    if int(os.environ["RANK"]) == 0:
+        torch.save(learned_model, 'model.pt')
+        return 'model.pt'
+
+    return None
+```
+
+```python
+import torchrunx as trx
+
+model_path = trx.launch(
+    func=train_model,
+    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
+    hostnames=["localhost", "other_node"],
+    workers_per_host=2
+)["localhost"][0]  # return from rank 0 (first worker on "localhost")
+```
+
 ## Why should I use this?
 
 [`torchrun`](https://pytorch.org/docs/stable/elastic/run.html) is a hammer. `torchrunx` is a chisel.
@@ -48,31 +74,7 @@ Why not?
 
 - We don't support fault tolerance via torch elastic. Probably only useful if you are using 1000 GPUs. Maybe someone can make a PR.
 
-## Usage
-
-Here's a simple example where we distribute `distributed_function` to two hosts (with 2 GPUs each):
-
-```python
-def train_model(model, dataset):
-    trained_model = train(model, dataset)
-
-    if int(os.environ["RANK"]) == 0:
-        torch.save(learned_model, 'model.pt')
-        return 'model.pt'
-
-    return None
-```
-
-```python
-import torchrunx as trx
-
-model_path = trx.launch(
-    func=train_model,
-    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
-    hostnames=["localhost", "other_node"],
-    workers_per_host=2
-)["localhost"][0]  # return from rank 0 (first worker on "localhost")
-```
+## More complicated example
 
 We could also launch multiple functions, with different GPUs:
 
