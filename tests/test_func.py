@@ -13,7 +13,7 @@ def test_launch() -> None:
         workers_per_host="slurm",
     )
 
-    result_values = [v for host_results in result.values() for v in host_results.values()]
+    result_values = result.all(by="rank")
 
     t = True
     for i in range(len(result_values)):

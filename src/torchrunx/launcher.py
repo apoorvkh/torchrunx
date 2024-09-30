@@ -10,23 +10,19 @@ import socket
 import subprocess
 import sys
 from dataclasses import dataclass
-from functools import partial
+from functools import partial, reduce
 from logging import Handler
 from multiprocessing import Process
+from operator import add
 from pathlib import Path
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Callable, Literal, overload
 
 import fabric
 import torch.distributed as dist
 
 from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
 from .logging_utils import LogRecordSocketReceiver, default_handlers
-from .utils import (
-    LauncherAgentGroup,
-    LauncherPayload,
-    WorkerException,
-    get_open_port,
-)
+from .utils import AgentStatus, LauncherAgentGroup, LauncherPayload, WorkerException, get_open_port
 
 
 def resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
@@ -80,13 +76,13 @@ def build_logging_server(
     )
 
 
-def build_command(
+def build_launch_command(
     launcher_hostname: str,
     launcher_port: int,
     logger_port: int,
     world_size: int,
     rank: int,
-    env_vars: Sequence[str],
+    env_vars: list[str] | tuple[str],
     env_file: str | os.PathLike | None,
 ) -> str:
     # shlex.quote prevents shell injection here (resolves S602 in execute_command)
@@ -122,33 +118,35 @@ def build_command(
     return " && ".join(commands)
 
 
-def is_localhost(hostname_or_ip: str) -> bool:
-    # check if host is "loopback" address (i.e. designated to send to self)
-    try:
-        ip = ipaddress.ip_address(hostname_or_ip)
-    except ValueError:
-        ip = ipaddress.ip_address(socket.gethostbyname(hostname_or_ip))
-    if ip.is_loopback:
-        return True
-    # else compare local interface addresses between host and localhost
-    host_addrs = [addr[4][0] for addr in socket.getaddrinfo(str(ip), None)]
-    localhost_addrs = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
-    return len(set(host_addrs) & set(localhost_addrs)) > 0
-
-
 def execute_command(
     command: str,
     hostname: str,
     ssh_config_file: str | os.PathLike | None = None,
 ) -> None:
-    if is_localhost(hostname):
+    is_localhost = True
+    _hostname_or_ip = hostname
+    try:
+        _ip = ipaddress.ip_address(_hostname_or_ip)
+    except ValueError:
+        _ip = ipaddress.ip_address(socket.gethostbyname(_hostname_or_ip))
+    if not _ip.is_loopback:
+        # compare local interface addresses between host and localhost
+        _host_addrs = [addr[4][0] for addr in socket.getaddrinfo(str(_ip), None)]
+        _localhost_addrs = [addr[4][0] for addr in socket.getaddrinfo(socket.gethostname(), None)]
+        is_localhost = len(set(_host_addrs) & set(_localhost_addrs)) > 0
+
+    if is_localhost:
         # S602: subprocess.Popen is called with shell=True (https://docs.python.org/3.8/library/subprocess.html#security-considerations)
         # Made sure to shlex.quote arguments in build_command to prevent shell injection
         subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # noqa: S602
     else:
+        runtime_ssh_path = ssh_config_file
+        if isinstance(ssh_config_file, os.PathLike):
+            runtime_ssh_path = str(ssh_config_file)
+
         with fabric.Connection(
             host=hostname,
-            config=fabric.Config(runtime_ssh_path=ssh_config_file),
+            config=fabric.Config(runtime_ssh_path=runtime_ssh_path),
         ) as conn:
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
 
@@ -158,9 +156,9 @@ class Launcher:
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    env_vars: Sequence[str] = (
+    env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -178,7 +176,7 @@ class Launcher:
         func: Callable,
         func_args: tuple[Any] | None = None,
         func_kwargs: dict[str, Any] | None = None,
-    ) -> dict[str, dict[int, Any]]:
+    ) -> LaunchResult:
         """
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
@@ -231,7 +229,7 @@ class Launcher:
 
             for i, hostname in enumerate(hostnames):
                 execute_command(
-                    command=build_command(
+                    command=build_launch_command(
                         launcher_hostname=launcher_hostname,
                         launcher_port=launcher_port,
                         logger_port=log_receiver.port,
@@ -282,7 +280,7 @@ class Launcher:
 
                 # raises specific exception if any agent fails
                 for s in agent_statuses:
-                    for value in s.return_values.values():
+                    for value in s.return_values:
                         if isinstance(value, WorkerException):
                             raise value.exception
 
@@ -307,10 +305,7 @@ class Launcher:
                         ssh_config_file=self.ssh_config_file,
                     )
 
-        return {
-            hostname: agent_status.return_values
-            for hostname, agent_status in zip(hostnames, agent_statuses)
-        }
+        return LaunchResult(hostnames=hostnames, agent_statuses=agent_statuses)
 
 
 def launch(
@@ -320,9 +315,9 @@ def launch(
     hostnames: list[str] | Literal["auto", "slurm"] = "auto",
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None] = None,
-    log_handlers: list[Handler] | Literal["auto"] = "auto",
-    env_vars: Sequence[str] = (
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
+    log_handlers: list[Handler] | Literal["auto"] | None = "auto",
+    env_vars: tuple[str] = (  # pyright: ignore [reportArgumentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -334,7 +329,7 @@ def launch(
     ),
     env_file: str | os.PathLike | None = None,
     timeout: int = 600,
-) -> dict[str, dict[int, Any]]:
+) -> LaunchResult:
     """
     Launch a distributed PyTorch function on the specified nodes.
 
@@ -376,3 +371,48 @@ def launch(
         env_file=env_file,
         timeout=timeout,
     ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
+
+
+class LaunchResult:
+    def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
+        self.hostnames: list[str] = hostnames
+        self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
+
+    @overload
+    def all(self) -> dict[str, list[Any]]:
+        pass
+
+    @overload
+    def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
+        pass
+
+    @overload
+    def all(self, by: Literal["rank"]) -> list[Any]:
+        pass
+
+    def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
+        if by == "hostname":
+            return dict(zip(self.hostnames, self.return_values))
+        elif by == "rank":  # noqa: RET505
+            return reduce(add, self.return_values)
+
+        msg = "Invalid argument: expected by=('hostname' | 'rank')"
+        raise TypeError(msg)
+
+    def values(self, hostname: str) -> list[Any]:
+        host_idx = self.hostnames.index(hostname)
+        return self.return_values[host_idx]
+
+    def value(self, rank: int) -> Any:
+        if rank < 0:
+            msg = f"Rank {rank} must be larger than 0"
+            raise ValueError(msg)
+
+        for values in self.return_values:
+            if rank >= len(values):
+                rank -= len(values)
+            else:
+                return values[rank]
+
+        msg = f"Rank {rank} larger than world_size"
+        raise ValueError(msg)

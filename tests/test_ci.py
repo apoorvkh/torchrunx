@@ -37,8 +37,7 @@ def test_simple_localhost() -> None:
         backend="gloo",  # log_dir="./test_logs"
     )
 
-    results = next(iter(r.values()))
-    assert torch.all(results[0] == results[1])
+    assert torch.all(r.value(0) == r.value(1))
 
 
 def test_logging() -> None:

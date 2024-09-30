@@ -21,51 +21,6 @@ def get_open_port() -> int:
 
 
 @dataclass
-class WorkerException:
-    exception: Exception
-
-
-@dataclass
-class LauncherPayload:
-    fn: Callable
-    hostnames: list[str]
-    worker_global_ranks: list[list[int]]
-    worker_world_size: int
-    backend: Literal["mpi", "gloo", "nccl", "ucc", None]
-    timeout: int
-
-
-@dataclass
-class AgentPayload:
-    hostname: str
-    port: int
-    process_id: int
-
-
-@dataclass
-class AgentStatus:
-    state: Literal["running", "failed", "done"]
-    return_values: dict[int, Any | WorkerException] = field(default_factory=dict)
-
-    @classmethod
-    def from_result(cls, result: RunProcsResult | None) -> Self:
-        if result is None:
-            return cls(state="running")
-
-        return_values = result.return_values
-
-        if any(isinstance(v, WorkerException) for v in return_values.values()):
-            state = "failed"
-        else:
-            state = "done"
-
-        return cls(
-            state=state,
-            return_values=return_values,
-        )
-
-
-@dataclass
 class LauncherAgentGroup:
     launcher_hostname: str
     launcher_port: int
@@ -115,3 +70,48 @@ class LauncherAgentGroup:
 
     def shutdown(self) -> None:
         dist.destroy_process_group(group=self.group)
+
+
+@dataclass
+class LauncherPayload:
+    fn: Callable
+    hostnames: list[str]
+    worker_global_ranks: list[list[int]]
+    worker_world_size: int
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None
+    timeout: int
+
+
+@dataclass
+class AgentPayload:
+    hostname: str
+    port: int
+    process_id: int
+
+
+@dataclass
+class WorkerException:
+    exception: Exception
+
+
+@dataclass
+class AgentStatus:
+    state: Literal["running", "failed", "done"]
+    return_values: list[Any | WorkerException] = field(
+        default_factory=list
+    )  # indexed by local rank
+
+    @classmethod
+    def from_result(cls, result: RunProcsResult | None) -> Self:
+        if result is None:
+            return cls(state="running")
+
+        return_values = list(result.return_values.values())
+
+        failed = any(isinstance(v, WorkerException) for v in return_values)
+        state = "failed" if failed else "done"
+
+        return cls(
+            state=state,
+            return_values=return_values,
+        )

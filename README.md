@@ -6,7 +6,9 @@
 [![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
 [![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/LICENSE)
 
-Automatically launch functions and initialize distributed PyTorch environments on multiple machines
+By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
+
+**Automatically distribute PyTorch functions onto multiple machines or GPUs**
 
 ## Installation
 
@@ -14,43 +16,102 @@ Automatically launch functions and initialize distributed PyTorch environments o
 pip install torchrunx
 ```
 
-Requirements:
-- Operating System: Linux
-- Python >= 3.8.1
-- PyTorch >= 2.0
-- Shared filesystem & passwordless SSH between hosts
+Requires: Linux, Python >= 3.8.1, PyTorch >= 2.0
 
-## Usage
+Shared filesystem & SSH access if using multiple machines
+
+## Minimal example
+
+Here's a simple example where we distribute `distributed_function` to two hosts (with 2 GPUs each):
 
 ```python
-# Simple example
-def distributed_function():
-    pass
+def train_model(model, dataset):
+    trained_model = train(model, dataset)
+
+    if int(os.environ["RANK"]) == 0:
+        torch.save(learned_model, 'model.pt')
+        return 'model.pt'
+
+    return None
 ```
 
 ```python
 import torchrunx as trx
 
-trx.launch(
-    func=distributed_function,
-    func_kwargs={},
-    hostnames=["node1", "node2"],  # or just: ["localhost"]
+model_path = trx.launch(
+    func=train_model,
+    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
+    hostnames=["localhost", "other_node"],
     workers_per_host=2
-)
+)["localhost"][0]  # return from rank 0 (first worker on "localhost")
 ```
 
-### In a SLURM allocation
+## Why should I use this?
+
+[`torchrun`](https://pytorch.org/docs/stable/elastic/run.html) is a hammer. `torchrunx` is a chisel.
+
+Whether you have 1 GPU, 8 GPUs, or 8 machines:
+
+Convenience:
+
+- If you don't want to set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
+- If you want to run `python myscript.py` instead of `torchrun myscript.py`
+- If you don't want to manually SSH and run `torchrun --master-ip --master-port ...` on every machine (and if you don't want to babysit these machines for hanging failures)
+
+Robustness:
+
+- If you want to run a complex, _modular_ workflow in one script
+  - no worries about memory leaks or OS failures
+  - don't parallelize your entire script: just the functions you want
+
+Features:
+
+- Our launch utility is super _Pythonic_
+- If you want to run distributed PyTorch functions from Python Notebooks.
+- Automatic integration with SLURM
+
+Why not?
+
+- We don't support fault tolerance via torch elastic. Probably only useful if you are using 1000 GPUs. Maybe someone can make a PR.
+
+## More complicated example
+
+We could also launch multiple functions, with different GPUs:
 
 ```python
-trx.launch(
-    # ...
-    hostnames=trx.slurm_hosts(),
-    workers_per_host=trx.slurm_workers()
-)
+def train_model(model, dataset):
+    trained_model = train(model, dataset)
+
+    if int(os.environ["RANK"]) == 0:
+        torch.save(learned_model, 'model.pt')
+        return 'model.pt'
+
+    return None
+
+def test_model(model_path, test_dataset):
+    model = torch.load(model_path)
+    accuracy = inference(model, test_dataset)
+    return accuracy
 ```
 
-## Compared to other tools
+```python
+import torchrunx as trx
 
-## Contributing
+model_path = trx.launch(
+    func=train_model,
+    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
+    hostnames=["localhost", "other_node"],
+    workers_per_host=2
+)["localhost"][0]  # return from rank 0 (first worker on "localhost")
 
-We use the [`pixi`](https://pixi.sh) package manager. Simply [install `pixi`](https://pixi.sh/latest/#installation) and run `pixi shell` in this repository. We use `ruff` for linting and formatting, `pyright` for static type checking, and `pytest` for testing. We build for `PyPI` and `conda-forge`. Our release pipeline is powered by Github Actions.
+
+
+accuracy = trx.launch(
+    func=test_model,
+    func_kwargs={'model': learned_model, 'test_dataset': mnist_test},
+    hostnames=["localhost"],
+    workers_per_host=1
+)["localhost"][0]
+
+print(f'Accuracy: {accuracy}')
+```
