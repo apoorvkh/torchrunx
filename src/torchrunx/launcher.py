@@ -10,9 +10,10 @@ import socket
 import subprocess
 import sys
 from dataclasses import dataclass
-from functools import partial
+from functools import partial, reduce
 from logging import Handler
 from multiprocessing import Process
+from operator import add
 from pathlib import Path
 from typing import Any, Callable, Literal, overload
 
@@ -279,7 +280,7 @@ class Launcher:
 
                 # raises specific exception if any agent fails
                 for s in agent_statuses:
-                    for value in s.return_values.values():
+                    for value in s.return_values:
                         if isinstance(value, WorkerException):
                             raise value.exception
 
@@ -374,22 +375,44 @@ def launch(
 
 class LaunchResult:
     def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
-        self.results = {
-            hostname: agent_status.return_values
-            for hostname, agent_status in zip(hostnames, agent_statuses)
-        }
+        self.hostnames: list[str] = hostnames
+        self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
 
+    @overload
     def all(self) -> dict[str, list[Any]]:
-        return self.results
-
-    # all(by='rank')
-
-    # value(rank: int)
+        pass
 
     @overload
-    def value(self, hostname: str) -> list[Any]:
-        return list(self.results[hostname].values())
+    def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
+        pass
 
     @overload
-    def value(self, hostname: str, rank: int) -> Any:
-        return self.results[hostname][rank]
+    def all(self, by: Literal["rank"]) -> list[Any]:
+        pass
+
+    def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
+        if by == "hostname":
+            return dict(zip(self.hostnames, self.return_values))
+        elif by == "rank":  # noqa: RET505
+            return reduce(add, self.return_values)
+
+        msg = "Invalid argument: expected by=('hostname' | 'rank')"
+        raise TypeError(msg)
+
+    def values(self, hostname: str) -> list[Any]:
+        host_idx = self.hostnames.index(hostname)
+        return self.return_values[host_idx]
+
+    def value(self, rank: int) -> Any:
+        if rank < 0:
+            msg = f"Rank {rank} must be larger than 0"
+            raise ValueError(msg)
+
+        for values in self.return_values:
+            if rank >= len(values):
+                rank -= len(values)
+            else:
+                return values[rank]
+
+        msg = f"Rank {rank} larger than world_size"
+        raise ValueError(msg)
