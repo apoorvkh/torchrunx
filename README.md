@@ -22,7 +22,7 @@ Shared filesystem & SSH access if using multiple machines
 
 ## Minimal example
 
-Here's a simple example where we distribute `distributed_function` to two hosts (with 2 GPUs each):
+Here's a simple example where we distribute `train_model` to two hosts (with 2 GPUs each):
 
 ```python
 def train_model(model, dataset):
