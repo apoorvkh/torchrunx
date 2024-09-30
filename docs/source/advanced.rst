@@ -1,7 +1,29 @@
 Advanced Usage
 ==============
 
-In addition to ``torchrunx.launch``, we provide the ``torchrunx.Launcher`` dataclass. This allows **torchrunx** arguments to be more easily populated by CLI packages like ``tyro``:
+Environment Detection
+---------------------
+
+By default, the `hostnames` or `workers_per_host` :mod:`torchrunx.launch` parameters are set to "auto". These parameters are populated via `SLURM`_ if a SLURM environment is automatically detected. Otherwise, `hostnames = ["localhost"]` and `workers_per_host` is set to the number of GPUs or CPUs (in order of precedence) available locally.
+
+SLURM
++++++
+
+If the `hostnames` or `workers_per_host` parameters are set to `"slurm"`, their values will be filled from the SLURM job. Passing `"slurm"` raises a `RuntimeError` if no SLURM allocation is detected from the environment.
+
+``Launcher`` class
+------------------
+
+We provide the ``torchrunx.Launcher`` class as an alternative to ``torchrunx.launch``.
+
+.. autoclass:: torchrunx.Launcher
+    :members:
+.. .. autofunction:: torchrunx.Launcher.run
+
+CLI Support
++++++++++++
+
+This allows **torchrunx** arguments to be more easily populated by CLI packages like `tyro <https://brentyi.github.io/tyro/>`_:
 
 .. code:: python
 
@@ -15,12 +37,29 @@ In addition to ``torchrunx.launch``, we provide the ``torchrunx.Launcher`` datac
         launcher = tyro.cli(trx.Launcher)
         launcher.run(distributed_function, {})
 
-.. autoclass:: torchrunx.Launcher
-    :members:
-.. .. autofunction:: torchrunx.Launcher.run
+For example, the `python ... --help` command will then result in:
 
-Logging 
--------
+.. code:: bash
+
+    ╭─ options ─────────────────────────────────────────────────────────────────────────────────────────────────────╮
+    │ -h, --help              show this help message and exit                                                       │
+    │ --hostnames {[STR [STR ...]]}|{auto,slurm}                                                                    │
+    │                         (default: auto)                                                                       │
+    │ --workers-per-host INT|{[INT [INT ...]]}|{auto,slurm}                                                         │
+    │                         (default: auto)                                                                       │
+    │ --ssh-config-file {None}|STR|PATH                                                                             │
+    │                         (default: None)                                                                       │
+    │ --backend {None,nccl,gloo,mpi,ucc,auto}                                                                       │
+    │                         (default: auto)                                                                       │
+    │ --log-handlers {fixed}  (fixed to: a u t o)                                                                   │
+    │ --env-vars STR          (default: PATH LD_LIBRARY LIBRARY_PATH 'PYTHON*' 'CUDA*' 'TORCH*' 'PYTORCH*' 'NCCL*') │
+    │ --env-file {None}|STR|PATH                                                                                    │
+    │                         (default: None)                                                                       │
+    │ --timeout INT           (default: 600)                                                                        │
+    ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Custom Logging
+--------------
 
 Logs are generated at the worker and agent level, and are specified to :mod:`torchrunx.launch` via the ``log_spec`` argument. By default, a :mod:`torchrunx.DefaultLogSpec` is instantiated, causing logs at the worker and agent levels to be logged to files under ``'./logs'``, and the rank 0 worker's output streams are streamed to the launcher ``stdout``. Logs are prefixed with a timestamp by default. Agent logs have the format ``{timestamp}-{agent hostname}.log`` and workers have the format ``{timestamp}-{agent hostname}[{worker local rank}].log``.
 
@@ -35,8 +74,15 @@ Custom logging classes can be subclassed from the :mod:`torchrunx.LogSpec` class
 .. 
     TODO: example log structure
 
-Worker environment
-------------------
+Propagating Exceptions
+----------------------
+
+Exceptions that are raised in Workers will be raised in the Launcher process and can be caught by wrapping :mod:`torchrunx.launch` in a try-except clause.
+
+If a worker is killed by the operating system (e.g. due to Segmentation Fault or SIGKILL by running out of memory), the Launcher process raises a RuntimeError.
+
+Environment Variables
+---------------------
 
 The :mod:`torchrunx.launch` ``env_vars`` argument allows the user to specify which environmental variables should be copied to the agents from the launcher environment. By default, it attempts to copy variables related to Python and important packages/technologies that **torchrunx** uses such as PyTorch, NCCL, CUDA, and more. Strings provided are matched with the names of environmental variables using ``fnmatch`` - standard UNIX filename pattern matching. The variables are inserted into the agent environments, and then copied to workers' environments when they are spawned.
 
@@ -45,6 +91,6 @@ The :mod:`torchrunx.launch` ``env_vars`` argument allows the user to specify whi
 ..
     TODO: example env_file
 
-Numpy >= 2.0
-------------
+Support for Numpy >= 2.0
+------------------------
 only supported if `torch>=2.3`
