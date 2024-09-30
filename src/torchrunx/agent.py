@@ -67,14 +67,14 @@ def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerExce
 
     redirect_stdio_to_logger(logger)
 
+    os.environ["RANK"] = str(worker_args.rank)
+    os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
+    os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
+    os.environ["WORLD_SIZE"] = str(worker_args.world_size)
+    os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
+    os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
+    
     if worker_args.backend is not None:
-        os.environ["RANK"] = str(worker_args.rank)
-        os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
-        os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
-        os.environ["WORLD_SIZE"] = str(worker_args.world_size)
-        os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
-        os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
-
         backend = worker_args.backend
         if backend == "auto":
             backend = "nccl" if torch.cuda.is_available() else "gloo"
