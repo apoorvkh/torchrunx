@@ -398,6 +398,11 @@ class LaunchResult:
         raise TypeError(msg)
 
     def values(self, hostname: str) -> list[Any]:
+        """
+        Get worker return values for host ``hostname``.
+
+        :param hostname: The host to get return values from
+        """
         host_idx = self.hostnames.index(hostname)
         return self.return_values[host_idx]
 
