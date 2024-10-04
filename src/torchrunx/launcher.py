@@ -389,6 +389,11 @@ class LaunchResult:
         pass
 
     def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
+        """
+        Get all worker return values.
+
+        :param by: ``"hostname"``: Return a dictionary mapping hostname to local worker return values. ``"rank"``: Return a list of return values sorted by global worker rank.
+        """
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
         elif by == "rank":  # noqa: RET505
@@ -407,6 +412,11 @@ class LaunchResult:
         return self.return_values[host_idx]
 
     def value(self, rank: int) -> Any:
+        """
+        Get worker return value based on global rank.
+
+        :param rank: Global worker rank to get return value from
+        """
         if rank < 0:
             msg = f"Rank {rank} must be larger than 0"
             raise ValueError(msg)
