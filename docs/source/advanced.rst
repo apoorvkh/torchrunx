@@ -71,9 +71,6 @@ Custom logging classes can be subclassed from the :mod:`torchrunx.LogSpec` class
 .. autoclass:: torchrunx.DefaultLogSpec
     :members:
 
-.. 
-    TODO: example log structure
-
 Propagating Exceptions
 ----------------------
 

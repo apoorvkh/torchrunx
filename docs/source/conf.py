@@ -20,7 +20,12 @@ extensions = [
     'myst_parser',
     'sphinx_toolbox.sidebar_links',
     'sphinx_toolbox.github',
+    'sphinx.ext.autodoc.typehints',
+    #"sphinx_autodoc_typehints",
 ]
+
+autodoc_typehints = "both"
+#typehints_defaults = 'comma'
 
 github_username = 'apoorvkh'
 github_repository = 'torchrunx'

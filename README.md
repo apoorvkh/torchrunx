@@ -1,6 +1,7 @@
 # torchrunx 🔥
 
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/pyproject.toml)
+[![PyTorch Version](https://img.shields.io/badge/torch-%3E%3D2.0-orange)](https://github.com/pytorch/pytorch)
 [![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)](https://pypi.org/project/torchrunx/)
 ![Tests](https://img.shields.io/github/actions/workflow/status/apoorvkh/torchrunx/.github%2Fworkflows%2Fmain.yml)
 [![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
@@ -16,13 +17,11 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 pip install torchrunx
 ```
 
-Requires: Linux, Python >= 3.8.1, PyTorch >= 2.0
-
-Shared filesystem & SSH access if using multiple machines
+**Requires:** Linux. Shared filesystem & SSH access if using multiple machines.
 
 ## Minimal example
 
-Here's a simple example where we distribute `distributed_function` to two hosts (with 2 GPUs each):
+Here's a simple example where we distribute `train_model` to two hosts (with 2 GPUs each):
 
 ```python
 def train_model(model, dataset):
