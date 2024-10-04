@@ -20,6 +20,7 @@ extensions = [
     'myst_parser',
     'sphinx_toolbox.sidebar_links',
     'sphinx_toolbox.github',
+    "sphinx_autodoc_typehints",
 ]
 
 github_username = 'apoorvkh'
