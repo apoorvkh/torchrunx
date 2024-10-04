@@ -23,6 +23,7 @@ extensions = [
     "sphinx_autodoc_typehints",
 ]
 
+autodoc_typehints = "none"
 typehints_defaults = 'comma'
 
 github_username = 'apoorvkh'
