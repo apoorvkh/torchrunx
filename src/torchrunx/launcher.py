@@ -181,14 +181,10 @@ class Launcher:
         Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
 
         :param func: The distributed function to call on all workers
-        :type func: Callable
         :param func_args: Any positional arguments to be provided when calling ``func``, defaults to None
-        :type func_args: tuple[Any] | None
         :param func_kwargs: Any keyword arguments to be provided when calling ``func``, defaults to None
-        :type func_kwargs: dict[str, Any] | None
         :raises RuntimeError | Exception: May fail due to misconfiguration, or errors thrown by ``func``
         :return: A dictionary mapping worker ranks to their output
-        :rtype: LaunchResult
         """
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
@@ -380,7 +376,7 @@ class LaunchResult:
         """
         Get all worker return values by rank or hostname.
 
-        :param by: Whether to aggregate all return values by hostname, or just output all of them in order of rank, defaults to "hostname"
+        :param by: Whether to aggregate all return values by hostname, or just output all of them in order of rank, defaults to ``'hostname'``
         """
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
@@ -401,7 +397,7 @@ class LaunchResult:
 
     def value(self, rank: int) -> Any:
         """
-        Get worker return value based on global rank.
+        Get worker return value from global rank ``rank``.
 
         :param rank: Global worker rank to get return value from
         """
