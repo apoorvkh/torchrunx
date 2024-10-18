@@ -382,19 +382,18 @@ class LaunchResult:
 
     @overload
     def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
-        """
-        Get all worker return values by hostname.
-        """
         pass
 
     @overload
     def all(self, by: Literal["rank"]) -> list[Any]:
-        """
-        Get all worker return values by rank.
-        """
         pass
 
     def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
+        """
+        Get all worker return values by rank or hostname.
+
+        :param by: Whether to aggregate all return values by hostname, or just output all of them in order of rank, defaults to "hostname"
+        """
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
         elif by == "rank":  # noqa: RET505
