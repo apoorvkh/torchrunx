@@ -6,4 +6,7 @@ API
 .. autofunction:: torchrunx.launch(func: Callable, ...)
 
 .. autoclass:: torchrunx.LaunchResult
-  :members:
+  LaunchResult.all(by = "hostname")
+  LaunchResult.all(by = "rank")
+  LaunchResult.values
+  LaunchReslt.value 
