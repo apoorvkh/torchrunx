@@ -339,7 +339,6 @@ def launch(
         :param env_file: A file (like ``.env``) with additional environment variables to copy.
         :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
         :raises Exception: Propagates exceptions raised in worker processes
-        :return: Objects returned from every worker
     """  # noqa: E501
     return Launcher(
         hostnames=hostnames,
