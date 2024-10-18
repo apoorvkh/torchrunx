@@ -171,9 +171,6 @@ class Launcher:
     )
     extra_env_vars: tuple[str] = ()
     env_file: str | os.PathLike | None = None
-    """
-    Alias class for :mod:`torchrunx.launch`
-    """
 
     def run(  # noqa: C901, PLR0912
         self,
@@ -339,6 +336,9 @@ def launch(
         :param env_file: A file (like ``.env``) with additional environment variables to copy.
         :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
         :raises Exception: Propagates exceptions raised in worker processes
+
+        :ivar param1: The first parameter.
+        :vartype param1: int
     """  # noqa: E501
     return Launcher(
         hostnames=hostnames,
