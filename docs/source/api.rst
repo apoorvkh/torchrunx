@@ -6,7 +6,7 @@ API
 .. autofunction:: torchrunx.launch(func: Callable, ...)
 
 .. autoclass:: torchrunx.LaunchResult
-  LaunchResult.all(by = "hostname")
-  LaunchResult.all(by = "rank")
-  LaunchResult.values
-  LaunchReslt.value 
+  all(by = "hostname")
+  all(by = "rank")
+  values
+  value 
