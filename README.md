@@ -25,7 +25,7 @@ Here's a simple example where we distribute `train_model` to two hosts (with 2 G
 
 ```python
 def train_model(model, dataset):
-    trained_model = train(model, dataset)
+    trained_model = train(model, train_dataset)
 
     if int(os.environ["RANK"]) == 0:
         torch.save(learned_model, 'model.pt')
@@ -37,12 +37,12 @@ def train_model(model, dataset):
 ```python
 import torchrunx as trx
 
-model_path = trx.launch(
+learned_model_path = trx.launch(
     func=train_model,
-    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
+    func_kwargs={'model': my_model, 'train_dataset': mnist_train},
     hostnames=["localhost", "other_node"],
     workers_per_host=2
-)["localhost"][0]  # return from rank 0 (first worker on "localhost")
+).value(0)  # return from rank 0 (first worker on "localhost")
 ```
 
 ## Why should I use this?
