@@ -157,8 +157,9 @@ class Launcher:
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
+    timeout: int = 600
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
+    default_env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -168,8 +169,8 @@ class Launcher:
         "PYTORCH*",
         "NCCL*",
     )
+    extra_env_vars: tuple[str] = ()
     env_file: str | os.PathLike | None = None
-    timeout: int = 600
 
     def run(  # noqa: C901, PLR0912
         self,
@@ -177,19 +178,6 @@ class Launcher:
         func_args: tuple[Any] | None = None,
         func_kwargs: dict[str, Any] | None = None,
     ) -> LaunchResult:
-        """
-        Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
-
-        :param func: The distributed function to call on all workers
-        :type func: Callable
-        :param func_args: Any positional arguments to be provided when calling ``func``, defaults to None
-        :type func_args: tuple[Any] | None
-        :param func_kwargs: Any keyword arguments to be provided when calling ``func``, defaults to None
-        :type func_kwargs: dict[str, Any] | None
-        :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
-        :return: A dictionary mapping worker ranks to their output
-        :rtype: LaunchResult
-        """
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
@@ -235,7 +223,7 @@ class Launcher:
                         logger_port=log_receiver.port,
                         world_size=world_size,
                         rank=i + 1,
-                        env_vars=self.env_vars,
+                        env_vars=(self.default_env_vars + self.extra_env_vars),
                         env_file=self.env_file,
                     ),
                     hostname=hostname,
@@ -316,8 +304,9 @@ def launch(
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
+    timeout: int = 600,
     log_handlers: list[Handler] | Literal["auto"] | None = "auto",
-    env_vars: tuple[str] = (  # pyright: ignore [reportArgumentType]
+    default_env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -327,47 +316,38 @@ def launch(
         "PYTORCH*",
         "NCCL*",
     ),
+    extra_env_vars: tuple[str] = (),
     env_file: str | os.PathLike | None = None,
-    timeout: int = 600,
 ) -> LaunchResult:
     """
     Launch a distributed PyTorch function on the specified nodes.
 
-    :param func: The distributed function to call on all workers
-    :type func: Callable
-    :param func_args: Any positional arguments to be provided when calling ``func``, defaults to None
-    :type func_args: tuple[Any] | None, optional
-    :param func_kwargs: Any keyword arguments to be provided when calling ``func``, defaults to None
-    :type func_kwargs: dict[str, Any] | None, optional
-    :param hostnames: A list of node hostnames to start workers on, or a string indicating whether to use slurm or automatically decide the hosts, defaults to "auto"
-    :type hostnames: list[str] | Literal["auto", "slurm"], optional
-    :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to auto
-    :type workers_per_host: int | list[int] | Literal["auto", "slurm"] | None, optional
-    :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
-    :type ssh_config_file: str | os.PathLike | None, optional
-    :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_. If ``None``, doesn't initialize a process group for you, defaults to "auto"
-    :type backend: Literal['nccl', 'gloo', 'mpi', 'ucc', 'auto'] | None, optional
-    :param log_handlers: A list of handlers to manage agent and worker logs, or ``"auto"`` to use an automatic basic logging scheme, defaults to "auto"
-    :type log_handlers: list[Handler] | Literal["auto"] | None, optional
-    :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ("PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*")
-    :type env_vars: Tuple[str], optional
-    :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
-    :type env_file: str | os.PathLike | None, optional
-    :param timeout: Worker process group timeout, defaults to 600
-    :type timeout: int, optional
-    :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
-    :return: A dictionary mapping worker ranks to their output
-    :rtype: LaunchResult
+    :param func:
+    :param func_args:
+    :param func_kwargs:
+    :param hostnames: Nodes to launch the function on. Default (`"auto"`) infers from a SLURM environment or runs on localhost.
+    :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
+    :param ssh_config_file: For connecting to nodes, defaults to `~/.ssh/config` or `/etc/ssh/ssh_config`.
+    :param backend: A `torch.distributed.Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ string. Default uses NCCL if GPUs available, else GLOO. `None` does not initialize a process group.
+    :param timeout: Worker process group timeout (seconds).
+    :param log_handlers: A list of handlers to manage agent and worker logs. Default (`"auto"`) uses an automatic basic logging scheme.
+    :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
+    :param extra_env_vars: Additional, user-specified variables to copy.
+    :param env_file: A file (like `.env`) with additional environment variables to copy.
+    :raises RuntimeError: May fail if `torch.distributed` not available or communication timeout between nodes
+    :raises Exception: Propagates exceptions raised in worker processes
+    :return: Objects returned from every worker
     """  # noqa: E501
     return Launcher(
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        log_handlers=log_handlers,
-        env_vars=env_vars,
-        env_file=env_file,
         timeout=timeout,
+        log_handlers=log_handlers,
+        default_env_vars=default_env_vars,
+        extra_env_vars=extra_env_vars,
+        env_file=env_file,
     ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
 
 
