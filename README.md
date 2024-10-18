@@ -24,7 +24,7 @@ pip install torchrunx
 Here's a simple example where we distribute `train_model` to two hosts (with 2 GPUs each):
 
 ```python
-def train_model(model, dataset):
+def train_model(model, train_dataset):
     trained_model = train(model, train_dataset)
 
     if int(os.environ["RANK"]) == 0:
@@ -78,7 +78,7 @@ Why not?
 We could also launch multiple functions, on different nodes:
 
 ```python
-def train_model(model, dataset):
+def train_model(model, train_dataset):
     trained_model = train(model, train_dataset)
 
     if int(os.environ["RANK"]) == 0:
