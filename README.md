@@ -75,7 +75,7 @@ Why not?
 
 ## More complicated example
 
-We could also launch multiple functions, with different GPUs:
+We could also launch multiple functions, on different nodes:
 
 ```python
 def train_model(model, dataset):
@@ -99,9 +99,9 @@ import torchrunx as trx
 learned_model_path = trx.launch(
     func=train_model,
     func_kwargs={'model': my_model, 'train_dataset': mnist_train},
-    hostnames=["localhost", "other_node"],
+    hostnames=["beefy-node"],
     workers_per_host=2
-).value(0)  # return from rank 0 (first worker on "localhost")
+).value(0)  # return from rank 0 (first worker on "beefy-node")
 
 
 
