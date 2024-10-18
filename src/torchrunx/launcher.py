@@ -334,16 +334,16 @@ def launch(
     Launch a distributed PyTorch function on the specified nodes.
 
     :param func: The distributed function to call on all workers
-    :param func_args: Any positional arguments to be provided when calling ``func``, defaults to None
-    :param func_kwargs: Any keyword arguments to be provided when calling ``func``, defaults to None
-    :param hostnames: A list of node hostnames to start workers on, or a string indicating whether to use slurm or automatically decide the hosts, defaults to "auto"
-    :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to auto
-    :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
-    :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_. If ``None``, doesn't initialize a process group for you, defaults to "auto"
-    :param log_handlers: A list of handlers to manage agent and worker logs, or ``"auto"`` to use an automatic basic logging scheme, defaults to "auto"
-    :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ("PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*")
-    :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
-    :param timeout: Worker process group timeout, defaults to 600
+    :param func_args: Any positional arguments to be provided when calling ``func``, defaults to ``None``
+    :param func_kwargs: Any keyword arguments to be provided when calling ``func``, defaults to ``None``
+    :param hostnames: A list of node hostnames to start workers on, or a string indicating whether to use slurm or automatically decide the hosts, defaults to ``'auto'``
+    :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to ``'auto'``
+    :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to ``None``
+    :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_. If ``None``, doesn't initialize a process group for you, defaults to ``'auto'``
+    :param log_handlers: A list of handlers to manage agent and worker logs, or ``'auto'`` to use an automatic basic logging scheme, defaults to ``'auto'``
+    :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ``('PATH', 'LD_LIBRARY', 'LIBRARY_PATH', 'PYTHON*', 'CUDA*', 'TORCH*', 'PYTORCH*', 'NCCL*')``
+    :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to ``None``
+    :param timeout: Worker process group timeout, defaults to ``600``
     :raises RuntimeError | Exception: May fail due to misconfiguration, or errors thrown by ``func``
     :return: A dictionary mapping worker ranks to their output
     """  # noqa: E501
