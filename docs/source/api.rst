@@ -1,8 +1,7 @@
 API
 =============
 
-..
-    TODO: examples, environmental variables available to workers (e.g. RANK, LOCAL_RANK)
+.. autofunction:: torchrunx.launch(func: Callable, ...)
 
-.. automodule:: torchrunx
-    :members: launch, slurm_hosts, slurm_workers
+.. autoclass:: torchrunx.LaunchResult
+  :members:

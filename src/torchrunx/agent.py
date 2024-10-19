@@ -73,7 +73,7 @@ def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerExce
     os.environ["WORLD_SIZE"] = str(worker_args.world_size)
     os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
     os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
-    
+
     if worker_args.backend is not None:
         backend = worker_args.backend
         if backend == "auto":

@@ -1,6 +1,7 @@
 # torchrunx 🔥
 
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/pyproject.toml)
+[![PyTorch Version](https://img.shields.io/badge/torch-%3E%3D2.0-orange)](https://github.com/pytorch/pytorch)
 [![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)](https://pypi.org/project/torchrunx/)
 ![Tests](https://img.shields.io/github/actions/workflow/status/apoorvkh/torchrunx/.github%2Fworkflows%2Fmain.yml)
 [![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
@@ -16,102 +17,78 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 pip install torchrunx
 ```
 
-Requires: Linux, Python >= 3.8.1, PyTorch >= 2.0
+**Requires:** Linux (with shared filesystem & SSH access if using multiple machines)
 
-Shared filesystem & SSH access if using multiple machines
+## Demo
 
-## Minimal example
+Here's a simple example where we "train" a model on two nodes (with 2 GPUs each).
 
-Here's a simple example where we distribute `distributed_function` to two hosts (with 2 GPUs each):
+<details>
+  <summary>Training code</summary>
 
-```python
-def train_model(model, dataset):
-    trained_model = train(model, dataset)
+  ```python
+  import os
+  import torch
 
-    if int(os.environ["RANK"]) == 0:
-        torch.save(learned_model, 'model.pt')
-        return 'model.pt'
+  def train():
+      rank = int(os.environ['RANK'])
+      local_rank = int(os.environ['LOCAL_RANK'])
 
-    return None
-```
+      model = torch.nn.Linear(10, 10).to(local_rank)
+      ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+      optimizer = torch.optim.AdamW(ddp_model.parameters())
+
+      optimizer.zero_grad()
+      outputs = ddp_model(torch.randn(5, 10))
+      labels = torch.randn(5, 10).to(local_rank)
+      torch.nn.functional.mse_loss(outputs, labels).backward()
+      optimizer.step()
+
+      if rank == 0:
+          return model
+  ```
+
+  You could also use `transformers.Trainer` (or similar) to automatically handle all the multi-GPU / DDP code above.
+</details>
+
 
 ```python
 import torchrunx as trx
 
-model_path = trx.launch(
-    func=train_model,
-    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
-    hostnames=["localhost", "other_node"],
-    workers_per_host=2
-)["localhost"][0]  # return from rank 0 (first worker on "localhost")
+if __name__ == "__main__":
+    trained_model = trx.launch(
+        func=train,
+        hostnames=["localhost", "other_node"],
+        workers_per_host=2  # num. GPUs
+    ).value(rank=0)  # get returned object
+
+    torch.save(trained_model.state_dict(), "model.pth")
 ```
+
+### [Full API](https://torchrunx.readthedocs.io/stable/api.html)
+### [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
 
 ## Why should I use this?
 
-[`torchrun`](https://pytorch.org/docs/stable/elastic/run.html) is a hammer. `torchrunx` is a chisel.
+Whether you have 1 GPU, 8 GPUs, or 8 machines.
 
-Whether you have 1 GPU, 8 GPUs, or 8 machines:
+__Features:__
 
-Convenience:
-
-- If you don't want to set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
-- If you want to run `python myscript.py` instead of `torchrun myscript.py`
-- If you don't want to manually SSH and run `torchrun --master-ip --master-port ...` on every machine (and if you don't want to babysit these machines for hanging failures)
-
-Robustness:
-
-- If you want to run a complex, _modular_ workflow in one script
-  - no worries about memory leaks or OS failures
-  - don't parallelize your entire script: just the functions you want
-
-Features:
-
-- Our launch utility is super _Pythonic_
-- If you want to run distributed PyTorch functions from Python Notebooks.
+- Our [`launch()`](https://torchrunx.readthedocs.io/stable/api.html#torchrunx.launch) utility is super _Pythonic_
+    - Return objects from your workers
+    - Run `python script.py` instead of `torchrun script.py`
+    - Launch multi-node functions, even from Python Notebooks
+- Fine-grained control over logging, environment variables, exception handling, etc.
 - Automatic integration with SLURM
 
-Why not?
+__Robustness:__
 
-- We don't support fault tolerance via torch elastic. Probably only useful if you are using 1000 GPUs. Maybe someone can make a PR.
+- If you want to run a complex, _modular_ workflow in __one__ script
+  - don't parallelize your entire script: just the functions you want!
+  - no worries about memory leaks or OS failures
 
-## More complicated example
+__Convenience:__
 
-We could also launch multiple functions, with different GPUs:
-
-```python
-def train_model(model, dataset):
-    trained_model = train(model, dataset)
-
-    if int(os.environ["RANK"]) == 0:
-        torch.save(learned_model, 'model.pt')
-        return 'model.pt'
-
-    return None
-
-def test_model(model_path, test_dataset):
-    model = torch.load(model_path)
-    accuracy = inference(model, test_dataset)
-    return accuracy
-```
-
-```python
-import torchrunx as trx
-
-model_path = trx.launch(
-    func=train_model,
-    func_kwargs={'model': my_model, 'training_dataset': mnist_train},
-    hostnames=["localhost", "other_node"],
-    workers_per_host=2
-)["localhost"][0]  # return from rank 0 (first worker on "localhost")
-
-
-
-accuracy = trx.launch(
-    func=test_model,
-    func_kwargs={'model': learned_model, 'test_dataset': mnist_test},
-    hostnames=["localhost"],
-    workers_per_host=1
-)["localhost"][0]
-
-print(f'Accuracy: {accuracy}')
-```
+- If you don't want to:
+  - set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
+  - manually SSH into every machine and `torchrun --master-ip --master-port ...`, babysit failed processes, etc.

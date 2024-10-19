@@ -1,6 +1,33 @@
 Advanced Usage
 ==============
 
+Multiple functions in one script
+--------------------------------
+
+We could also launch multiple functions (e.g. train on many GPUs, test on one GPU):
+
+.. code-block:: python
+
+    import torchrunx as trx
+
+    trained_model = trx.launch(
+        func=train,
+        hostnames=["node1", "node2"],
+        workers_per_host=8
+    ).value(rank=0)
+
+    accuracy = trx.launch(
+        func=test,
+        func_kwargs={'model': model},
+        hostnames=["localhost"],
+        workers_per_host=1
+    ).value(rank=0)
+
+    print(f'Accuracy: {accuracy}')
+
+``trx.launch()`` is self-cleaning: all processes are terminated (and the used memory is completely released) after each invocation.
+
+
 Environment Detection
 ---------------------
 
@@ -61,18 +88,9 @@ For example, the `python ... --help` command will then result in:
 Custom Logging
 --------------
 
-Logs are generated at the worker and agent level, and are specified to :mod:`torchrunx.launch` via the ``log_spec`` argument. By default, a :mod:`torchrunx.DefaultLogSpec` is instantiated, causing logs at the worker and agent levels to be logged to files under ``'./logs'``, and the rank 0 worker's output streams are streamed to the launcher ``stdout``. Logs are prefixed with a timestamp by default. Agent logs have the format ``{timestamp}-{agent hostname}.log`` and workers have the format ``{timestamp}-{agent hostname}[{worker local rank}].log``.
+Logs are generated at the worker and agent level, and are specified to :mod:`torchrunx.launch` via the ``log_spec`` argument. By default, a is instantiated, causing logs at the worker and agent levels to be logged to files under ``'./logs'``, and the rank 0 worker's output streams are streamed to the launcher ``stdout``. Logs are prefixed with a timestamp by default. Agent logs have the format ``{timestamp}-{agent hostname}.log`` and workers have the format ``{timestamp}-{agent hostname}[{worker local rank}].log``.
 
-Custom logging classes can be subclassed from the :mod:`torchrunx.LogSpec` class. Any subclass must have a ``get_map`` method returning a dictionary mapping logger names to lists of :mod:`logging.Handler` objects, in order to be passed to :mod:`torchrunx.launch`. The logger names are of the format ``{agent hostname}`` for agents and ``{agent hostname}[{worker local rank}]`` for workers. The :mod:`torchrunx.DefaultLogSpec` maps all the loggers to :mod:`logging.Filehandler` object pointing to the files mentioned in the previous paragraph. It additionally maps the global rank 0 worker to a :mod:`logging.StreamHandler`, which writes logs the launcher's ``stdout`` stream.
-
-.. autoclass:: torchrunx.LogSpec
-    :members:
-
-.. autoclass:: torchrunx.DefaultLogSpec
-    :members:
-
-.. 
-    TODO: example log structure
+Custom logging classes can be subclassed from the class. Any subclass must have a ``get_map`` method returning a dictionary mapping logger names to lists of :mod:`logging.Handler` objects, in order to be passed to :mod:`torchrunx.launch`. The logger names are of the format ``{agent hostname}`` for agents and ``{agent hostname}[{worker local rank}]`` for workers. The maps all the loggers to :mod:`logging.Filehandler` object pointing to the files mentioned in the previous paragraph. It additionally maps the global rank 0 worker to a :mod:`logging.StreamHandler`, which writes logs the launcher's ``stdout`` stream.
 
 Propagating Exceptions
 ----------------------
