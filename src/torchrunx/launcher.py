@@ -333,7 +333,7 @@ def launch(
     :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
     :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
     :param extra_env_vars: Additional, user-specified variables to copy.
-    :attribute env_file: A file (like ``.env``) with additional environment variables to copy.
+    :param env_file: A file (like ``.env``) with additional environment variables to copy.
     :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
     :raises Exception: Propagates exceptions raised in worker processes
     """  # noqa: E501
