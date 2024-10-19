@@ -19,6 +19,52 @@ pip install torchrunx
 
 **Requires:** Linux. Shared filesystem & SSH access if using multiple machines.
 
+## Minimal example
+
+Here's a simple example where we "train" a model on two nodes (with 2 GPUs each). You can also use `transformers.Trainer` (or similar) which handles all the multi-GPU (DDP) code for you.
+
+<details>
+  <summary>Training code</summary>
+
+  ```python
+  import os
+  import torch
+
+  def train():
+      rank = int(os.environ['RANK'])
+      local_rank = int(os.environ['LOCAL_RANK'])
+
+      model = torch.nn.Linear(10, 10).to(local_rank)
+      ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+
+      optimizer = torch.optim.AdamW(ddp_model.parameters())
+      optimizer.zero_grad()
+      outputs = ddp_model(torch.randn(5, 10))
+      labels = torch.randn(5, 10).to(local_rank)
+      torch.nn.functional.mse_loss(outputs, labels).backward()
+      optimizer.step()
+
+      if rank == 0:
+          return model
+  ```
+</details>
+
+
+```python
+import torchrunx as trx
+
+if __name__ == "__main__":
+    trained_model = trx.launch(
+        func=train,
+        hostnames=["localhost", "other_node"],
+        workers_per_host=2
+    ).value(rank=0)
+
+    torch.save(trained_model.state_dict(), "model.pth")
+```
+
+## [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
+
 ## Why should I use this?
 
 Whether you have 1 GPU, 8 GPUs, or 8 machines:
@@ -42,42 +88,3 @@ Features:
     - Launch functions from Python Notebooks
 - Fine-grained control over logging, environment variables, exception handling, etc.
 - Automatic integration with SLURM
-
-## Minimal example
-
-Here's a simple example where we "train" a model on two nodes (with 2 GPUs each). You can also use `transformers.Trainer` (or similar) which handles all the multi-GPU (DDP) code for you.
-
-```python
-import os
-import torch
-
-def train():
-    rank = int(os.environ['RANK'])
-    local_rank = int(os.environ['LOCAL_RANK'])
-
-    model = torch.nn.Linear(10, 10).to(local_rank)
-    ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
-
-    optimizer = torch.optim.AdamW(ddp_model.parameters())
-    optimizer.zero_grad()
-    outputs = ddp_model(torch.randn(5, 10))
-    labels = torch.randn(5, 10).to(local_rank)
-    torch.nn.functional.mse_loss(outputs, labels).backward()
-    optimizer.step()
-
-    if rank == 0:
-        return model
-```
-
-```python
-import torchrunx as trx
-
-if __name__ == "__main__":
-    trained_model = trx.launch(
-        func=train,
-        hostnames=["localhost", "other_node"],
-        workers_per_host=2
-    ).value(rank=0)
-
-    torch.save(trained_model.state_dict(), "model.pth")
-```
