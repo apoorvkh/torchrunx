@@ -16,7 +16,7 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 pip install torchrunx
 ```
 
-Requires: Linux, Python >= 3.8.1, PyTorch >= 2.0
+Requires: Linux, Python >= 3.9, PyTorch >= 2.0
 
 Shared filesystem & SSH access if using multiple machines
 
