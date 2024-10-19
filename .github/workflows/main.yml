@@ -67,7 +67,7 @@ jobs:
     strategy: 
       fail-fast: false
       matrix:
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"] 
+        python: ["3.9", "3.10", "3.11", "3.12"] 
         pytorch: ${{fromJson(needs.get-pytorch-versions.outputs.versions)}}
 
     steps:
@@ -75,7 +75,7 @@ jobs:
 
       - name: Inject (python / pytorch) test deps into pixi.toml / pyproject.toml
         run: |
-          sed -i 's/python = "3.8.1"/python = "${{ matrix.python }}.*"/' pixi.toml
+          sed -i 's/python = "3.9"/python = "${{ matrix.python }}.*"/' pixi.toml
           sed -i 's/torch>=2.0.0/torch~=${{ matrix.pytorch }}/' pyproject.toml
 
       - uses: prefix-dev/setup-pixi@v0.8.1

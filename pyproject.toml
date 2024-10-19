@@ -14,13 +14,12 @@ readme = "README.md"
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.8.1"
+requires-python = ">=3.9"
 dependencies = [
     "cloudpickle>=3.0.0",
     "fabric>=3.0.0",
@@ -62,5 +61,5 @@ ignore = [
 
 [tool.pyright]
 include = ["src", "tests"]
-pythonVersion = "3.8"
+pythonVersion = "3.9"
 pythonPlatform = "Linux"
