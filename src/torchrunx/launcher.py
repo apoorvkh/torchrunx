@@ -82,7 +82,7 @@ def build_launch_command(
     logger_port: int,
     world_size: int,
     rank: int,
-    env_vars: list[str] | tuple[str],
+    env_vars: tuple[str, ...],
     env_file: str | os.PathLike | None,
 ) -> str:
     # shlex.quote prevents shell injection here (resolves S602 in execute_command)
@@ -157,8 +157,9 @@ class Launcher:
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
+    timeout: int = 600
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
+    default_env_vars: tuple[str, ...] = (
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -168,8 +169,8 @@ class Launcher:
         "PYTORCH*",
         "NCCL*",
     )
+    extra_env_vars: tuple[str, ...] = ()
     env_file: str | os.PathLike | None = None
-    timeout: int = 600
 
     def run(  # noqa: C901, PLR0912
         self,
@@ -177,19 +178,6 @@ class Launcher:
         func_args: tuple[Any] | None = None,
         func_kwargs: dict[str, Any] | None = None,
     ) -> LaunchResult:
-        """
-        Launch a distributed PyTorch function on the specified nodes. See :mod:`torchrunx.launch`
-
-        :param func: The distributed function to call on all workers
-        :type func: Callable
-        :param func_args: Any positional arguments to be provided when calling ``func``
-        :type func_args: tuple[Any]
-        :param func_kwargs: Any keyword arguments to be provided when calling ``func``
-        :type func_kwargs: dict[str, Any]
-        :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
-        :return: A dictionary mapping worker ranks to their output
-        :rtype: dict[int, Any]
-        """
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
@@ -235,7 +223,7 @@ class Launcher:
                         logger_port=log_receiver.port,
                         world_size=world_size,
                         rank=i + 1,
-                        env_vars=self.env_vars,
+                        env_vars=(self.default_env_vars + self.extra_env_vars),
                         env_file=self.env_file,
                     ),
                     hostname=hostname,
@@ -316,8 +304,9 @@ def launch(
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
+    timeout: int = 600,
     log_handlers: list[Handler] | Literal["auto"] | None = "auto",
-    env_vars: tuple[str] = (  # pyright: ignore [reportArgumentType]
+    default_env_vars: tuple[str, ...] = (
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -327,49 +316,37 @@ def launch(
         "PYTORCH*",
         "NCCL*",
     ),
+    extra_env_vars: tuple[str, ...] = (),
     env_file: str | os.PathLike | None = None,
-    timeout: int = 600,
 ) -> LaunchResult:
     """
     Launch a distributed PyTorch function on the specified nodes.
 
-    :param func: The distributed function to call on all workers
-    :type func: Callable
-    :param func_args: Any positional arguments to be provided when calling ``func``
-    :type func_args: tuple[Any]
-    :param func_kwargs: Any keyword arguments to be provided when calling ``func``
-    :type func_kwargs: dict[str, Any]
-    :param auto: Automatically determine allocation sizes, supports Slurm allocation. ``hostnames`` and ``workers_per_host`` are automatically assigned if they're set to ``None``, defaults to None
-    :type auto: bool, optional
-    :param hostnames: A list of node hostnames to start workers on, defaults to ["localhost"]
-    :type hostnames: list[str] | Literal["auto", "slurm"] | None, optional
-    :param workers_per_host: The number of workers per node. Providing an ``int`` implies all nodes should have ``workers_per_host`` workers, meanwhile providing a list causes node ``i`` to have ``worker_per_host[i]`` workers, defaults to 1
-    :type workers_per_host: int | list[int] | Literal["auto", "slurm"] | None, optional
-    :param ssh_config_file: An SSH configuration file to use when connecting to nodes, defaults to None
-    :type ssh_config_file: str | os.PathLike | None, optional
-    :param backend: A ``torch.distributed`` `backend string <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_, defaults to None
-    :type backend: Literal['mpi', 'gloo', 'nccl', 'ucc', None], optional
-    :param log_handlers: A list of handlers to manage agent and worker logs, defaults to []
-    :type log_handlers: list[Handler] | Literal["auto"], optional
-    :param env_vars: A list of environmental variables to be copied from the launcher environment to workers. Allows for bash pattern matching syntax, defaults to ["PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*", "PYTORCH*", "NCCL*"]
-    :type env_vars: list[str], optional
-    :param env_file: An additional environment file that will be sourced prior to executing ``func``, defaults to None
-    :type env_file: str | os.PathLike | None, optional
-    :param timeout: Worker process group timeout, defaults to 600
-    :type timeout: int, optional
-    :raises RuntimeError: May fail due to misconfiguration, or errors thrown by ``func``
-    :return: A dictionary mapping worker ranks to their output
-    :rtype: dict[int, Any]
+    :param func:
+    :param func_args:
+    :param func_kwargs:
+    :param hostnames: Nodes to launch the function on. Default infers from a SLURM environment or runs on localhost.
+    :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
+    :param ssh_config_file: An SSH configuration file for connecting to nodes, by default loads ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+    :param backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ to initialize worker process group with. Default uses NCCL (if GPUs available) or GLOO. Disabled by ``None``.
+    :param timeout: Worker process group timeout (seconds).
+    :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
+    :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
+    :param extra_env_vars: Additional, user-specified variables to copy.
+    :param env_file: A file (like ``.env``) with additional environment variables to copy.
+    :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
+    :raises Exception: Propagates exceptions raised in worker processes
     """  # noqa: E501
     return Launcher(
         hostnames=hostnames,
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        log_handlers=log_handlers,
-        env_vars=env_vars,
-        env_file=env_file,
         timeout=timeout,
+        log_handlers=log_handlers,
+        default_env_vars=default_env_vars,
+        extra_env_vars=extra_env_vars,
+        env_file=env_file,
     ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
 
 
@@ -391,6 +368,12 @@ class LaunchResult:
         pass
 
     def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
+        """
+        Get all worker return values by rank or hostname.
+
+        :param by: Whether to aggregate all return values by hostname, or just output all of them \
+                   in order of rank, defaults to ``'hostname'``
+        """
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
         elif by == "rank":  # noqa: RET505
@@ -400,10 +383,20 @@ class LaunchResult:
         raise TypeError(msg)
 
     def values(self, hostname: str) -> list[Any]:
+        """
+        Get worker return values for host ``hostname``.
+
+        :param hostname: The host to get return values from
+        """
         host_idx = self.hostnames.index(hostname)
         return self.return_values[host_idx]
 
     def value(self, rank: int) -> Any:
+        """
+        Get worker return value from global rank ``rank``.
+
+        :param rank: Global worker rank to get return value from
+        """
         if rank < 0:
             msg = f"Rank {rank} must be larger than 0"
             raise ValueError(msg)
