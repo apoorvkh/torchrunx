@@ -351,6 +351,9 @@ def launch(
 
 
 class LaunchResult:
+    """
+    A class that holds worker return values, created by :mod:``torchrunx.launch`` or :mod:``torchrunx.Launcher.run``.
+    """
     def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
         self.hostnames: list[str] = hostnames
         self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
@@ -370,9 +373,7 @@ class LaunchResult:
     def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
         """
         Get all worker return values by rank or hostname.
-
-        :param by: Whether to aggregate all return values by hostname, or just output all of them \
-                   in order of rank, defaults to ``'hostname'``
+        Returns a list of return values ordered by global rank, or a dictionary mapping hostnames to lists of return values ordered by local rank.
         """
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
@@ -385,8 +386,6 @@ class LaunchResult:
     def values(self, hostname: str) -> list[Any]:
         """
         Get worker return values for host ``hostname``.
-
-        :param hostname: The host to get return values from
         """
         host_idx = self.hostnames.index(hostname)
         return self.return_values[host_idx]
@@ -394,8 +393,6 @@ class LaunchResult:
     def value(self, rank: int) -> Any:
         """
         Get worker return value from global rank ``rank``.
-
-        :param rank: Global worker rank to get return value from
         """
         if rank < 0:
             msg = f"Rank {rank} must be larger than 0"
