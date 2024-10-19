@@ -4,44 +4,28 @@ Advanced Usage
 Multiple functions in one script
 --------------------------------
 
-We could also launch multiple functions, on different nodes:
-
-.. code-block:: python
-
-    def train_model(model, train_dataset):
-        trained_model = train(model, train_dataset)
-
-        if int(os.environ["RANK"]) == 0:
-            torch.save(learned_model, 'model.pt')
-            return 'model.pt'
-
-        return None
-
-    def test_model(model_path, test_dataset):
-        model = torch.load(model_path)
-        accuracy = inference(model, test_dataset)
-        return accuracy
+We could also launch multiple functions (e.g. train on many GPUs, test on one GPU):
 
 .. code-block:: python
 
     import torchrunx as trx
 
-    learned_model_path = trx.launch(
-        func=train_model,
-        func_kwargs={'model': my_model, 'train_dataset': mnist_train},
-        hostnames=["beefy-node"],
-        workers_per_host=2
-    ).value(0)  # return from rank 0
+    trained_model = trx.launch(
+        func=train,
+        hostnames=["node1", "node2"],
+        workers_per_host=8
+    ).value(rank=0)
 
     accuracy = trx.launch(
-        func=test_model,
-        func_kwargs={'model_path': learned_model_path, 'test_dataset': mnist_test},
+        func=test,
+        func_kwargs={'model': model},
         hostnames=["localhost"],
         workers_per_host=1
-    ).value(0)
+    ).value(rank=0)
 
     print(f'Accuracy: {accuracy}')
 
+``trx.launch()`` is self-cleaning: all processes are terminated (and the used memory is completely released) after each invocation.
 
 
 Environment Detection

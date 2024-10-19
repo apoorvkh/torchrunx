@@ -72,6 +72,8 @@ if __name__ == "__main__":
 
 Whether you have 1 GPU, 8 GPUs, or 8 machines.
 
+__Features:__
+
 - Our [`launch()`](https://torchrunx.readthedocs.io/stable/api.html#torchrunx.launch) utility is super _Pythonic_
     - Return objects from your workers
     - Run `python script.py` instead of `torchrun script.py`
@@ -79,13 +81,13 @@ Whether you have 1 GPU, 8 GPUs, or 8 machines.
 - Fine-grained control over logging, environment variables, exception handling, etc.
 - Automatic integration with SLURM
 
-Robustness:
+__Robustness:__
 
 - If you want to run a complex, _modular_ workflow in __one__ script
   - don't parallelize your entire script: just the functions you want!
   - no worries about memory leaks or OS failures
 
-Convenience:
+__Convenience:__
 
 - If you don't want to:
   - set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
