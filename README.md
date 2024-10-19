@@ -19,43 +19,14 @@ pip install torchrunx
 
 **Requires:** Linux. Shared filesystem & SSH access if using multiple machines.
 
-## Minimal example
-
-Here's a simple example where we distribute `train_model` to two hosts (with 2 GPUs each):
-
-```python
-def train_model(model, train_dataset):
-    trained_model = train(model, train_dataset)
-
-    if int(os.environ["RANK"]) == 0:
-        torch.save(learned_model, 'model.pt')
-        return 'model.pt'
-
-    return None
-```
-
-```python
-import torchrunx as trx
-
-learned_model_path = trx.launch(
-    func=train_model,
-    func_kwargs={'model': my_model, 'train_dataset': mnist_train},
-    hostnames=["localhost", "other_node"],
-    workers_per_host=2
-).value(0)  # return from rank 0 (first worker on "localhost")
-```
-
 ## Why should I use this?
-
-[`torchrun`](https://pytorch.org/docs/stable/elastic/run.html) is a hammer. `torchrunx` is a chisel.
 
 Whether you have 1 GPU, 8 GPUs, or 8 machines:
 
 Convenience:
 
 - If you don't want to set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
-- If you want to run `python myscript.py` instead of `torchrun myscript.py`
-- If you don't want to manually SSH and run `torchrun --master-ip --master-port ...` on every machine (and if you don't want to babysit these machines for hanging failures)
+- If you don't want to manually SSH into every machine (and `torchrun --master-ip --master-port ...` and babysit hanging failures)
 
 Robustness:
 
@@ -66,9 +37,47 @@ Robustness:
 Features:
 
 - Our launch utility is super _Pythonic_
-- If you want to run distributed PyTorch functions from Python Notebooks.
+    - Return objects from your distributed functions
+    - Run `python script.py` instead of `torchrun script.py`
+    - Launch functions from Python Notebooks
+- Fine-grained control over logging, environment variables, exception handling, etc.
 - Automatic integration with SLURM
 
-Why not?
+## Minimal example
 
-- We don't support fault tolerance via torch elastic. Probably only useful if you are using 1000 GPUs. Maybe someone can make a PR.
+Here's a simple example where we "train" a model on two nodes (with 2 GPUs each). You can also use `transformers.Trainer` (or similar) which handles all the multi-GPU (DDP) code for you.
+
+```python
+import os
+import torch
+
+def train():
+    rank = int(os.environ['RANK'])
+    local_rank = int(os.environ['LOCAL_RANK'])
+
+    model = torch.nn.Linear(10, 10).to(local_rank)
+    ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+
+    optimizer = torch.optim.AdamW(ddp_model.parameters())
+    optimizer.zero_grad()
+    outputs = ddp_model(torch.randn(5, 10))
+    labels = torch.randn(5, 10).to(local_rank)
+    torch.nn.functional.mse_loss(outputs, labels).backward()
+    optimizer.step()
+
+    if rank == 0:
+        return model
+```
+
+```python
+import torchrunx as trx
+
+if __name__ == "__main__":
+    trained_model = trx.launch(
+        func=train,
+        hostnames=["localhost", "other_node"],
+        workers_per_host=2
+    ).value(rank=0)
+
+    torch.save(trained_model.state_dict(), "model.pth")
+```

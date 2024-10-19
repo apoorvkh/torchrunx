@@ -320,25 +320,22 @@ def launch(
     env_file: str | os.PathLike | None = None,
 ) -> LaunchResult:
     """
-        Launch a distributed PyTorch function on the specified nodes.
+    Launch a distributed PyTorch function on the specified nodes.
 
-        :param func:
-        :param func_args:
-        :param func_kwargs:
-        :param hostnames: Nodes to launch the function on. Default infers from a SLURM environment or runs on localhost.
-        :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
-        :param ssh_config_file: An SSH configuration file for connecting to nodes, by default loads ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
-        :param backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ to initialize worker process group with. Default uses NCCL (if GPUs available) or GLOO. Disabled by ``None``.
-        :param timeout: Worker process group timeout (seconds).
-        :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
-        :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
-        :param extra_env_vars: Additional, user-specified variables to copy.
-        :param env_file: A file (like ``.env``) with additional environment variables to copy.
-        :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
-        :raises Exception: Propagates exceptions raised in worker processes
-
-        :ivar param1: The first parameter.
-        :vartype param1: int
+    :param func:
+    :param func_args:
+    :param func_kwargs:
+    :param hostnames: Nodes to launch the function on. Default infers from a SLURM environment or runs on localhost.
+    :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
+    :param ssh_config_file: An SSH configuration file for connecting to nodes, by default loads ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+    :param backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ to initialize worker process group with. Default uses NCCL (if GPUs available) or GLOO. Disabled by ``None``.
+    :param timeout: Worker process group timeout (seconds).
+    :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
+    :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
+    :param extra_env_vars: Additional, user-specified variables to copy.
+    :param env_file: A file (like ``.env``) with additional environment variables to copy.
+    :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
+    :raises Exception: Propagates exceptions raised in worker processes
     """  # noqa: E501
     return Launcher(
         hostnames=hostnames,
