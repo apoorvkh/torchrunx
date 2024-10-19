@@ -17,14 +17,16 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 pip install torchrunx
 ```
 
-**Requires:** Linux. Shared filesystem & SSH access if using multiple machines.
+**Requires:** Linux (with shared filesystem & SSH access if using multiple machines)
 
-## Minimal example
+## Demo
 
-Here's a simple example where we "train" a model on two nodes (with 2 GPUs each). You can also use `transformers.Trainer` (or similar) which handles all the multi-GPU (DDP) code for you.
+Here's a simple example where we "train" a model on two nodes (with 2 GPUs each).
 
 <details>
   <summary>Training code</summary>
+
+  You could also use `transformers.Trainer` (or similar) below to automatically handle all the multi-GPU / DDP code.
 
   ```python
   import os
@@ -36,8 +38,8 @@ Here's a simple example where we "train" a model on two nodes (with 2 GPUs each)
 
       model = torch.nn.Linear(10, 10).to(local_rank)
       ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
-
       optimizer = torch.optim.AdamW(ddp_model.parameters())
+
       optimizer.zero_grad()
       outputs = ddp_model(torch.randn(5, 10))
       labels = torch.randn(5, 10).to(local_rank)
@@ -57,34 +59,34 @@ if __name__ == "__main__":
     trained_model = trx.launch(
         func=train,
         hostnames=["localhost", "other_node"],
-        workers_per_host=2
-    ).value(rank=0)
+        workers_per_host=2  # num. GPUs
+    ).value(rank=0)  # get returned object
 
     torch.save(trained_model.state_dict(), "model.pth")
 ```
 
-## [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
+### [Full API](https://torchrunx.readthedocs.io/stable/api.html)
+### [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
 
 ## Why should I use this?
 
-Whether you have 1 GPU, 8 GPUs, or 8 machines:
+Whether you have 1 GPU, 8 GPUs, or 8 machines.
 
-Convenience:
-
-- If you don't want to set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
-- If you don't want to manually SSH into every machine (and `torchrun --master-ip --master-port ...` and babysit hanging failures)
+- Our `launch()` utility is super _Pythonic_
+    - Return objects from your workers
+    - Run `python script.py` instead of `torchrun script.py`
+    - Launch multi-node functions, even from Python Notebooks
+- Fine-grained control over logging, environment variables, exception handling, etc.
+- Automatic integration with SLURM
 
 Robustness:
 
-- If you want to run a complex, _modular_ workflow in one script
+- If you want to run a complex, _modular_ workflow in __one__ script
+  - don't parallelize your entire script: just the functions you want!
   - no worries about memory leaks or OS failures
-  - don't parallelize your entire script: just the functions you want
 
-Features:
+Convenience:
 
-- Our launch utility is super _Pythonic_
-    - Return objects from your distributed functions
-    - Run `python script.py` instead of `torchrun script.py`
-    - Launch functions from Python Notebooks
-- Fine-grained control over logging, environment variables, exception handling, etc.
-- Automatic integration with SLURM
+- If you don't want to:
+  - set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
+  - manually SSH into every machine and `torchrun --master-ip --master-port ...`, babysit failed processes, etc.
