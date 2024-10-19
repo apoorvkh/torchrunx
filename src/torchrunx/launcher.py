@@ -82,7 +82,7 @@ def build_launch_command(
     logger_port: int,
     world_size: int,
     rank: int,
-    env_vars: list[str] | tuple[str],
+    env_vars: tuple[str, ...],
     env_file: str | os.PathLike | None,
 ) -> str:
     # shlex.quote prevents shell injection here (resolves S602 in execute_command)
@@ -159,7 +159,7 @@ class Launcher:
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
     timeout: int = 600
     log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    default_env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
+    default_env_vars: tuple[str, ...] = (
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -169,7 +169,7 @@ class Launcher:
         "PYTORCH*",
         "NCCL*",
     )
-    extra_env_vars: tuple[str] = ()
+    extra_env_vars: tuple[str, ...] = ()
     env_file: str | os.PathLike | None = None
 
     def run(  # noqa: C901, PLR0912
@@ -306,7 +306,7 @@ def launch(
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
     timeout: int = 600,
     log_handlers: list[Handler] | Literal["auto"] | None = "auto",
-    default_env_vars: tuple[str] = (  # pyright: ignore [reportAssignmentType]
+    default_env_vars: tuple[str, ...] = (
         "PATH",
         "LD_LIBRARY",
         "LIBRARY_PATH",
@@ -316,7 +316,7 @@ def launch(
         "PYTORCH*",
         "NCCL*",
     ),
-    extra_env_vars: tuple[str] = (),
+    extra_env_vars: tuple[str, ...] = (),
     env_file: str | os.PathLike | None = None,
 ) -> LaunchResult:
     """
@@ -371,7 +371,8 @@ class LaunchResult:
         """
         Get all worker return values by rank or hostname.
 
-        :param by: Whether to aggregate all return values by hostname, or just output all of them in order of rank, defaults to ``'hostname'``
+        :param by: Whether to aggregate all return values by hostname, or just output all of them \
+                   in order of rank, defaults to ``'hostname'``
         """
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
