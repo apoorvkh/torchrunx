@@ -26,8 +26,6 @@ Here's a simple example where we "train" a model on two nodes (with 2 GPUs each)
 <details>
   <summary>Training code</summary>
 
-  You could also use `transformers.Trainer` (or similar) below to automatically handle all the multi-GPU / DDP code.
-
   ```python
   import os
   import torch
@@ -49,6 +47,8 @@ Here's a simple example where we "train" a model on two nodes (with 2 GPUs each)
       if rank == 0:
           return model
   ```
+
+  You could also use `transformers.Trainer` (or similar) to automatically handle all the multi-GPU / DDP code above.
 </details>
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 Whether you have 1 GPU, 8 GPUs, or 8 machines.
 
-- Our `launch()` utility is super _Pythonic_
+- Our [`launch()`](https://torchrunx.readthedocs.io/stable/api.html#torchrunx.launch) utility is super _Pythonic_
     - Return objects from your workers
     - Run `python script.py` instead of `torchrun script.py`
     - Launch multi-node functions, even from Python Notebooks
