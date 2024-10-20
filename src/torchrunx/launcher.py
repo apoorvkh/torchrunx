@@ -25,6 +25,274 @@ from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import AgentStatus, LauncherAgentGroup, LauncherPayload, WorkerException, get_open_port
 
 
+class AgentKilledError(Exception):
+    pass
+
+
+@dataclass
+class Launcher:
+    hostnames: list[str] | Literal["auto", "slurm"] = "auto"
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
+    ssh_config_file: str | os.PathLike | None = None
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
+    timeout: int = 600
+    log_handlers: list[Handler] | Literal["auto"] | None = "auto"
+    default_env_vars: tuple[str, ...] = (
+        "PATH",
+        "LD_LIBRARY",
+        "LIBRARY_PATH",
+        "PYTHON*",
+        "CUDA*",
+        "TORCH*",
+        "PYTORCH*",
+        "NCCL*",
+    )
+    extra_env_vars: tuple[str, ...] = ()
+    env_file: str | os.PathLike | None = None
+
+    def run(  # noqa: C901, PLR0912
+        self,
+        func: Callable,
+        func_args: tuple[Any] | None = None,
+        func_kwargs: dict[str, Any] | None = None,
+    ) -> LaunchResult:
+        if not dist.is_available():
+            msg = "The torch.distributed package is not available."
+            raise RuntimeError(msg)
+
+        hostnames = resolve_hostnames(self.hostnames)
+        workers_per_host = resolve_workers_per_host(self.workers_per_host, len(hostnames))
+
+        launcher_hostname = socket.getfqdn()
+        launcher_port = get_open_port()
+        world_size = len(hostnames) + 1
+
+        log_receiver = None
+        log_process = None
+        launcher_agent_group = None
+        agent_payloads = None
+
+        try:
+            # start logging server
+
+            log_receiver = build_logging_server(
+                log_handlers=self.log_handlers,
+                launcher_hostname=launcher_hostname,
+                hostnames=hostnames,
+                workers_per_host=workers_per_host,
+                log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
+                log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],  # noqa: SLF001
+            )
+
+            log_process = Process(
+                target=log_receiver.serve_forever,
+                daemon=True,
+            )
+
+            log_process.start()
+
+            # start agents on each node
+
+            for i, hostname in enumerate(hostnames):
+                execute_command(
+                    command=build_launch_command(
+                        launcher_hostname=launcher_hostname,
+                        launcher_port=launcher_port,
+                        logger_port=log_receiver.port,
+                        world_size=world_size,
+                        rank=i + 1,
+                        env_vars=(self.default_env_vars + self.extra_env_vars),
+                        env_file=self.env_file,
+                    ),
+                    hostname=hostname,
+                    ssh_config_file=self.ssh_config_file,
+                )
+
+            # initialize launcher-agent process group
+            # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
+
+            launcher_agent_group = LauncherAgentGroup(
+                launcher_hostname=launcher_hostname,
+                launcher_port=launcher_port,
+                world_size=world_size,
+                rank=0,
+            )
+
+            # build and sync payloads between launcher and agents
+
+            _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
+
+            worker_global_ranks = [
+                list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
+                for n in range(len(hostnames))
+            ]
+
+            payload = LauncherPayload(
+                fn=partial(func, *(func_args or ()), **(func_kwargs or {})),
+                hostnames=hostnames,
+                worker_global_ranks=worker_global_ranks,
+                worker_world_size=sum(workers_per_host),
+                backend=self.backend,
+                timeout=self.timeout,
+            )
+
+            launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
+
+            # loop to monitor agent statuses (until failed or done)
+
+            while True:
+                try:
+                    agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
+                except RuntimeError as e:
+                    # occurs if any agent dies and communication times out
+                    raise AgentKilledError from e
+
+                # raises specific exception if any agent fails
+                for s in agent_statuses:
+                    for value in s.return_values:
+                        if isinstance(value, WorkerException):
+                            raise value.exception
+
+                if all(s.state == "done" for s in agent_statuses):
+                    break
+        finally:
+            if log_receiver is not None:
+                log_receiver.shutdown()
+                if log_process is not None:
+                    log_receiver.server_close()
+                    log_process.kill()
+
+            if launcher_agent_group is not None:
+                launcher_agent_group.shutdown()
+
+            # cleanup: SIGTERM all agents
+            if agent_payloads is not None:
+                for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
+                    execute_command(
+                        command=f"kill {agent_payload.process_id}",
+                        hostname=agent_hostname,
+                        ssh_config_file=self.ssh_config_file,
+                    )
+
+        return LaunchResult(hostnames=hostnames, agent_statuses=agent_statuses)
+
+
+def launch(
+    func: Callable,
+    func_args: tuple[Any] | None = None,
+    func_kwargs: dict[str, Any] | None = None,
+    hostnames: list[str] | Literal["auto", "slurm"] = "auto",
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
+    ssh_config_file: str | os.PathLike | None = None,
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
+    timeout: int = 600,
+    log_handlers: list[Handler] | Literal["auto"] | None = "auto",
+    default_env_vars: tuple[str, ...] = (
+        "PATH",
+        "LD_LIBRARY",
+        "LIBRARY_PATH",
+        "PYTHON*",
+        "CUDA*",
+        "TORCH*",
+        "PYTORCH*",
+        "NCCL*",
+    ),
+    extra_env_vars: tuple[str, ...] = (),
+    env_file: str | os.PathLike | None = None,
+) -> LaunchResult:
+    """
+    Launch a distributed PyTorch function on the specified nodes.
+
+    :param func:
+    :param func_args:
+    :param func_kwargs:
+    :param hostnames: Nodes to launch the function on. Default infers from a SLURM environment or runs on localhost.
+    :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
+    :param ssh_config_file: An SSH configuration file for connecting to nodes, by default loads ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+    :param backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ to initialize worker process group with. Default uses NCCL (if GPUs available) or GLOO. Disabled by ``None``.
+    :param timeout: Worker process group timeout (seconds).
+    :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
+    :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
+    :param extra_env_vars: Additional, user-specified variables to copy.
+    :param env_file: A file (like ``.env``) with additional environment variables to copy.
+    :raises RuntimeError: If ``torch.distributed`` not available
+    :raises AgentKilledError: If any agent is killed
+    :raises Exception: Propagates exceptions raised in worker processes
+    """  # noqa: E501
+    return Launcher(
+        hostnames=hostnames,
+        workers_per_host=workers_per_host,
+        ssh_config_file=ssh_config_file,
+        backend=backend,
+        timeout=timeout,
+        log_handlers=log_handlers,
+        default_env_vars=default_env_vars,
+        extra_env_vars=extra_env_vars,
+        env_file=env_file,
+    ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
+
+
+class LaunchResult:
+    def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
+        self.hostnames: list[str] = hostnames
+        self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
+
+    @overload
+    def all(self) -> dict[str, list[Any]]:
+        pass
+
+    @overload
+    def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
+        pass
+
+    @overload
+    def all(self, by: Literal["rank"]) -> list[Any]:
+        pass
+
+    def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
+        """
+        Get all worker return values by rank or hostname.
+
+        :param by: Whether to aggregate all return values by hostname, or just output all of them \
+                   in order of rank, defaults to ``'hostname'``
+        """
+        if by == "hostname":
+            return dict(zip(self.hostnames, self.return_values))
+        elif by == "rank":  # noqa: RET505
+            return reduce(add, self.return_values)
+
+        msg = "Invalid argument: expected by=('hostname' | 'rank')"
+        raise TypeError(msg)
+
+    def values(self, hostname: str) -> list[Any]:
+        """
+        Get worker return values for host ``hostname``.
+
+        :param hostname: The host to get return values from
+        """
+        host_idx = self.hostnames.index(hostname)
+        return self.return_values[host_idx]
+
+    def value(self, rank: int) -> Any:
+        """
+        Get worker return value from global rank ``rank``.
+
+        :param rank: Global worker rank to get return value from
+        """
+        if rank < 0:
+            msg = f"Rank {rank} must be larger than 0"
+            raise ValueError(msg)
+
+        for values in self.return_values:
+            if rank >= len(values):
+                rank -= len(values)
+            else:
+                return values[rank]
+
+        msg = f"Rank {rank} larger than world_size"
+        raise ValueError(msg)
+
+
 def resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
     if hostnames == "auto":
         return auto_hosts()
@@ -149,263 +417,3 @@ def execute_command(
             config=fabric.Config(runtime_ssh_path=runtime_ssh_path),
         ) as conn:
             conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
-
-
-@dataclass
-class Launcher:
-    hostnames: list[str] | Literal["auto", "slurm"] = "auto"
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
-    ssh_config_file: str | os.PathLike | None = None
-    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
-    timeout: int = 600
-    log_handlers: list[Handler] | Literal["auto"] | None = "auto"
-    default_env_vars: tuple[str, ...] = (
-        "PATH",
-        "LD_LIBRARY",
-        "LIBRARY_PATH",
-        "PYTHON*",
-        "CUDA*",
-        "TORCH*",
-        "PYTORCH*",
-        "NCCL*",
-    )
-    extra_env_vars: tuple[str, ...] = ()
-    env_file: str | os.PathLike | None = None
-
-    def run(  # noqa: C901, PLR0912
-        self,
-        func: Callable,
-        func_args: tuple[Any] | None = None,
-        func_kwargs: dict[str, Any] | None = None,
-    ) -> LaunchResult:
-        if not dist.is_available():
-            msg = "The torch.distributed package is not available."
-            raise RuntimeError(msg)
-
-        hostnames = resolve_hostnames(self.hostnames)
-        workers_per_host = resolve_workers_per_host(self.workers_per_host, len(hostnames))
-
-        launcher_hostname = socket.getfqdn()
-        launcher_port = get_open_port()
-        world_size = len(hostnames) + 1
-
-        log_receiver = None
-        log_process = None
-        launcher_agent_group = None
-        agent_payloads = None
-
-        try:
-            # start logging server
-
-            log_receiver = build_logging_server(
-                log_handlers=self.log_handlers,
-                launcher_hostname=launcher_hostname,
-                hostnames=hostnames,
-                workers_per_host=workers_per_host,
-                log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
-                log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],  # noqa: SLF001
-            )
-
-            log_process = Process(
-                target=log_receiver.serve_forever,
-                daemon=True,
-            )
-
-            log_process.start()
-
-            # start agents on each node
-
-            for i, hostname in enumerate(hostnames):
-                execute_command(
-                    command=build_launch_command(
-                        launcher_hostname=launcher_hostname,
-                        launcher_port=launcher_port,
-                        logger_port=log_receiver.port,
-                        world_size=world_size,
-                        rank=i + 1,
-                        env_vars=(self.default_env_vars + self.extra_env_vars),
-                        env_file=self.env_file,
-                    ),
-                    hostname=hostname,
-                    ssh_config_file=self.ssh_config_file,
-                )
-
-            # initialize launcher-agent process group
-            # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
-
-            launcher_agent_group = LauncherAgentGroup(
-                launcher_hostname=launcher_hostname,
-                launcher_port=launcher_port,
-                world_size=world_size,
-                rank=0,
-            )
-
-            # build and sync payloads between launcher and agents
-
-            _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
-
-            worker_global_ranks = [
-                list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
-                for n in range(len(hostnames))
-            ]
-
-            payload = LauncherPayload(
-                fn=partial(func, *(func_args or ()), **(func_kwargs or {})),
-                hostnames=hostnames,
-                worker_global_ranks=worker_global_ranks,
-                worker_world_size=sum(workers_per_host),
-                backend=self.backend,
-                timeout=self.timeout,
-            )
-
-            launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
-
-            # loop to monitor agent statuses (until failed or done)
-
-            while True:
-                # raises RuntimeError if communication timeout due to death of any agent
-                agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
-
-                # raises specific exception if any agent fails
-                for s in agent_statuses:
-                    for value in s.return_values:
-                        if isinstance(value, WorkerException):
-                            raise value.exception
-
-                if all(s.state == "done" for s in agent_statuses):
-                    break
-        finally:
-            if log_receiver is not None:
-                log_receiver.shutdown()
-                if log_process is not None:
-                    log_receiver.server_close()
-                    log_process.kill()
-
-            if launcher_agent_group is not None:
-                launcher_agent_group.shutdown()
-
-            # cleanup: SIGTERM all agents
-            if agent_payloads is not None:
-                for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
-                    execute_command(
-                        command=f"kill {agent_payload.process_id}",
-                        hostname=agent_hostname,
-                        ssh_config_file=self.ssh_config_file,
-                    )
-
-        return LaunchResult(hostnames=hostnames, agent_statuses=agent_statuses)
-
-
-def launch(
-    func: Callable,
-    func_args: tuple[Any] | None = None,
-    func_kwargs: dict[str, Any] | None = None,
-    hostnames: list[str] | Literal["auto", "slurm"] = "auto",
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
-    ssh_config_file: str | os.PathLike | None = None,
-    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
-    timeout: int = 600,
-    log_handlers: list[Handler] | Literal["auto"] | None = "auto",
-    default_env_vars: tuple[str, ...] = (
-        "PATH",
-        "LD_LIBRARY",
-        "LIBRARY_PATH",
-        "PYTHON*",
-        "CUDA*",
-        "TORCH*",
-        "PYTORCH*",
-        "NCCL*",
-    ),
-    extra_env_vars: tuple[str, ...] = (),
-    env_file: str | os.PathLike | None = None,
-) -> LaunchResult:
-    """
-    Launch a distributed PyTorch function on the specified nodes.
-
-    :param func:
-    :param func_args:
-    :param func_kwargs:
-    :param hostnames: Nodes to launch the function on. Default infers from a SLURM environment or runs on localhost.
-    :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
-    :param ssh_config_file: An SSH configuration file for connecting to nodes, by default loads ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
-    :param backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ to initialize worker process group with. Default uses NCCL (if GPUs available) or GLOO. Disabled by ``None``.
-    :param timeout: Worker process group timeout (seconds).
-    :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
-    :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
-    :param extra_env_vars: Additional, user-specified variables to copy.
-    :param env_file: A file (like ``.env``) with additional environment variables to copy.
-    :raises RuntimeError: May fail if ``torch.distributed`` not available or communication timeout between nodes
-    :raises Exception: Propagates exceptions raised in worker processes
-    """  # noqa: E501
-    return Launcher(
-        hostnames=hostnames,
-        workers_per_host=workers_per_host,
-        ssh_config_file=ssh_config_file,
-        backend=backend,
-        timeout=timeout,
-        log_handlers=log_handlers,
-        default_env_vars=default_env_vars,
-        extra_env_vars=extra_env_vars,
-        env_file=env_file,
-    ).run(func=func, func_args=func_args, func_kwargs=func_kwargs)
-
-
-class LaunchResult:
-    def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
-        self.hostnames: list[str] = hostnames
-        self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
-
-    @overload
-    def all(self) -> dict[str, list[Any]]:
-        pass
-
-    @overload
-    def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
-        pass
-
-    @overload
-    def all(self, by: Literal["rank"]) -> list[Any]:
-        pass
-
-    def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
-        """
-        Get all worker return values by rank or hostname.
-
-        :param by: Whether to aggregate all return values by hostname, or just output all of them \
-                   in order of rank, defaults to ``'hostname'``
-        """
-        if by == "hostname":
-            return dict(zip(self.hostnames, self.return_values))
-        elif by == "rank":  # noqa: RET505
-            return reduce(add, self.return_values)
-
-        msg = "Invalid argument: expected by=('hostname' | 'rank')"
-        raise TypeError(msg)
-
-    def values(self, hostname: str) -> list[Any]:
-        """
-        Get worker return values for host ``hostname``.
-
-        :param hostname: The host to get return values from
-        """
-        host_idx = self.hostnames.index(hostname)
-        return self.return_values[host_idx]
-
-    def value(self, rank: int) -> Any:
-        """
-        Get worker return value from global rank ``rank``.
-
-        :param rank: Global worker rank to get return value from
-        """
-        if rank < 0:
-            msg = f"Rank {rank} must be larger than 0"
-            raise ValueError(msg)
-
-        for values in self.return_values:
-            if rank >= len(values):
-                rank -= len(values)
-            else:
-                return values[rank]
-
-        msg = f"Rank {rank} larger than world_size"
-        raise ValueError(msg)
