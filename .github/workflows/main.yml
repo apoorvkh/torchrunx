@@ -69,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Override pytorch version
-        run: sed -i '/\[tool\.uv\]/a override-dependencies = \["torch==${{ matrix.pytorch }}"\]' pyproject.toml
+        run: sed -i 's/constraint-dependencies = \["torch>=2.1.1"\]/constraint-dependencies = \["torch==${{ matrix.pytorch }}"\]/' pyproject.toml
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
