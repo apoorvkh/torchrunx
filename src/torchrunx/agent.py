@@ -49,7 +49,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     log_records_to_socket(
         logger=logger,
         hostname=hostname,
-        worker_rank=None,
+        local_rank=None,
         logger_hostname=logger_hostname,
         logger_port=logger_port,
     )
@@ -141,7 +141,7 @@ def _entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerExc
     log_records_to_socket(
         logger=logger,
         hostname=worker_args.hostname,
-        worker_rank=worker_args.local_rank,
+        local_rank=worker_args.local_rank,
         logger_hostname=worker_args.logger_hostname,
         logger_port=worker_args.logger_port,
     )
