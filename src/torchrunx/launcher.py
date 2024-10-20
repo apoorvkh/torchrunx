@@ -216,7 +216,7 @@ def launch(
     :param extra_env_vars: Additional, user-specified variables to copy.
     :param env_file: A file (like ``.env``) with additional environment variables to copy.
     :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
-    :raises RuntimeError: If ``torch.distributed`` not available
+    :raises RuntimeError: If ``torch.distributed`` not available or "slurm" specified but no allocation is detected.
     :raises AgentKilledError: If any agent is killed
     :raises Exception: Propagates exceptions raised in worker processes
     """  # noqa: E501
