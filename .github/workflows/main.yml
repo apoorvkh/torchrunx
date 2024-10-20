@@ -18,9 +18,9 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - run: ruff check
+      - run: uv run ruff check
         if: success() || failure()
-      - run: ruff format --check
+      - run: uv run ruff format --check
         if: success() || failure()
 
   ##
@@ -34,7 +34,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - run: pyright
+      - run: uv run pyright
         if: success() || failure()
 
   ##
@@ -75,4 +75,4 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync --python ${{ matrix.python }}
-      - run: pytest tests/test_ci.py
+      - run: uv run pytest tests/test_ci.py
