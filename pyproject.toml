@@ -21,12 +21,11 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "cloudpickle>=3.0.0",
-    "fabric>=3.0.0",
-    "torch>=2.0.0",
+    "cloudpickle>=3.0",
+    "fabric>=3.2",
+    "torch>=2.0",
     # torch.distributed depends on numpy
-    "numpy<2",  # numpy>=2 requires torch>=2.3
-    "numpy>=1.26.0; python_version == '3.12'",
+    "numpy>=1.20",
 ]
 
 [project.urls]
