@@ -13,13 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: astral-sh/setup-uv@v3
         with:
-          pixi-version: v0.27.1
-          frozen: true
-          cache: true
-          environments: dev
-          activate-environment: dev
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
       - run: ruff check
         if: success() || failure()
       - run: ruff format --check
@@ -31,13 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: astral-sh/setup-uv@v3
         with:
-          pixi-version: v0.27.1
-          frozen: true
-          cache: true
-          environments: extra
-          activate-environment: extra
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
       - run: pyright
         if: success() || failure()
 
@@ -72,18 +68,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Inject (python / pytorch) test deps into pixi.toml / pyproject.toml
-        run: |
-          sed -i 's/python = "3.9"/python = "${{ matrix.python }}.*"/' pixi.toml
-          sed -i 's/torch>=2.0.0/torch~=${{ matrix.pytorch }}/' pyproject.toml
-
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - name: Override pytorch version
+        run: sed -i '/\[tool\.uv\]/a override-dependencies = \["torch==${{ matrix.pytorch }}"\]' pyproject.toml
+      - uses: astral-sh/setup-uv@v3
         with:
-          pixi-version: v0.27.1
-          locked: false
-          frozen: false
-          cache: false
-          environments: default
-          activate-environment: default
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --python ${{ matrix.python }}
       - run: pytest tests/test_ci.py
