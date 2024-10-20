@@ -5,3 +5,5 @@ API
 
 .. autoclass:: torchrunx.LaunchResult
   :members:
+
+.. autoclass:: torchrunx.AgentKilledError
