@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+__all__ = [
+    "LogRecordSocketReceiver",
+    "redirect_stdio_to_logger",
+    "log_records_to_socket",
+    "add_filter_to_handler",
+    "file_handler",
+    "stream_handler",
+    "file_handlers",
+    "default_handlers",
+]
+
 import datetime
 import logging
 import pickle
@@ -51,12 +62,32 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
         self.daemon_threads = True
 
     def shutdown(self) -> None:
-        """override BaseServer.shutdown() with added timeout"""
+        """Override BaseServer.shutdown() with added timeout"""
         self._BaseServer__shutdown_request = True
         self._BaseServer__is_shut_down.wait(timeout=3)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 ## Agent/worker utilities
+
+
+def redirect_stdio_to_logger(logger: Logger) -> None:
+    class _LoggingStream(StringIO):
+        def __init__(self, logger: Logger, level: int = logging.NOTSET) -> None:
+            super().__init__()
+            self.logger = logger
+            self.level = level
+
+        def flush(self) -> None:
+            super().flush()
+            value = self.getvalue()
+            if value != "":
+                self.logger.log(self.level, value)
+                self.truncate(0)
+                self.seek(0)
+
+    logging.captureWarnings(capture=True)
+    redirect_stderr(_LoggingStream(logger, level=logging.ERROR)).__enter__()
+    redirect_stdout(_LoggingStream(logger, level=logging.INFO)).__enter__()
 
 
 @dataclass
@@ -90,26 +121,6 @@ def log_records_to_socket(
     logging.setLogRecordFactory(record_factory)
 
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
-
-
-def redirect_stdio_to_logger(logger: Logger) -> None:
-    class _LoggingStream(StringIO):
-        def __init__(self, logger: Logger, level: int = logging.NOTSET) -> None:
-            super().__init__()
-            self.logger = logger
-            self.level = level
-
-        def flush(self) -> None:
-            super().flush()
-            value = self.getvalue()
-            if value != "":
-                self.logger.log(self.level, value)
-                self.truncate(0)
-                self.seek(0)
-
-    logging.captureWarnings(capture=True)
-    redirect_stderr(_LoggingStream(logger, level=logging.ERROR)).__enter__()
-    redirect_stdout(_LoggingStream(logger, level=logging.INFO)).__enter__()
 
 
 ## Handler utilities
