@@ -28,22 +28,19 @@ We could also launch multiple functions (e.g. train on many GPUs, test on one GP
 
 :mod:`torchrunx.launch` is self-cleaning: all processes are terminated (and the used memory is completely released) after each invocation.
 
-
-SLURM integration
------------------
-
-By default, the ``hostnames`` or ``workers_per_host`` arguments are populated from the current SLURM allocation. If no allocation is detected, we assume 1 machine (``localhost``) with N workers (num. GPUs or CPUs).
-Raises a ``RuntimeError`` if ``hostnames`` or ``workers_per_host`` are intentionally set to ``"slurm"`` but no allocation is detected.
-
-CLI support
------------
+Launcher class
+--------------
 
 We provide the :mod:`torchrunx.Launcher` class as an alias to :mod:`torchrunx.launch`.
 
 .. autoclass:: torchrunx.Launcher
-   :members: run
+   :single-line-parameter-list:
+   .. automethod:: run
 
-We can use this class to populate arguments from the CLI (e.g. with `tyro <https://brentyi.github.io/tyro/>`_):
+CLI integration
+^^^^^^^^^^^^^^^
+
+We can use :mod:`torchrunx.Launcher` to populate arguments from the CLI (e.g. with `tyro <https://brentyi.github.io/tyro/>`_):
 
 .. code:: python
 
@@ -80,14 +77,20 @@ We can use this class to populate arguments from the CLI (e.g. with `tyro <https
     │                      (default: None)                  │
     ╰───────────────────────────────────────────────────────╯
 
-Propagating Exceptions
+SLURM integration
+-----------------
+
+By default, the ``hostnames`` or ``workers_per_host`` arguments are populated from the current SLURM allocation. If no allocation is detected, we assume 1 machine (localhost) with N workers (num. GPUs or CPUs).
+Raises a ``RuntimeError`` if ``hostnames="slurm"`` or ``workers_per_host="slurm"`` but no allocation is detected.
+
+Propagating exceptions
 ----------------------
 
 Exceptions that are raised in Workers will be raised by the launcher process.
 
 A :mod:`torchrunx.AgentKilledError` will be raised if any agent dies unexpectedly (e.g. if force-killed by the OS, due to segmentation faults or OOM).
 
-Environment Variables
+Environment variables
 ---------------------
 
 Environment variables in the launcher process that match the ``default_env_vars`` argument are automatically copied to agents and workers. We set useful defaults for Python and PyTorch. Environment variables are pattern-matched with this list using ``fnmatch``.
@@ -95,7 +98,7 @@ Environment variables in the launcher process that match the ``default_env_vars`
 ``default_env_vars`` can be overriden if desired. This list can be augmented using ``extra_env_vars``. Additional environment variables (and more custom bash logic) can be included via the ``env_file`` argument. Our agents ``source`` this file.
 
 
-Custom Logging
+Custom logging
 --------------
 
 We forward all logs (i.e. from ``logging`` and ``stdio``) from workers and agents to the Launcher. By default, the logs from the first agent and its first worker are printed into the Launcher's ``stdout`` stream. Logs from all agents and workers are written to files in ``$TORCHRUNX_LOG_DIR`` (default: ``./torchrunx_logs``) and are named by timestamp, hostname, and local_rank.
