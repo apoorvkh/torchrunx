@@ -43,6 +43,7 @@ import subprocess
 import sys
 from operator import attrgetter
 
+package = project
 
 try:
     revision = (
