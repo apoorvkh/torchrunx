@@ -17,10 +17,10 @@ build = "*"
 twine = "*"
 
 [feature.extra.pypi-dependencies]
-transformers = "*"
+tyro = "*"
 submitit = "*"
-setuptools = "*"
 accelerate = "*"
+transformers = "*"
 
 [environments]
 default = { features = ["package", "dev"], solve-group = "default" }

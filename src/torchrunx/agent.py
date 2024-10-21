@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__all__ = ["main"]
+
 import datetime
 import logging
 import os
@@ -25,83 +27,6 @@ from .utils import (
 )
 
 
-@dataclass
-class WorkerArgs:
-    function: Callable
-    logger_hostname: str
-    logger_port: int
-    main_agent_hostname: str
-    main_agent_port: int
-    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None
-    rank: int
-    local_rank: int
-    local_world_size: int
-    world_size: int
-    hostname: str
-    timeout: int
-
-    def serialize(self) -> SerializedWorkerArgs:
-        return SerializedWorkerArgs(worker_args=self)
-
-
-class SerializedWorkerArgs:
-    def __init__(self, worker_args: WorkerArgs) -> None:
-        self.bytes = cloudpickle.dumps(worker_args)
-
-    def deserialize(self) -> WorkerArgs:
-        return cloudpickle.loads(self.bytes)
-
-
-def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerException:
-    worker_args: WorkerArgs = serialized_worker_args.deserialize()
-
-    logger = logging.getLogger()
-
-    log_records_to_socket(
-        logger=logger,
-        hostname=worker_args.hostname,
-        worker_rank=worker_args.local_rank,
-        logger_hostname=worker_args.logger_hostname,
-        logger_port=worker_args.logger_port,
-    )
-
-    redirect_stdio_to_logger(logger)
-
-    os.environ["RANK"] = str(worker_args.rank)
-    os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
-    os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
-    os.environ["WORLD_SIZE"] = str(worker_args.world_size)
-    os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
-    os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
-
-    if worker_args.backend is not None:
-        backend = worker_args.backend
-        if backend == "auto":
-            backend = "nccl" if torch.cuda.is_available() else "gloo"
-
-        dist.init_process_group(
-            backend=backend,
-            world_size=worker_args.world_size,
-            rank=worker_args.rank,
-            store=dist.TCPStore(  # pyright: ignore [reportPrivateImportUsage]
-                host_name=worker_args.main_agent_hostname,
-                port=worker_args.main_agent_port,
-                world_size=worker_args.world_size,
-                is_master=(worker_args.rank == 0),
-            ),
-            timeout=datetime.timedelta(seconds=worker_args.timeout),
-        )
-
-    try:
-        return worker_args.function()
-    except Exception as e:
-        traceback.print_exc()
-        return WorkerException(exception=e)
-    finally:
-        sys.stdout.flush()
-        sys.stderr.flush()
-
-
 def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int) -> None:
     agent_rank = launcher_agent_group.rank - 1
 
@@ -124,7 +49,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     log_records_to_socket(
         logger=logger,
         hostname=hostname,
-        worker_rank=None,
+        local_rank=None,
         logger_hostname=logger_hostname,
         logger_port=logger_port,
     )
@@ -135,7 +60,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
-        entrypoint=entrypoint,
+        entrypoint=_entrypoint,
         args={
             i: (
                 WorkerArgs(
@@ -177,5 +102,82 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
                 break
     finally:
         ctx.close()
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+
+@dataclass
+class WorkerArgs:
+    function: Callable
+    logger_hostname: str
+    logger_port: int
+    main_agent_hostname: str
+    main_agent_port: int
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None
+    rank: int
+    local_rank: int
+    local_world_size: int
+    world_size: int
+    hostname: str
+    timeout: int
+
+    def serialize(self) -> SerializedWorkerArgs:
+        return SerializedWorkerArgs(worker_args=self)
+
+
+class SerializedWorkerArgs:
+    def __init__(self, worker_args: WorkerArgs) -> None:
+        self.bytes = cloudpickle.dumps(worker_args)
+
+    def deserialize(self) -> WorkerArgs:
+        return cloudpickle.loads(self.bytes)
+
+
+def _entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerException:
+    worker_args: WorkerArgs = serialized_worker_args.deserialize()
+
+    logger = logging.getLogger()
+
+    log_records_to_socket(
+        logger=logger,
+        hostname=worker_args.hostname,
+        local_rank=worker_args.local_rank,
+        logger_hostname=worker_args.logger_hostname,
+        logger_port=worker_args.logger_port,
+    )
+
+    redirect_stdio_to_logger(logger)
+
+    os.environ["RANK"] = str(worker_args.rank)
+    os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
+    os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
+    os.environ["WORLD_SIZE"] = str(worker_args.world_size)
+    os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
+    os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
+
+    if worker_args.backend is not None:
+        backend = worker_args.backend
+        if backend == "auto":
+            backend = "nccl" if torch.cuda.is_available() else "gloo"
+
+        dist.init_process_group(
+            backend=backend,
+            world_size=worker_args.world_size,
+            rank=worker_args.rank,
+            store=dist.TCPStore(  # pyright: ignore [reportPrivateImportUsage]
+                host_name=worker_args.main_agent_hostname,
+                port=worker_args.main_agent_port,
+                world_size=worker_args.world_size,
+                is_master=(worker_args.rank == 0),
+            ),
+            timeout=datetime.timedelta(seconds=worker_args.timeout),
+        )
+
+    try:
+        return worker_args.function()
+    except Exception as e:
+        traceback.print_exc()
+        return WorkerException(exception=e)
+    finally:
         sys.stdout.flush()
         sys.stderr.flush()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__all__ = ["in_slurm_job", "slurm_hosts", "slurm_workers", "auto_hosts", "auto_workers"]
+
 import os
 import subprocess
 
@@ -29,8 +31,7 @@ def slurm_hosts() -> list[str]:
 
 
 def slurm_workers() -> int:
-    """
-    |  Determines number of workers per node in current Slurm allocation using
+    """|  Determines number of workers per node in current Slurm allocation using
     |  the ``SLURM_JOB_GPUS`` or ``SLURM_CPUS_ON_NODE`` environmental variables.
 
     :return: The implied number of workers per node
@@ -52,8 +53,7 @@ def slurm_workers() -> int:
 
 
 def auto_hosts() -> list[str]:
-    """
-    Automatically determine hostname list
+    """Automatically determine hostname list
 
     :return: Hostnames in Slurm allocation, or ['localhost']
     :rtype: list[str]
@@ -65,8 +65,7 @@ def auto_hosts() -> list[str]:
 
 
 def auto_workers() -> int:
-    """
-    Automatically determine number of workers per host
+    """Automatically determine number of workers per host
 
     :return: Workers per host
     :rtype: int

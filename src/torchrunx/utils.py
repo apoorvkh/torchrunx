@@ -1,4 +1,15 @@
+"""Common utility functions and classes."""
+
 from __future__ import annotations
+
+__all__ = [
+    "get_open_port",
+    "LauncherAgentGroup",
+    "LauncherPayload",
+    "AgentPayload",
+    "WorkerException",
+    "AgentStatus",
+]
 
 import datetime
 import socket
@@ -15,6 +26,7 @@ if TYPE_CHECKING:
 
 
 def get_open_port() -> int:
+    """Return an open port number."""
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
@@ -22,13 +34,19 @@ def get_open_port() -> int:
 
 @dataclass
 class LauncherAgentGroup:
+    """Initializes a GLOO distributed process group between launcher and all agents."""
+
     launcher_hostname: str
     launcher_port: int
     world_size: int
     rank: int
 
     def __post_init__(self) -> None:
-        # timeout will raise torch.distributed.DistStoreError
+        """Initialize process group.
+
+        Raises:
+        torch.distributed.DistStoreError: if group initialization times out.
+        """
         self.group = dist.init_process_group(
             backend="gloo",
             world_size=self.world_size,
@@ -49,7 +67,7 @@ class LauncherAgentGroup:
         return cloudpickle.loads(serialized)
 
     def _all_gather(self, obj: Any) -> list:
-        """gather object from every rank to list on every rank"""
+        """Gather object from every rank to list on every rank."""
         object_bytes = self._serialize(obj)
         object_list = [b""] * self.world_size
         # raises RuntimeError if timeout
@@ -60,20 +78,25 @@ class LauncherAgentGroup:
         self,
         payload: LauncherPayload | AgentPayload,
     ) -> tuple[LauncherPayload, list[AgentPayload]]:
+        """All-gather payloads across launcher and all agents."""
         payloads = self._all_gather(payload)
         launcher_payload = payloads[0]
         agent_payloads = payloads[1:]
         return launcher_payload, agent_payloads
 
     def sync_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
+        """All-gather agent statuses across launcher and all agents."""
         return self._all_gather(status)[1:]  # [0] is launcher (status=None)
 
     def shutdown(self) -> None:
+        """Terminate process group."""
         dist.destroy_process_group(group=self.group)
 
 
 @dataclass
 class LauncherPayload:
+    """Payload from launcher to agents with runtime information."""
+
     fn: Callable
     hostnames: list[str]
     worker_global_ranks: list[list[int]]
@@ -84,6 +107,8 @@ class LauncherPayload:
 
 @dataclass
 class AgentPayload:
+    """Payload corresponding to each agent."""
+
     hostname: str
     port: int
     process_id: int
@@ -91,18 +116,26 @@ class AgentPayload:
 
 @dataclass
 class WorkerException:
+    """Wrapper for exception raised in worker process."""
+
     exception: Exception
 
 
 @dataclass
 class AgentStatus:
+    """Status of each agent (to be synchronized in LauncherAgentGroup).
+
+    Attributes:
+      state: Whether the agent is running, failed, or done.
+      return_values: Objects returned (or exceptions raised) by workers (indexed by local rank).
+    """
+
     state: Literal["running", "failed", "done"]
-    return_values: list[Any | WorkerException] = field(
-        default_factory=list
-    )  # indexed by local rank
+    return_values: list[Any | WorkerException] = field(default_factory=list)
 
     @classmethod
     def from_result(cls, result: RunProcsResult | None) -> Self:
+        """Convert RunProcsResult (from polling worker process context) to AgentStatus."""
         if result is None:
             return cls(state="running")
 
