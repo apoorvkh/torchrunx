@@ -46,10 +46,12 @@ We provide the :mod:`torchrunx.Launcher` class as an alias to :mod:`torchrunx.la
 We can use this class to populate arguments from the CLI (e.g. with `tyro <https://brentyi.github.io/tyro/>`_):
 
 .. code:: python
+
     import torchrunx as trx
     import tyro
 
-    def distributed_function(): print("Hello world!")
+    def distributed_function():
+        pass
 
     if __name__ == "__main__":
         launcher = tyro.cli(trx.Launcher)
