@@ -26,6 +26,8 @@ autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "typing_extensions"]
 autodoc_typehints = "both"
 autodoc_typehints_description_target = "documented_params"
 
+maximum_signature_line_length = 100
+
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
 }
