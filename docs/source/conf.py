@@ -41,11 +41,23 @@ import inspect
 import os
 import subprocess
 import sys
-from functools import partial
 from operator import attrgetter
 
 
-def _linkcode_resolve(domain, info, package, url_fmt, revision):
+try:
+    revision = (
+        subprocess.check_output("git rev-parse --short HEAD".split()).strip().decode("utf-8")
+    )
+except (subprocess.CalledProcessError, OSError):
+    print("Failed to execute git to get revision")
+    revision = None
+
+url_fmt = (
+    f"https://github.com/{github_username}/{github_repository}/"
+    "blob/{revision}/{package}/{path}#L{lineno}"
+)
+
+def linkcode_resolve(domain, info):
     if revision is None:
         return
     if domain not in ("py", "pyx"):
@@ -79,23 +91,3 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     except Exception:
         lineno = ""
     return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
-
-
-def make_linkcode_resolve(package, url_fmt):
-    try:
-        revision = (
-            subprocess.check_output("git rev-parse --short HEAD".split()).strip().decode("utf-8")
-        )
-    except (subprocess.CalledProcessError, OSError):
-        print("Failed to execute git to get revision")
-        revision = None
-    return partial(_linkcode_resolve, revision=revision, package=package, url_fmt=url_fmt)
-
-
-linkcode_resolve = make_linkcode_resolve(
-    "torchrunx",
-    (
-        f"https://github.com/{github_username}/{github_repository}/"
-        "blob/{revision}/{package}/{path}#L{lineno}"
-    ),
-)
