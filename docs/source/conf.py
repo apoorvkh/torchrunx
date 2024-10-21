@@ -55,7 +55,7 @@ except (subprocess.CalledProcessError, OSError):
 
 url_fmt = (
     f"https://github.com/{github_username}/{github_repository}/"
-    "blob/{revision}/{package}/{path}#L{lineno}"
+    "blob/{revision}/src/{package}/{path}#L{lineno}"
 )
 
 def linkcode_resolve(domain, info):
