@@ -36,6 +36,7 @@ Documentation = "https://torchrunx.readthedocs.io"
 
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
+exclude = ["docs"]
 line-length = 100
 src = ["src", "tests"]
 [tool.ruff.lint]

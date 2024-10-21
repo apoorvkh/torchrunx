@@ -5,11 +5,10 @@ sys.path.insert(0, os.path.abspath("../../src"))
 
 # Configuration file for the Sphinx documentation builder.
 
-# -- Project information
-
 project = "torchrunx"
-
-# -- General configuration
+github_username = "apoorvkh"
+github_repository = "torchrunx"
+html_theme = "furo"
 
 extensions = [
     "sphinx.ext.duration",
@@ -23,67 +22,80 @@ extensions = [
     "sphinx.ext.linkcode",
 ]
 
-autodoc_typehints = "both"
-#typehints_defaults = "comma"
-
-github_username = "apoorvkh"
-github_repository = "torchrunx"
+autodoc_typehints = "description"
 
 autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "typing_extensions"]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
 }
 intersphinx_disabled_domains = ["std"]
 
 templates_path = ["_templates"]
 
-# -- Options for HTML output
 
-html_theme = "furo"
+## Link code to Github source
+# From: https://github.com/scikit-learn/scikit-learn/blob/main/doc/sphinxext/github_link.py
 
-# -- Options for EPUB output
-epub_show_urls = "footnote"
-
-# code block syntax highlighting
-#pygments_style = "sphinx"
-
-code_url = f"https://github.com/{github_username}/{github_repository}/blob/{commit}"
-
-import importlib
 import inspect
+import os
+import subprocess
+import sys
+from functools import partial
+from operator import attrgetter
 
-def linkcode_resolve(domain, info):
-    # Non-linkable objects from the starter kit in the tutorial.
-    if domain == "js" or info["module"] == "connect4":
+
+def _linkcode_resolve(domain, info, package, url_fmt, revision):
+    if revision is None:
+        return
+    if domain not in ("py", "pyx"):
+        return
+    if not info.get("module") or not info.get("fullname"):
         return
 
-    assert domain == "py", "expected only Python objects"
+    class_name = info["fullname"].split(".")[0]
+    module = __import__(info["module"], fromlist=[class_name])
+    obj = attrgetter(info["fullname"])(module)
 
-    mod = importlib.import_module(info["module"])
-    if "." in info["fullname"]:
-        objname, attrname = info["fullname"].split(".")
-        obj = getattr(mod, objname)
-        try:
-            # object is a method of a class
-            obj = getattr(obj, attrname)
-        except AttributeError:
-            # object is an attribute of a class
-            return None
-    else:
-        obj = getattr(mod, info["fullname"])
+    # Unwrap the object to get the correct source
+    # file in case that is wrapped by a decorator
+    obj = inspect.unwrap(obj)
 
     try:
-        file = inspect.getsourcefile(obj)
-        lines = inspect.getsourcelines(obj)
-    except TypeError:
-        # e.g. object is a typing.Union
-        return None
-    file = os.path.relpath(file, os.path.abspath(".."))
-    if not file.startswith("src/websockets"):
-        # e.g. object is a typing.NewType
-        return None
-    start, end = lines[1], lines[1] + len(lines[0]) - 1
+        fn = inspect.getsourcefile(obj)
+    except Exception:
+        fn = None
+    if not fn:
+        try:
+            fn = inspect.getsourcefile(sys.modules[obj.__module__])
+        except Exception:
+            fn = None
+    if not fn:
+        return
 
-    return f"{code_url}/{file}#L{start}-L{end}"
+    fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
+    try:
+        lineno = inspect.getsourcelines(obj)[1]
+    except Exception:
+        lineno = ""
+    return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
+
+
+def make_linkcode_resolve(package, url_fmt):
+    try:
+        revision = (
+            subprocess.check_output("git rev-parse --short HEAD".split()).strip().decode("utf-8")
+        )
+    except (subprocess.CalledProcessError, OSError):
+        print("Failed to execute git to get revision")
+        revision = None
+    return partial(_linkcode_resolve, revision=revision, package=package, url_fmt=url_fmt)
+
+
+linkcode_resolve = make_linkcode_resolve(
+    "torchrunx",
+    (
+        f"https://github.com/{github_username}/{github_repository}/"
+        "blob/{revision}/{package}/{path}#L{lineno}"
+    ),
+)
