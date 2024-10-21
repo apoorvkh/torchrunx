@@ -1,4 +1,5 @@
 """Common utility functions and classes."""
+
 from __future__ import annotations
 
 __all__ = [

@@ -236,6 +236,7 @@ class LaunchResult:
     """
     A class that holds worker return values, created by :mod:``torchrunx.launch`` or :mod:``torchrunx.Launcher.run``.
     """
+
     def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
         self.hostnames: list[str] = hostnames
         self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
