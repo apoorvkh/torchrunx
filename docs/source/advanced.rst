@@ -34,7 +34,7 @@ Launcher class
 We provide the :mod:`torchrunx.Launcher` class as an alias to :mod:`torchrunx.launch`.
 
 .. autoclass:: torchrunx.Launcher
-   .. automethod:: run
+  :members:
 
 CLI integration
 ^^^^^^^^^^^^^^^
