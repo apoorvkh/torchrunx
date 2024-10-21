@@ -22,16 +22,14 @@ extensions = [
     "sphinx.ext.linkcode",
 ]
 
-autodoc_typehints = "description"
-
 autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "typing_extensions"]
+autodoc_typehints = "both"
+autodoc_typehints_description_target = "documented_params"
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
 }
 intersphinx_disabled_domains = ["std"]
-
-templates_path = ["_templates"]
 
 
 ## Link code to Github source
@@ -92,3 +90,5 @@ def linkcode_resolve(domain, info):
     except Exception:
         lineno = ""
     return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
+
+## End of "link code to Github source"

@@ -26,13 +26,13 @@ We could also launch multiple functions (e.g. train on many GPUs, test on one GP
     print(f'Accuracy: {accuracy}')
 
 
-``trx.launch()`` is self-cleaning: all processes are terminated (and the used memory is completely released) after each invocation.
+:mod:`torchrunx.launch` is self-cleaning: all processes are terminated (and the used memory is completely released) after each invocation.
 
 
 SLURM integration
 -----------------
 
-By default, the ``hostnames`` or ``workers_per_host`` arguments are populated from the current SLURM allocation. If no allocation is detected, we assume 1 machine (``localhost``) with N GPUs or CPUs.
+By default, the ``hostnames`` or ``workers_per_host`` arguments are populated from the current SLURM allocation. If no allocation is detected, we assume 1 machine (``localhost``) with N workers (num. GPUs or CPUs).
 Raises a ``RuntimeError`` if ``hostnames`` or ``workers_per_host`` are intentionally set to ``"slurm"`` but no allocation is detected.
 
 CLI support
@@ -41,7 +41,7 @@ CLI support
 We provide the :mod:`torchrunx.Launcher` class as an alias to :mod:`torchrunx.launch`.
 
 .. autoclass:: torchrunx.Launcher
-    :members:
+   :members: run
 
 We can use this class to populate arguments from the CLI (e.g. with `tyro <https://brentyi.github.io/tyro/>`_):
 
