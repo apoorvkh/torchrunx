@@ -155,7 +155,9 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             )
             for i in range(num_workers)
         },
+        # environment variables from agent are already automatically copied to workers
         envs={i: {} for i in range(num_workers)},
+        # we handle logging ourselves, so we can discard these
         **(
             {"logs_specs": dist_mp.DefaultLogsSpecs(log_dir=tempfile.mkdtemp())}
             if torch.__version__ >= "2.3"
