@@ -169,8 +169,10 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         status = None
         while True:
             if status is None or status.state == "running":
-                status = AgentStatus.from_result(ctx.wait(5))
+                # status can contain ExceptionFromWorker or WorkerFailedError
+                status = AgentStatus.from_result(result=ctx.wait(5))
 
+            # can raise AgentFailedError in launcher and all agents
             agent_statuses = launcher_agent_group.sync_agent_statuses(status=status)
 
             all_done = all(s.state == "done" for s in agent_statuses)

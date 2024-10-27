@@ -23,6 +23,7 @@ def get_open_port() -> int:
 class AgentFailedError(Exception):
     pass
 
+
 class WorkerFailedError(Exception):
     pass
 
@@ -108,7 +109,7 @@ class ExceptionFromWorker:
 @dataclass
 class AgentStatus:
     state: Literal["running", "failed", "done"]
-    return_values: list[Any | ExceptionFromWorker] = field(
+    return_values: list[Any | WorkerFailedError | ExceptionFromWorker] = field(
         default_factory=list
     )  # indexed by local rank
 
