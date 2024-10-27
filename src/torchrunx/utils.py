@@ -10,6 +10,8 @@ import cloudpickle
 import torch.distributed as dist
 from typing_extensions import Self
 
+from .errors import WorkerFailedError
+
 if TYPE_CHECKING:
     from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
@@ -95,11 +97,6 @@ class ExceptionFromWorker:
 
 
 @dataclass
-class WorkerKilledError(Exception):
-    failure: str
-
-
-@dataclass
 class AgentStatus:
     state: Literal["running", "failed", "done"]
     return_values: list[Any | ExceptionFromWorker] = field(
@@ -111,7 +108,7 @@ class AgentStatus:
         if result is None:
             return cls(state="running")
         for local_rank, failure in result.failures.items():
-            result.return_values[local_rank] = WorkerKilledError(failure.message)
+            result.return_values[local_rank] = WorkerFailedError(failure.message)
         return_values = list(result.return_values.values())
         failed = any(isinstance(v, ExceptionFromWorker) for v in return_values)
         state = "failed" if failed else "done"

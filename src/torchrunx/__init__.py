@@ -1,8 +1,10 @@
-from .launcher import AgentKilledError, Launcher, LaunchResult, launch
+from .errors import AgentFailedError, WorkerFailedError
+from .launcher import Launcher, LaunchResult, launch
 from .logging_utils import add_filter_to_handler, file_handler, stream_handler
 
 __all__ = [
-    "AgentKilledError",
+    "AgentFailedError",
+    "WorkerFailedError",
     "Launcher",
     "launch",
     "LaunchResult",

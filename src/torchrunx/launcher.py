@@ -21,19 +21,15 @@ import fabric
 import torch.distributed as dist
 
 from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
+from .errors import AgentFailedError, WorkerFailedError
 from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import (
     AgentStatus,
     ExceptionFromWorker,
     LauncherAgentGroup,
     LauncherPayload,
-    WorkerKilledError,
     get_open_port,
 )
-
-
-class AgentKilledError(Exception):
-    pass
 
 
 @dataclass
@@ -152,14 +148,14 @@ class Launcher:
                     agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
                 except RuntimeError as e:
                     # occurs if any agent dies and communication times out
-                    raise AgentKilledError from e
+                    raise AgentFailedError from e
 
                 # raises specific exception if any agent fails
                 for s in agent_statuses:
                     for value in s.return_values:
                         if isinstance(value, ExceptionFromWorker):
                             raise value.exception
-                        if isinstance(value, WorkerKilledError):
+                        if isinstance(value, WorkerFailedError):
                             raise value
 
                 if all(s.state == "done" for s in agent_statuses):
