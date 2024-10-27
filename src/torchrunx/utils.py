@@ -90,7 +90,7 @@ class AgentPayload:
 
 
 @dataclass
-class WorkerException:
+class ExceptionFromWorker:
     exception: Exception
 
 
@@ -102,7 +102,7 @@ class WorkerKilledError(Exception):
 @dataclass
 class AgentStatus:
     state: Literal["running", "failed", "done"]
-    return_values: list[Any | WorkerException] = field(
+    return_values: list[Any | ExceptionFromWorker] = field(
         default_factory=list
     )  # indexed by local rank
 
@@ -113,7 +113,7 @@ class AgentStatus:
         for local_rank, failure in result.failures.items():
             result.return_values[local_rank] = WorkerKilledError(failure.message)
         return_values = list(result.return_values.values())
-        failed = any(isinstance(v, WorkerException) for v in return_values)
+        failed = any(isinstance(v, ExceptionFromWorker) for v in return_values)
         state = "failed" if failed else "done"
 
         return cls(

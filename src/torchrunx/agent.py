@@ -19,8 +19,8 @@ from .logging_utils import log_records_to_socket, redirect_stdio_to_logger
 from .utils import (
     AgentPayload,
     AgentStatus,
+    ExceptionFromWorker,
     LauncherAgentGroup,
-    WorkerException,
     get_open_port,
 )
 
@@ -52,7 +52,7 @@ class SerializedWorkerArgs:
         return cloudpickle.loads(self.bytes)
 
 
-def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerException:
+def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | ExceptionFromWorker:
     worker_args: WorkerArgs = serialized_worker_args.deserialize()
 
     logger = logging.getLogger()
@@ -96,7 +96,7 @@ def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerExce
         return worker_args.function()
     except Exception as e:
         traceback.print_exc()
-        return WorkerException(exception=e)
+        return ExceptionFromWorker(exception=e)
     finally:
         sys.stdout.flush()
         sys.stderr.flush()
