@@ -20,6 +20,14 @@ def get_open_port() -> int:
         return s.getsockname()[1]
 
 
+class AgentFailedError(Exception):
+    pass
+
+
+class WorkerFailedError(Exception):
+    pass
+
+
 @dataclass
 class LauncherAgentGroup:
     launcher_hostname: str
@@ -50,11 +58,15 @@ class LauncherAgentGroup:
 
     def _all_gather(self, obj: Any) -> list:
         """gather object from every rank to list on every rank"""
-        object_bytes = self._serialize(obj)
-        object_list = [b""] * self.world_size
-        # raises RuntimeError if timeout
-        dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
-        return [self._deserialize(o) for o in object_list]
+        try:
+            object_bytes = self._serialize(obj)
+            object_list = [b""] * self.world_size
+            # raises RuntimeError if timeout
+            dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
+            return [self._deserialize(o) for o in object_list]
+        except RuntimeError as e:
+            # occurs if launcher or any agent dies and communication times out
+            raise AgentFailedError from e
 
     def sync_payloads(
         self,
@@ -90,14 +102,14 @@ class AgentPayload:
 
 
 @dataclass
-class WorkerException:
+class ExceptionFromWorker:
     exception: Exception
 
 
 @dataclass
 class AgentStatus:
     state: Literal["running", "failed", "done"]
-    return_values: list[Any | WorkerException] = field(
+    return_values: list[Any | WorkerFailedError | ExceptionFromWorker] = field(
         default_factory=list
     )  # indexed by local rank
 
@@ -105,10 +117,10 @@ class AgentStatus:
     def from_result(cls, result: RunProcsResult | None) -> Self:
         if result is None:
             return cls(state="running")
-
+        for local_rank, failure in result.failures.items():
+            result.return_values[local_rank] = WorkerFailedError(failure.message)
         return_values = list(result.return_values.values())
-
-        failed = any(isinstance(v, WorkerException) for v in return_values)
+        failed = any(isinstance(v, ExceptionFromWorker) for v in return_values)
         state = "failed" if failed else "done"
 
         return cls(

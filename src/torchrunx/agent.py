@@ -19,8 +19,8 @@ from .logging_utils import log_records_to_socket, redirect_stdio_to_logger
 from .utils import (
     AgentPayload,
     AgentStatus,
+    ExceptionFromWorker,
     LauncherAgentGroup,
-    WorkerException,
     get_open_port,
 )
 
@@ -52,7 +52,7 @@ class SerializedWorkerArgs:
         return cloudpickle.loads(self.bytes)
 
 
-def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerException:
+def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | ExceptionFromWorker:
     worker_args: WorkerArgs = serialized_worker_args.deserialize()
 
     logger = logging.getLogger()
@@ -96,7 +96,7 @@ def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | WorkerExce
         return worker_args.function()
     except Exception as e:
         traceback.print_exc()
-        return WorkerException(exception=e)
+        return ExceptionFromWorker(exception=e)
     finally:
         sys.stdout.flush()
         sys.stderr.flush()
@@ -155,7 +155,9 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             )
             for i in range(num_workers)
         },
+        # environment variables from agent are already automatically copied to workers
         envs={i: {} for i in range(num_workers)},
+        # we handle logging ourselves, so we can discard these
         **(
             {"logs_specs": dist_mp.DefaultLogsSpecs(log_dir=tempfile.mkdtemp())}
             if torch.__version__ >= "2.3"
@@ -167,8 +169,10 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
         status = None
         while True:
             if status is None or status.state == "running":
-                status = AgentStatus.from_result(ctx.wait(5))
+                # status can contain ExceptionFromWorker or WorkerFailedError
+                status = AgentStatus.from_result(result=ctx.wait(5))
 
+            # can raise AgentFailedError in launcher and all agents
             agent_statuses = launcher_agent_group.sync_agent_statuses(status=status)
 
             all_done = all(s.state == "done" for s in agent_statuses)
