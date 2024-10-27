@@ -21,13 +21,13 @@ import fabric
 import torch.distributed as dist
 
 from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
-from .errors import AgentFailedError, WorkerFailedError
 from .logging_utils import LogRecordSocketReceiver, default_handlers
 from .utils import (
     AgentStatus,
     ExceptionFromWorker,
     LauncherAgentGroup,
     LauncherPayload,
+    WorkerFailedError,
     get_open_port,
 )
 
@@ -144,11 +144,8 @@ class Launcher:
             # loop to monitor agent statuses (until failed or done)
 
             while True:
-                try:
-                    agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
-                except RuntimeError as e:
-                    # occurs if any agent dies and communication times out
-                    raise AgentFailedError from e
+                # could raise AgentFailedError
+                agent_statuses = launcher_agent_group.sync_agent_statuses(status=None)
 
                 # raises specific exception if any agent fails
                 for s in agent_statuses:

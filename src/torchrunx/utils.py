@@ -10,8 +10,6 @@ import cloudpickle
 import torch.distributed as dist
 from typing_extensions import Self
 
-from .errors import WorkerFailedError
-
 if TYPE_CHECKING:
     from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
@@ -20,6 +18,13 @@ def get_open_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
+
+
+class AgentFailedError(Exception):
+    pass
+
+class WorkerFailedError(Exception):
+    pass
 
 
 @dataclass
@@ -52,11 +57,15 @@ class LauncherAgentGroup:
 
     def _all_gather(self, obj: Any) -> list:
         """gather object from every rank to list on every rank"""
-        object_bytes = self._serialize(obj)
-        object_list = [b""] * self.world_size
-        # raises RuntimeError if timeout
-        dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
-        return [self._deserialize(o) for o in object_list]
+        try:
+            object_bytes = self._serialize(obj)
+            object_list = [b""] * self.world_size
+            # raises RuntimeError if timeout
+            dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
+            return [self._deserialize(o) for o in object_list]
+        except RuntimeError as e:
+            # occurs if launcher or any agent dies and communication times out
+            raise AgentFailedError from e
 
     def sync_payloads(
         self,

@@ -1,6 +1,6 @@
-from .errors import AgentFailedError, WorkerFailedError
 from .launcher import Launcher, LaunchResult, launch
 from .logging_utils import add_filter_to_handler, file_handler, stream_handler
+from .utils import AgentFailedError, WorkerFailedError
 
 __all__ = [
     "AgentFailedError",
