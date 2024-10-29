@@ -19,7 +19,7 @@ from logging import Handler
 from multiprocessing import Process
 from operator import add
 from pathlib import Path
-from typing import Any, Callable, Literal, overload
+from typing import Any, Callable, Literal
 
 import fabric
 import torch.distributed as dist
@@ -267,85 +267,21 @@ class LaunchResult:
     hostnames: list[str]
     return_values: list[list[Any]]
 
-    @overload
-    def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
-        pass
+    def by_hostname(self) -> dict[str, list[Any]]:
+        """All return values from workers, indexed by host and local rank."""
+        return dict(zip(self.hostnames, self.return_values))
 
-    @overload
-    def all(self, by: Literal["rank"]) -> list[Any]:
-        pass
+    def by_rank(self) -> list[Any]:
+        """All return values from workers, indexed by global rank."""
+        return reduce(add, self.return_values)
 
-    def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
-        """Get return values from all workers."""
-        if by == "hostname":
-            return dict(zip(self.hostnames, self.return_values))
-        elif by == "rank":  # noqa: RET505
-            return reduce(add, self.return_values)
-        else:
-            msg = "Invalid argument for 'by'. Must be 'hostname' or 'rank'."
-            raise TypeError(msg)
+    def get(self, hostname: str, rank: int) -> Any:
+        """Get return value from worker (indexed by host and local rank)."""
+        return self.return_values[self.hostnames.index(hostname)][rank]
 
-    @overload
-    def get(self, hostname: None, rank: None) -> dict[str, list[Any]]: ...
-
-    @overload
-    def get(self, hostname: None, rank: int) -> Any: ...
-
-    @overload
-    def get(self, hostname: None, rank: list[int]) -> list[Any]: ...
-
-    @overload
-    def get(self, hostname: str, rank: None) -> list[Any]: ...
-
-    @overload
-    def get(self, hostname: list[str], rank: None) -> dict[str, list[Any]]: ...
-
-    @overload
-    def get(self, hostname: str, rank: int) -> Any: ...
-
-    @overload
-    def get(self, hostname: str, rank: list[int]) -> list[Any]: ...
-
-    @overload
-    def get(self, hostname: list[str], rank: int) -> list[Any]: ...
-
-    @overload
-    def get(self, hostname: list[str], rank: list[int]) -> dict[str, list[Any]]: ...
-
-    def get(  # noqa: PLR0911
-        self,
-        hostname: str | list[str] | None = None,
-        rank: int | list[int] | None = None,
-    ) -> dict[str, list[Any]] | list[Any] | Any:
-        """Get return values from selected workers."""
-        if hostname is None and isinstance(rank, int):
-            return self.all(by="rank")[rank]
-
-        if hostname is None and isinstance(rank, list):
-            _values = self.all(by="rank")
-            return [_values[r] for r in rank]
-
-        if isinstance(hostname, str) and rank is None:
-            self.return_values[self.hostnames.index(hostname)]
-
-        if isinstance(hostname, list) and rank is None:
-            return {h: self.get(hostname=h) for h in hostname}
-
-        if isinstance(hostname, str) and isinstance(rank, int):
-            return self.get(hostname=hostname)[rank]
-
-        if isinstance(hostname, str) and isinstance(rank, list):
-            return self.get(hostname=hostname)[rank]
-
-        if isinstance(hostname, list) and isinstance(rank, int):
-            return [self.get(hostname=h)[rank] for h in hostname]
-
-        if isinstance(hostname, list) and isinstance(rank, list):
-            _values = self.get(hostname=hostname)
-            return {h: [_values[h][r] for r in rank] for h in hostname}
-
-        # remaining case: hostname=None, rank=None
-        return self.all(by="hostname")
+    def rank(self, idx: int) -> Any:
+        """Get return value from worker (indexed by global rank)."""
+        return self.by_rank()[idx]
 
 
 def _resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
