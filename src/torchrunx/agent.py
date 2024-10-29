@@ -1,3 +1,5 @@
+"""Primary logic for agent processes."""
+
 from __future__ import annotations
 
 __all__ = ["main"]
@@ -22,7 +24,20 @@ from .worker import WorkerArgs, worker_entrypoint
 
 
 def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int) -> None:
+    """Main function for agent processes (started on each node).
+
+    This function spawns local worker processes (which run the target function). All agents monitor
+    their worker statuses (including returned objects and raised exceptions) and communicate these
+    with each other (and launcher). All agents terminate if failure occurs in any agent.
+
+    Arguments:
+        launcher_agent_group: The communication group between launcher and all agents.
+        logger_hostname: The hostname of the launcher (for logging).
+        logger_port: The port of the launcher (for logging).
+    """
     agent_rank = launcher_agent_group.rank - 1
+
+    # Communicate initial payloads between launcher/agents
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -38,6 +53,8 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
     num_workers = len(worker_global_ranks)
 
+    # Stream logs to logging server
+
     logger = logging.getLogger()
 
     log_records_to_socket(
@@ -50,7 +67,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
 
     redirect_stdio_to_logger(logger)
 
-    # spawn workers
+    # Spawn worker processes
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
@@ -83,6 +100,9 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             else {"log_dir": tempfile.mkdtemp()}
         ),  # pyright: ignore [reportArgumentType]
     )
+
+    # Monitor and communicate agent statuses
+    # Terminate gracefully upon failure
 
     try:
         status = None

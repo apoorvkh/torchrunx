@@ -1,3 +1,5 @@
+"""Arguments and entrypoint for the worker processes."""
+
 from __future__ import annotations
 
 import datetime
@@ -20,6 +22,8 @@ __all__ = ["WorkerArgs", "worker_entrypoint"]
 
 @dataclass
 class WorkerArgs:
+    """Arguments passed from agent to spawned workers."""
+
     function: Callable
     logger_hostname: str
     logger_port: int
@@ -34,10 +38,13 @@ class WorkerArgs:
     timeout: int
 
     def serialize(self) -> SerializedWorkerArgs:
+        """Arguments must be serialized (to bytes) before passed to spawned workers."""
         return SerializedWorkerArgs(worker_args=self)
 
 
 class SerializedWorkerArgs:
+    """We use cloudpickle as a serialization backend (as it supports nearly all Python types)."""
+
     def __init__(self, worker_args: WorkerArgs) -> None:
         self.bytes = cloudpickle.dumps(worker_args)
 
@@ -46,7 +53,15 @@ class SerializedWorkerArgs:
 
 
 def worker_entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | ExceptionFromWorker:
+    """Function called by spawned worker processes.
+
+    Workers first prepare a process group (for communicating with all other workers).
+    They then invoke the user-provided function.
+    Logs are transmitted to the launcher process.
+    """
     worker_args: WorkerArgs = serialized_worker_args.deserialize()
+
+    # Start logging to the logging server (i.e. the launcher)
 
     logger = logging.getLogger()
 
@@ -60,12 +75,16 @@ def worker_entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | Exc
 
     redirect_stdio_to_logger(logger)
 
+    # Set rank/world environment variables
+
     os.environ["RANK"] = str(worker_args.rank)
     os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
     os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
     os.environ["WORLD_SIZE"] = str(worker_args.world_size)
     os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
     os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
+
+    # Prepare the process group (e.g. for communication within the user's function)
 
     if worker_args.backend is not None:
         backend = worker_args.backend
@@ -84,6 +103,8 @@ def worker_entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | Exc
             ),
             timeout=datetime.timedelta(seconds=worker_args.timeout),
         )
+
+    # Invoke the user's function on this worker
 
     try:
         return worker_args.function()

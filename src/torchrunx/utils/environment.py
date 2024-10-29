@@ -16,11 +16,7 @@ def in_slurm_job() -> bool:
 
 
 def slurm_hosts() -> list[str]:
-    """Retrieves hostnames of Slurm-allocated nodes.
-
-    :return: Hostnames of nodes in current Slurm allocation
-    :rtype: list[str]
-    """
+    """Retrieves hostnames of Slurm-allocated nodes."""
     # TODO: sanity check SLURM variables, commands
     if not in_slurm_job():
         msg = "Not in a SLURM job"

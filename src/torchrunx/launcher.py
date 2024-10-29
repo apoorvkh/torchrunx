@@ -87,7 +87,7 @@ class Launcher:
         agent_payloads = None
 
         try:
-            # start logging server
+            # Start logging server (recieves LogRecords from agents/workers)
 
             log_receiver = _build_logging_server(
                 log_handlers=log_handlers,
@@ -105,7 +105,7 @@ class Launcher:
 
             log_process.start()
 
-            # start agents on each node
+            # Start agents on each node
 
             for i, hostname in enumerate(hostnames):
                 _execute_command(
@@ -122,7 +122,7 @@ class Launcher:
                     ssh_config_file=self.ssh_config_file,
                 )
 
-            # initialize launcher-agent process group
+            # Initialize launcher-agent process group
             # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
 
             launcher_agent_group = LauncherAgentGroup(
@@ -132,7 +132,7 @@ class Launcher:
                 rank=0,
             )
 
-            # build and sync payloads between launcher and agents
+            # Sync initial payloads between launcher and agents
 
             _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
 
@@ -152,7 +152,7 @@ class Launcher:
 
             launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
 
-            # loop to monitor agent statuses (until failed or done)
+            # Monitor agent statuses (until failed or done)
 
             while True:
                 # could raise AgentFailedError
@@ -187,6 +187,7 @@ class Launcher:
                         ssh_config_file=self.ssh_config_file,
                     )
 
+        # if launch is successful: return objects from workers
         return_values = [s.return_values for s in agent_statuses]
         return LaunchResult(hostnames=hostnames, return_values=return_values)
 
@@ -216,23 +217,32 @@ def launch(
 ) -> LaunchResult:
     """Launch a distributed PyTorch function on the specified nodes.
 
-    :param func:
-    :param func_args:
-    :param func_kwargs:
-    :param hostnames: Nodes to launch the function on. Default infers from a SLURM environment or runs on localhost.
-    :param workers_per_host: Number of processes to run per node. Can define per node with :type:`list[int]`.
-    :param ssh_config_file: An SSH configuration file for connecting to nodes, by default loads ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
-    :param backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_ to initialize worker process group with. Default uses NCCL (if GPUs available) or GLOO. Disabled by ``None``.
-    :param timeout: Worker process group timeout (seconds).
-    :param default_env_vars: A list of environmental variables to be copied from the launcher process to workers. Allows for bash pattern matching syntax.
-    :param extra_env_vars: Additional, user-specified variables to copy.
-    :param env_file: A file (like ``.env``) with additional environment variables to copy.
-    :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
-    :raises RuntimeError: Due to various misconfigurations.
-    :raises AgentFailedError: If any agent fails (e.g. due to signal from OS).
-    :raises WorkerFailedError: If any worker fails (e.g. due to segmentation faults).
-    :raises Exception: Propagates exceptions raised in worker processes.
-    """  # noqa: E501
+    Arguments:
+        func: Function to run on each worker.
+        func_args: Positional arguments for ``func``.
+        func_kwargs: Keyword arguments for ``func``.
+        hostnames: Nodes on which to launch the function.
+            Defaults to nodes inferred from a SLURM environment or localhost.
+        workers_per_host: Number of processes to run per node.
+            Can specify different counts per node with a list.
+        ssh_config_file: Path to an SSH configuration file for connecting to nodes.
+            Defaults to ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+        backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
+            for worker process group. Defaults to NCCL (GPU) or GLOO (CPU). Set `None` to disable.
+        timeout: Worker process group timeout (seconds).
+        default_env_vars: Environment variables to copy from the launcher process to workers.
+            Supports bash pattern matching syntax.
+        extra_env_vars: Additional user-specified environment variables to copy.
+        env_file: Path to a file (e.g., `.env`) with additional environment variables to copy.
+        log_handlers: Handlers to manage agent and worker logs.
+            Defaults to an automatic basic logging scheme.
+
+    Raises:
+        RuntimeError: If there are configuration issues.
+        AgentFailedError: If an agent fails, e.g. from an OS signal.
+        WorkerFailedError: If a worker fails, e.g. from a segmentation fault.
+        Exception: Any exception raised in a worker process is propagated.
+    """
     return Launcher(
         hostnames=hostnames,
         workers_per_host=workers_per_host,

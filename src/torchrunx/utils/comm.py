@@ -47,7 +47,7 @@ class LauncherAgentGroup:
         """Initialize process group.
 
         Raises:
-        torch.distributed.DistStoreError: if group initialization times out.
+            torch.distributed.DistStoreError: if group initialization times out.
         """
         self.group = dist.init_process_group(
             backend="gloo",
@@ -69,7 +69,11 @@ class LauncherAgentGroup:
         return cloudpickle.loads(serialized)
 
     def _all_gather(self, obj: Any) -> list:
-        """Gather object from every rank to list on every rank."""
+        """Gather object from every rank to list on every rank.
+
+        Raises:
+            AgentFailedError: if any agent fails (observed by this communication).
+        """
         try:
             object_bytes = self._serialize(obj)
             object_list = [b""] * self.world_size
@@ -125,8 +129,8 @@ class AgentStatus:
     """Status of each agent (to be synchronized in LauncherAgentGroup).
 
     Attributes:
-      state: Whether the agent is running, failed, or done.
-      return_values: Objects returned (or exceptions raised) by workers (indexed by local rank).
+        state: Whether the agent is running, failed, or done.
+        return_values: Objects returned (or exceptions raised) by workers (indexed by local rank).
     """
 
     state: Literal["running", "failed", "done"]
@@ -139,10 +143,13 @@ class AgentStatus:
         """Convert RunProcsResult (from polling worker process context) to AgentStatus."""
         if result is None:
             return cls(state="running")
+
         for local_rank, failure in result.failures.items():
             result.return_values[local_rank] = WorkerFailedError(failure.message)
+
         return_values = list(result.return_values.values())
-        failed = any(isinstance(v, ExceptionFromWorker) for v in return_values)
+
+        failed = any(isinstance(v, (ExceptionFromWorker, WorkerFailedError)) for v in return_values)
         state = "failed" if failed else "done"
 
         return cls(

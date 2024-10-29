@@ -44,10 +44,10 @@ def add_filter_to_handler(
     """A filter for ``logging.Handler`` such that only specific agent/worker logs are handled.
 
     Args:
-      handler: ``logging.Handler`` to be modified.
-      hostname: Name of specified host.
-      local_rank: Rank of specified worker (or ``None`` for agent).
-      log_level: Minimum log level to capture.
+        handler: ``logging.Handler`` to be modified.
+        hostname: Name of specified host.
+        local_rank: Rank of specified worker (or ``None`` for agent).
+        log_level: Minimum log level to capture.
     """
 
     def _filter(record: WorkerLogRecord) -> bool:
