@@ -7,7 +7,7 @@ __all__ = [
     "LauncherAgentGroup",
     "LauncherPayload",
     "AgentPayload",
-    "WorkerException",
+    "ExceptionFromWorker",
     "AgentStatus",
 ]
 
@@ -30,6 +30,14 @@ def get_open_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
+
+
+class AgentFailedError(Exception):
+    pass
+
+
+class WorkerFailedError(Exception):
+    pass
 
 
 @dataclass
@@ -68,11 +76,15 @@ class LauncherAgentGroup:
 
     def _all_gather(self, obj: Any) -> list:
         """Gather object from every rank to list on every rank."""
-        object_bytes = self._serialize(obj)
-        object_list = [b""] * self.world_size
-        # raises RuntimeError if timeout
-        dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
-        return [self._deserialize(o) for o in object_list]
+        try:
+            object_bytes = self._serialize(obj)
+            object_list = [b""] * self.world_size
+            # raises RuntimeError if timeout
+            dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
+            return [self._deserialize(o) for o in object_list]
+        except RuntimeError as e:
+            # occurs if launcher or any agent dies and communication times out
+            raise AgentFailedError from e
 
     def sync_payloads(
         self,
@@ -114,10 +126,7 @@ class AgentPayload:
     process_id: int
 
 
-@dataclass
-class WorkerException:
-    """Wrapper for exception raised in worker process."""
-
+class ExceptionFromWorker:
     exception: Exception
 
 
@@ -131,17 +140,19 @@ class AgentStatus:
     """
 
     state: Literal["running", "failed", "done"]
-    return_values: list[Any | WorkerException] = field(default_factory=list)
+    return_values: list[Any | WorkerFailedError | ExceptionFromWorker] = field(
+        default_factory=list
+    )  # indexed by local rank
 
     @classmethod
     def from_result(cls, result: RunProcsResult | None) -> Self:
         """Convert RunProcsResult (from polling worker process context) to AgentStatus."""
         if result is None:
             return cls(state="running")
-
+        for local_rank, failure in result.failures.items():
+            result.return_values[local_rank] = WorkerFailedError(failure.message)
         return_values = list(result.return_values.values())
-
-        failed = any(isinstance(v, WorkerException) for v in return_values)
+        failed = any(isinstance(v, ExceptionFromWorker) for v in return_values)
         state = "failed" if failed else "done"
 
         return cls(
