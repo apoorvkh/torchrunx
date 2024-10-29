@@ -1,3 +1,5 @@
+"""For launching functions with our library."""
+
 from __future__ import annotations
 
 __all__ = ["Launcher", "launch", "LaunchResult"]
@@ -23,7 +25,6 @@ import fabric
 import torch.distributed as dist
 
 from .utils.comm import (
-    AgentStatus,
     LauncherAgentGroup,
     LauncherPayload,
     get_open_port,
@@ -38,6 +39,11 @@ from .utils.logging import LogRecordSocketReceiver, default_handlers
 
 @dataclass
 class Launcher:
+    """Alias class for ``torchrunx.launch``.
+
+    Useful for sequential invocations on the same configuration or for specifying arguments via CLI.
+    """
+
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
@@ -63,6 +69,7 @@ class Launcher:
         func_kwargs: dict[str, Any] | None = None,
         log_handlers: list[Handler] | Literal["auto"] | None = "auto",
     ) -> LaunchResult:
+        """Run a function using the configuration in ``torchrunx.Launcher``."""
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
@@ -180,7 +187,8 @@ class Launcher:
                         ssh_config_file=self.ssh_config_file,
                     )
 
-        return LaunchResult(hostnames=hostnames, agent_statuses=agent_statuses)
+        return_values = [s.return_values for s in agent_statuses]
+        return LaunchResult(hostnames=hostnames, return_values=return_values)
 
 
 def launch(
@@ -220,9 +228,10 @@ def launch(
     :param extra_env_vars: Additional, user-specified variables to copy.
     :param env_file: A file (like ``.env``) with additional environment variables to copy.
     :param log_handlers: A list of handlers to manage agent and worker logs. Default uses an automatic basic logging scheme.
-    :raises RuntimeError: If ``torch.distributed`` not available or "slurm" specified but no allocation is detected.
-    :raises AgentKilledError: If any agent is killed
-    :raises Exception: Propagates exceptions raised in worker processes
+    :raises RuntimeError: Due to various misconfigurations.
+    :raises AgentFailedError: If any agent fails (e.g. due to signal from OS).
+    :raises WorkerFailedError: If any worker fails (e.g. due to segmentation faults).
+    :raises Exception: Propagates exceptions raised in worker processes.
     """  # noqa: E501
     return Launcher(
         hostnames=hostnames,
@@ -236,12 +245,12 @@ def launch(
     ).run(func=func, func_args=func_args, func_kwargs=func_kwargs, log_handlers=log_handlers)
 
 
+@dataclass
 class LaunchResult:
-    """A class that holds worker return values, created by :mod:``torchrunx.launch`` or :mod:``torchrunx.Launcher.run``."""
+    """Container for objects returned from workers after successful launches."""
 
-    def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
-        self.hostnames: list[str] = hostnames
-        self.return_values: list[list[Any]] = [s.return_values for s in agent_statuses]
+    hostnames: list[str]
+    return_values: list[list[Any]]
 
     @overload
     def all(self) -> dict[str, list[Any]]:
