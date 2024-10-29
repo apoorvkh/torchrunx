@@ -1,3 +1,5 @@
+"""CLI entrypoint used for starting agents on different nodes."""
+
 from argparse import ArgumentParser
 
 from .agent import main

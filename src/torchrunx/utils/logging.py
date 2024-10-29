@@ -32,6 +32,110 @@ from typing_extensions import Self
 if TYPE_CHECKING:
     import os
 
+## Handler utilities
+
+
+def add_filter_to_handler(
+    handler: Handler,
+    hostname: str,
+    local_rank: int | None,  # None indicates agent
+    log_level: int = logging.NOTSET,
+) -> None:
+    """A filter for ``logging.Handler`` such that only specific agent/worker logs are handled.
+
+    Args:
+      handler: ``logging.Handler`` to be modified.
+      hostname: Name of specified host.
+      local_rank: Rank of specified worker (or ``None`` for agent).
+      log_level: Minimum log level to capture.
+    """
+
+    def _filter(record: WorkerLogRecord) -> bool:
+        return (
+            record.hostname == hostname
+            and record.local_rank == local_rank
+            and record.levelno >= log_level
+        )
+
+    handler.addFilter(_filter)  # pyright: ignore [reportArgumentType]
+
+
+def stream_handler(
+    hostname: str, local_rank: int | None, log_level: int = logging.NOTSET
+) -> Handler:
+    """logging.Handler builder function for writing logs to stdout."""
+    handler = logging.StreamHandler(stream=sys.stdout)
+    add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s:%(levelname)s:%(hostname)s[%(local_rank)s]: %(message)s"
+            if local_rank is not None
+            else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s",
+        ),
+    )
+    return handler
+
+
+def file_handler(
+    hostname: str,
+    local_rank: int | None,
+    file_path: str | os.PathLike,
+    log_level: int = logging.NOTSET,
+) -> Handler:
+    """logging.Handler builder function for writing logs to a file."""
+    handler = logging.FileHandler(file_path)
+    add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
+    formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
+    handler.setFormatter(formatter)
+    return handler
+
+
+def file_handlers(
+    hostnames: list[str],
+    workers_per_host: list[int],
+    log_dir: str | os.PathLike = Path("torchrunx_logs"),
+    log_level: int = logging.NOTSET,
+) -> list[Handler]:
+    """Builder function for writing logs for all workers/agents to a directory.
+
+    Files are named with timestamp, hostname, and the local_rank (for workers).
+    """
+    handlers = []
+
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+
+    for hostname, num_workers in zip(hostnames, workers_per_host):
+        for local_rank in [None, *range(num_workers)]:
+            file_path = (
+                f"{log_dir}/{timestamp}-{hostname}"
+                + (f"[{local_rank}]" if local_rank is not None else "")
+                + ".log"
+            )
+            handlers.append(file_handler(hostname, local_rank, file_path, log_level=log_level))
+
+    return handlers
+
+
+def default_handlers(
+    hostnames: list[str],
+    workers_per_host: list[int],
+    log_dir: str | os.PathLike = Path("torchrunx_logs"),
+    log_level: int = logging.INFO,
+) -> list[Handler]:
+    """A default set of logging.Handlers to be used when ``launch(log_handlers="auto")``.
+
+    Logs for host[0] and its local_rank[0] worker are written to the launcher process stdout.
+    Logs for all agents/workers are written to files in ``log_dir`` (named by timestamp, hostname,
+    local_rank).
+    """
+    return [
+        stream_handler(hostname=hostnames[0], local_rank=None, log_level=log_level),
+        stream_handler(hostname=hostnames[0], local_rank=0, log_level=log_level),
+        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level),
+    ]
+
+
 ## Launcher utilities
 
 
@@ -135,107 +239,3 @@ def log_records_to_socket(
     logging.setLogRecordFactory(record_factory)
 
     logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
-
-
-## Handler utilities
-
-
-def add_filter_to_handler(
-    handler: Handler,
-    hostname: str,
-    local_rank: int | None,  # None indicates agent
-    log_level: int = logging.NOTSET,
-) -> None:
-    """A filter for ``logging.Handler`` such that only specific agent/worker logs are handled.
-
-    Args:
-      handler: ``logging.Handler`` to be modified.
-      hostname: Name of specified host.
-      local_rank: Rank of specified worker (or ``None`` for agent).
-      log_level: Minimum log level to capture.
-    """
-
-    def _filter(record: WorkerLogRecord) -> bool:
-        return (
-            record.hostname == hostname
-            and record.local_rank == local_rank
-            and record.levelno >= log_level
-        )
-
-    handler.addFilter(_filter)  # pyright: ignore [reportArgumentType]
-
-
-def stream_handler(
-    hostname: str, local_rank: int | None, log_level: int = logging.NOTSET
-) -> Handler:
-    """logging.Handler builder function for writing logs to stdout."""
-    handler = logging.StreamHandler(stream=sys.stdout)
-    add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
-    handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s:%(levelname)s:%(hostname)s[%(local_rank)s]: %(message)s"
-            if local_rank is not None
-            else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s",
-        ),
-    )
-    return handler
-
-
-def file_handler(
-    hostname: str,
-    local_rank: int | None,
-    file_path: str | os.PathLike,
-    log_level: int = logging.NOTSET,
-) -> Handler:
-    """logging.Handler builder function for writing logs to a file."""
-    handler = logging.FileHandler(file_path)
-    add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
-    formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
-    handler.setFormatter(formatter)
-    return handler
-
-
-def file_handlers(
-    hostnames: list[str],
-    workers_per_host: list[int],
-    log_dir: str | os.PathLike = Path("torchrunx_logs"),
-    log_level: int = logging.NOTSET,
-) -> list[Handler]:
-    """Builder function for writing logs for all workers/agents to a directory.
-
-    Files are named with timestamp, hostname, and the local_rank (for workers).
-    """
-    handlers = []
-
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-
-    for hostname, num_workers in zip(hostnames, workers_per_host):
-        for local_rank in [None, *range(num_workers)]:
-            file_path = (
-                f"{log_dir}/{timestamp}-{hostname}"
-                + (f"[{local_rank}]" if local_rank is not None else "")
-                + ".log"
-            )
-            handlers.append(file_handler(hostname, local_rank, file_path, log_level=log_level))
-
-    return handlers
-
-
-def default_handlers(
-    hostnames: list[str],
-    workers_per_host: list[int],
-    log_dir: str | os.PathLike = Path("torchrunx_logs"),
-    log_level: int = logging.INFO,
-) -> list[Handler]:
-    """A default set of logging.Handlers to be used when ``launch(log_handlers="auto")``.
-
-    Logs for host[0] and its local_rank[0] worker are written to the launcher process stdout.
-    Logs for all agents/workers are written to files in ``log_dir`` (named by timestamp, hostname,
-    local_rank).
-    """
-    return [
-        stream_handler(hostname=hostnames[0], local_rank=None, log_level=log_level),
-        stream_handler(hostname=hostnames[0], local_rank=0, log_level=log_level),
-        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level),
-    ]
