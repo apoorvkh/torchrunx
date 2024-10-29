@@ -17,14 +17,14 @@ import torch
 import torch.distributed as dist
 import torch.distributed.elastic.multiprocessing as dist_mp
 
-from .logging_utils import log_records_to_socket, redirect_stdio_to_logger
-from .utils import (
+from .utils.comm import (
     AgentPayload,
     AgentStatus,
-    ExceptionFromWorker,
     LauncherAgentGroup,
     get_open_port,
 )
+from .utils.errors import ExceptionFromWorker
+from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
 
 
 @dataclass

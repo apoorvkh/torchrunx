@@ -1,4 +1,4 @@
-"""Common utility functions and classes."""
+"""Utilities for Launcher-Agent communication."""
 
 from __future__ import annotations
 
@@ -21,6 +21,8 @@ import cloudpickle
 import torch.distributed as dist
 from typing_extensions import Self
 
+from .errors import AgentFailedError, ExceptionFromWorker, WorkerFailedError
+
 if TYPE_CHECKING:
     from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
@@ -30,14 +32,6 @@ def get_open_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
-
-
-class AgentFailedError(Exception):
-    pass
-
-
-class WorkerFailedError(Exception):
-    pass
 
 
 @dataclass
@@ -124,10 +118,6 @@ class AgentPayload:
     hostname: str
     port: int
     process_id: int
-
-
-class ExceptionFromWorker:
-    exception: Exception
 
 
 @dataclass

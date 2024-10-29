@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["AgentKilledError", "Launcher", "launch", "LaunchResult"]
+__all__ = ["Launcher", "launch", "LaunchResult"]
 
 import fnmatch
 import ipaddress
@@ -22,16 +22,18 @@ from typing import Any, Callable, Literal, overload
 import fabric
 import torch.distributed as dist
 
-from .environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
-from .logging_utils import LogRecordSocketReceiver, default_handlers
-from .utils import (
+from .utils.comm import (
     AgentStatus,
-    ExceptionFromWorker,
     LauncherAgentGroup,
     LauncherPayload,
-    WorkerFailedError,
     get_open_port,
 )
+from .utils.environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
+from .utils.errors import (
+    ExceptionFromWorker,
+    WorkerFailedError,
+)
+from .utils.logging import LogRecordSocketReceiver, default_handlers
 
 
 @dataclass
@@ -235,9 +237,7 @@ def launch(
 
 
 class LaunchResult:
-    """
-    A class that holds worker return values, created by :mod:``torchrunx.launch`` or :mod:``torchrunx.Launcher.run``.
-    """
+    """A class that holds worker return values, created by :mod:``torchrunx.launch`` or :mod:``torchrunx.Launcher.run``."""
 
     def __init__(self, hostnames: list[str], agent_statuses: list[AgentStatus]) -> None:
         self.hostnames: list[str] = hostnames
@@ -256,8 +256,7 @@ class LaunchResult:
         pass
 
     def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
-        """
-        Get all worker return values by rank or hostname.
+        """Get all worker return values by rank or hostname.
         Returns a list of return values ordered by global rank, or a dictionary mapping hostnames to lists of return values ordered by local rank.
         """
         if by == "hostname":
@@ -269,16 +268,12 @@ class LaunchResult:
         raise TypeError(msg)
 
     def values(self, hostname: str) -> list[Any]:
-        """
-        Get worker return values for host ``hostname``.
-        """
+        """Get worker return values for host ``hostname``."""
         host_idx = self.hostnames.index(hostname)
         return self.return_values[host_idx]
 
     def value(self, rank: int) -> Any:
-        """
-        Get worker return value from global rank ``rank``.
-        """
+        """Get worker return value from global rank ``rank``."""
         if rank < 0:
             msg = f"Rank {rank} must be larger than 0"
             raise ValueError(msg)

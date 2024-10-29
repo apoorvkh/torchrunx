@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
 from .agent import main
-from .utils import LauncherAgentGroup
+from .utils.comm import LauncherAgentGroup
 
 if __name__ == "__main__":
     parser = ArgumentParser()
