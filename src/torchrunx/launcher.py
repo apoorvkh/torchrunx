@@ -252,7 +252,12 @@ def launch(
         default_env_vars=default_env_vars,
         extra_env_vars=extra_env_vars,
         env_file=env_file,
-    ).run(func=func, func_args=func_args, func_kwargs=func_kwargs, log_handlers=log_handlers)
+    ).run(
+        func=func,
+        func_args=func_args,
+        func_kwargs=func_kwargs,
+        log_handlers=log_handlers,
+    )
 
 
 @dataclass
@@ -263,10 +268,6 @@ class LaunchResult:
     return_values: list[list[Any]]
 
     @overload
-    def all(self) -> dict[str, list[Any]]:
-        pass
-
-    @overload
     def all(self, by: Literal["hostname"]) -> dict[str, list[Any]]:
         pass
 
@@ -275,36 +276,76 @@ class LaunchResult:
         pass
 
     def all(self, by: Literal["hostname", "rank"] = "hostname") -> dict[str, list[Any]] | list[Any]:
-        """Get all worker return values by rank or hostname.
-        Returns a list of return values ordered by global rank, or a dictionary mapping hostnames to lists of return values ordered by local rank.
-        """
+        """Get return values from all workers."""
         if by == "hostname":
             return dict(zip(self.hostnames, self.return_values))
         elif by == "rank":  # noqa: RET505
             return reduce(add, self.return_values)
+        else:
+            msg = "Invalid argument for 'by'. Must be 'hostname' or 'rank'."
+            raise TypeError(msg)
 
-        msg = "Invalid argument: expected by=('hostname' | 'rank')"
-        raise TypeError(msg)
+    @overload
+    def get(self, hostname: None, rank: None) -> dict[str, list[Any]]: ...
 
-    def values(self, hostname: str) -> list[Any]:
-        """Get worker return values for host ``hostname``."""
-        host_idx = self.hostnames.index(hostname)
-        return self.return_values[host_idx]
+    @overload
+    def get(self, hostname: None, rank: int) -> Any: ...
 
-    def value(self, rank: int) -> Any:
-        """Get worker return value from global rank ``rank``."""
-        if rank < 0:
-            msg = f"Rank {rank} must be larger than 0"
-            raise ValueError(msg)
+    @overload
+    def get(self, hostname: None, rank: list[int]) -> list[Any]: ...
 
-        for values in self.return_values:
-            if rank >= len(values):
-                rank -= len(values)
-            else:
-                return values[rank]
+    @overload
+    def get(self, hostname: str, rank: None) -> list[Any]: ...
 
-        msg = f"Rank {rank} larger than world_size"
-        raise ValueError(msg)
+    @overload
+    def get(self, hostname: list[str], rank: None) -> dict[str, list[Any]]: ...
+
+    @overload
+    def get(self, hostname: str, rank: int) -> Any: ...
+
+    @overload
+    def get(self, hostname: str, rank: list[int]) -> list[Any]: ...
+
+    @overload
+    def get(self, hostname: list[str], rank: int) -> list[Any]: ...
+
+    @overload
+    def get(self, hostname: list[str], rank: list[int]) -> dict[str, list[Any]]: ...
+
+    def get(  # noqa: PLR0911
+        self,
+        hostname: str | list[str] | None = None,
+        rank: int | list[int] | None = None,
+    ) -> dict[str, list[Any]] | list[Any] | Any:
+        """Get return values from selected workers."""
+        if hostname is None and isinstance(rank, int):
+            return self.all(by="rank")[rank]
+
+        if hostname is None and isinstance(rank, list):
+            _values = self.all(by="rank")
+            return [_values[r] for r in rank]
+
+        if isinstance(hostname, str) and rank is None:
+            self.return_values[self.hostnames.index(hostname)]
+
+        if isinstance(hostname, list) and rank is None:
+            return {h: self.get(hostname=h) for h in hostname}
+
+        if isinstance(hostname, str) and isinstance(rank, int):
+            return self.get(hostname=hostname)[rank]
+
+        if isinstance(hostname, str) and isinstance(rank, list):
+            return self.get(hostname=hostname)[rank]
+
+        if isinstance(hostname, list) and isinstance(rank, int):
+            return [self.get(hostname=h)[rank] for h in hostname]
+
+        if isinstance(hostname, list) and isinstance(rank, list):
+            _values = self.get(hostname=hostname)
+            return {h: [_values[h][r] for r in rank] for h in hostname}
+
+        # remaining case: hostname=None, rank=None
+        return self.all(by="hostname")
 
 
 def _resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
