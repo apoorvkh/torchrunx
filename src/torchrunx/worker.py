@@ -15,7 +15,8 @@ import torch.distributed as dist
 from .utils.errors import ExceptionFromWorker
 from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
 
-__all__ = ["WorkerArgs", "entrypoint"]
+__all__ = ["WorkerArgs", "worker_entrypoint"]
+
 
 @dataclass
 class WorkerArgs:
@@ -44,7 +45,7 @@ class SerializedWorkerArgs:
         return cloudpickle.loads(self.bytes)
 
 
-def entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | ExceptionFromWorker:
+def worker_entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | ExceptionFromWorker:
     worker_args: WorkerArgs = serialized_worker_args.deserialize()
 
     logger = logging.getLogger()

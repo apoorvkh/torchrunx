@@ -18,7 +18,7 @@ from .utils.comm import (
     get_open_port,
 )
 from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
-from .worker import WorkerArgs, entrypoint
+from .worker import WorkerArgs, worker_entrypoint
 
 
 def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int) -> None:
@@ -54,7 +54,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
-        entrypoint=entrypoint,
+        entrypoint=worker_entrypoint,
         args={
             i: (
                 WorkerArgs(
