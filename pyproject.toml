@@ -36,12 +36,12 @@ Documentation = "https://torchrunx.readthedocs.io"
 
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
+exclude = ["docs"]
 line-length = 100
 src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "D",  # documentation
   "ANN101", "ANN102", "ANN401",  # self / cls / Any annotations
   "BLE001",  # blind exceptions
   "TD",  # todo syntax
@@ -54,9 +54,12 @@ ignore = [
 ]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
+  "D",
   "S101",  # allow asserts
   "T201"  # allow prints
 ]
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.pyright]
 include = ["src", "tests"]

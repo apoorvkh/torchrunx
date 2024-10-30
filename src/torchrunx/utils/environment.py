@@ -1,4 +1,8 @@
+"""Utilities for determining hosts and workers in environment."""
+
 from __future__ import annotations
+
+__all__ = ["in_slurm_job", "slurm_hosts", "slurm_workers", "auto_hosts", "auto_workers"]
 
 import os
 import subprocess
@@ -7,15 +11,12 @@ import torch
 
 
 def in_slurm_job() -> bool:
+    """Check if current process is running in a Slurm allocation."""
     return "SLURM_JOB_ID" in os.environ
 
 
 def slurm_hosts() -> list[str]:
-    """Retrieves hostnames of Slurm-allocated nodes.
-
-    :return: Hostnames of nodes in current Slurm allocation
-    :rtype: list[str]
-    """
+    """Retrieves hostnames of Slurm-allocated nodes."""
     # TODO: sanity check SLURM variables, commands
     if not in_slurm_job():
         msg = "Not in a SLURM job"
@@ -29,13 +30,7 @@ def slurm_hosts() -> list[str]:
 
 
 def slurm_workers() -> int:
-    """
-    |  Determines number of workers per node in current Slurm allocation using
-    |  the ``SLURM_JOB_GPUS`` or ``SLURM_CPUS_ON_NODE`` environmental variables.
-
-    :return: The implied number of workers per node
-    :rtype: int
-    """
+    """Determines number of workers per node in current Slurm allocation."""
     # TODO: sanity check SLURM variables, commands
     if not in_slurm_job():
         msg = "Not in a SLURM job"
@@ -47,17 +42,11 @@ def slurm_workers() -> int:
     if "SLURM_GPUS_PER_NODE" in os.environ:
         return int(os.environ["SLURM_GPUS_PER_NODE"])
 
-    # TODO: should we assume that we plan to do one worker per CPU?
     return int(os.environ["SLURM_CPUS_ON_NODE"])
 
 
 def auto_hosts() -> list[str]:
-    """
-    Automatically determine hostname list
-
-    :return: Hostnames in Slurm allocation, or ['localhost']
-    :rtype: list[str]
-    """
+    """Automatically determine hostnames to launch to."""
     if in_slurm_job():
         return slurm_hosts()
 
@@ -65,12 +54,7 @@ def auto_hosts() -> list[str]:
 
 
 def auto_workers() -> int:
-    """
-    Automatically determine number of workers per host
-
-    :return: Workers per host
-    :rtype: int
-    """
+    """Automatically determine workers per host from SLURM or based on GPU/CPU count."""
     if in_slurm_job():
         return slurm_workers()
 
