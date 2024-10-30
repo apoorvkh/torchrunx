@@ -96,6 +96,7 @@ Environment variables in the launcher process that match the ``default_env_vars`
 
 ``default_env_vars`` can be overriden if desired. This list can be augmented using ``extra_env_vars``. Additional environment variables (and more custom bash logic) can be included via the ``env_file`` argument. Our agents ``source`` this file.
 
+We also set the following environment variables in each worker: ``LOCAL_RANK``, ``RANK``, ``LOCAL_WORLD_SIZE``, ``WORLD_SIZE``, ``MASTER_ADDR``, and ``MASTER_PORT``.
 
 Custom logging
 --------------
