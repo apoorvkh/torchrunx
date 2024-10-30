@@ -185,6 +185,8 @@ class _LogRecordSocketReceiver(ThreadingTCPServer):
 
 @dataclass
 class LoggingServerArgs:
+    """Arguments for starting a :class:`_LogRecordSocketReceiver`."""
+
     log_handlers: list[Handler] | Literal["auto"] | None
     logging_hostname: str
     logging_port: int
@@ -194,6 +196,7 @@ class LoggingServerArgs:
     log_level: int
 
     def serialize(self) -> SerializedLoggingServerArgs:
+        """Serialize :class:`LoggingServerArgs` for passing to a new process."""
         return SerializedLoggingServerArgs(args=self)
 
 
@@ -209,6 +212,7 @@ def start_logging_server(
     serialized_args: SerializedLoggingServerArgs,
     stop_event: EventClass,
 ) -> None:
+    """Serve :class:`_LogRecordSocketReceiver` until stop event triggered."""
     args: LoggingServerArgs = serialized_args.deserialize()
 
     log_handlers = args.log_handlers
