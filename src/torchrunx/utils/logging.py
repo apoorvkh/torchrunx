@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 __all__ = [
-    "LogRecordSocketReceiver",
+    "LoggingServerArgs",
+    "start_logging_server",
     "redirect_stdio_to_logger",
     "log_records_to_socket",
     "add_filter_to_handler",
@@ -25,12 +26,14 @@ from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from pathlib import Path
 from socketserver import StreamRequestHandler, ThreadingTCPServer
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
+import cloudpickle
 from typing_extensions import Self
 
 if TYPE_CHECKING:
     import os
+    from multiprocessing.synchronize import Event as EventClass
 
 ## Handler utilities
 
@@ -139,7 +142,7 @@ def default_handlers(
 ## Launcher utilities
 
 
-class LogRecordSocketReceiver(ThreadingTCPServer):
+class _LogRecordSocketReceiver(ThreadingTCPServer):
     """TCP server for recieving Agent/Worker log records in Launcher.
 
     Uses threading to avoid bottlenecks (i.e. "out-of-order" logs in Launcher process).
@@ -178,6 +181,60 @@ class LogRecordSocketReceiver(ThreadingTCPServer):
         """Override BaseServer.shutdown() with added timeout (to avoid hanging)."""
         self._BaseServer__shutdown_request = True
         self._BaseServer__is_shut_down.wait(timeout=3)  # pyright: ignore[reportAttributeAccessIssue]
+
+
+@dataclass
+class LoggingServerArgs:
+    log_handlers: list[Handler] | Literal["auto"] | None
+    logging_hostname: str
+    logging_port: int
+    hostnames: list[str]
+    workers_per_host: list[int]
+    log_dir: str | os.PathLike
+    log_level: int
+
+    def serialize(self) -> SerializedLoggingServerArgs:
+        return SerializedLoggingServerArgs(args=self)
+
+
+class SerializedLoggingServerArgs:
+    def __init__(self, args: LoggingServerArgs) -> None:
+        self.bytes = cloudpickle.dumps(args)
+
+    def deserialize(self) -> LoggingServerArgs:
+        return cloudpickle.loads(self.bytes)
+
+
+def start_logging_server(
+    serialized_args: SerializedLoggingServerArgs,
+    stop_event: EventClass,
+) -> None:
+    args: LoggingServerArgs = serialized_args.deserialize()
+
+    log_handlers = args.log_handlers
+    if log_handlers is None:
+        log_handlers = []
+    elif log_handlers == "auto":
+        log_handlers = default_handlers(
+            hostnames=args.hostnames,
+            workers_per_host=args.workers_per_host,
+            log_dir=args.log_dir,
+            log_level=args.log_level,
+        )
+
+    log_receiver = _LogRecordSocketReceiver(
+        host=args.logging_hostname,
+        port=args.logging_port,
+        handlers=log_handlers,
+    )
+
+    log_receiver.serve_forever()
+
+    while not stop_event.is_set():
+        pass
+
+    log_receiver.shutdown()
+    log_receiver.server_close()
 
 
 ## Agent/worker utilities
