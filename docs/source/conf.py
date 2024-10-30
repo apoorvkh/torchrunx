@@ -22,7 +22,7 @@ extensions = [
     "sphinx.ext.linkcode",
 ]
 
-autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "typing_extensions"]
+autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "sys", "logging", "typing_extensions"]
 autodoc_typehints = "both"
 autodoc_typehints_description_target = "documented_params"
 

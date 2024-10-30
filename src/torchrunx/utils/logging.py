@@ -41,12 +41,12 @@ def add_filter_to_handler(
     local_rank: int | None,  # None indicates agent
     log_level: int = logging.NOTSET,
 ) -> None:
-    """A filter for :mod:`logging.Handler` such that only specific agent/worker logs are handled.
+    """Apply a filter to :mod:`logging.Handler` so only specific worker logs are handled.
 
     Args:
         handler: Handler to be modified.
         hostname: Name of specified host.
-        local_rank: Rank of specified worker (or ``None`` for agent).
+        local_rank: Rank of specified worker on host (or ``None`` for agent itself).
         log_level: Minimum log level to capture.
     """
 

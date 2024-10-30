@@ -100,7 +100,7 @@ Environment variables in the launcher process that match the ``default_env_vars`
 Custom logging
 --------------
 
-We forward all logs (i.e. from :mod:`logging` and :mod:`sys.stdin`/:mod:`sys.stdout`) from workers and agents to the launcher. By default, the logs from the first agent and its first worker are printed into the launcher's ``stdout`` stream. Logs from all agents and workers are written to files in ``$TORCHRUNX_LOG_DIR`` (default: ``./torchrunx_logs``) and are named by timestamp, hostname, and local_rank.
+We forward all logs (i.e. from :mod:`logging` and :mod:`sys.stdout`/:mod:`sys.stderr`) from workers and agents to the launcher. By default, the logs from the first agent and its first worker are printed into the launcher's ``stdout`` stream. Logs from all agents and workers are written to files in ``$TORCHRUNX_LOG_DIR`` (default: ``./torchrunx_logs``) and are named by timestamp, hostname, and local_rank.
 
 :mod:`logging.Handler` objects can be provided via the ``log_handlers`` argument to provide further customization (mapping specific agents/workers to custom output streams).
 
