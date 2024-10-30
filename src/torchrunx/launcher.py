@@ -278,7 +278,7 @@ class LaunchResult:
 
     def rank(self, i: int) -> Any:
         """Get return value from worker by global rank."""
-        return self.by_rank()[i]
+        return self.by_ranks()[i]
 
 
 def _resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
