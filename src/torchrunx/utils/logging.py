@@ -41,10 +41,10 @@ def add_filter_to_handler(
     local_rank: int | None,  # None indicates agent
     log_level: int = logging.NOTSET,
 ) -> None:
-    """A filter for ``logging.Handler`` such that only specific agent/worker logs are handled.
+    """A filter for :mod:`logging.Handler` such that only specific agent/worker logs are handled.
 
     Args:
-        handler: ``logging.Handler`` to be modified.
+        handler: Handler to be modified.
         hostname: Name of specified host.
         local_rank: Rank of specified worker (or ``None`` for agent).
         log_level: Minimum log level to capture.
@@ -63,7 +63,7 @@ def add_filter_to_handler(
 def stream_handler(
     hostname: str, local_rank: int | None, log_level: int = logging.NOTSET
 ) -> Handler:
-    """logging.Handler builder function for writing logs to stdout."""
+    """Handler builder function for writing logs from specified hostname/rank to stdout."""
     handler = logging.StreamHandler(stream=sys.stdout)
     add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
     handler.setFormatter(
@@ -82,7 +82,7 @@ def file_handler(
     file_path: str | os.PathLike,
     log_level: int = logging.NOTSET,
 ) -> Handler:
-    """logging.Handler builder function for writing logs to a file."""
+    """Handler builder function for writing logs from specified hostname/rank to a file."""
     handler = logging.FileHandler(file_path)
     add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
     formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
@@ -96,7 +96,7 @@ def file_handlers(
     log_dir: str | os.PathLike = Path("torchrunx_logs"),
     log_level: int = logging.NOTSET,
 ) -> list[Handler]:
-    """Builder function for writing logs for all workers/agents to a directory.
+    """Handler builder function for writing logs for all workers/agents to a directory.
 
     Files are named with timestamp, hostname, and the local_rank (for workers).
     """
@@ -123,9 +123,9 @@ def default_handlers(
     log_dir: str | os.PathLike = Path("torchrunx_logs"),
     log_level: int = logging.INFO,
 ) -> list[Handler]:
-    """A default set of logging.Handlers to be used when ``launch(log_handlers="auto")``.
+    """Default :mod:`logging.Handler`s for ``log_handlers="auto"`` in :mod:`torchrunx.launch`.
 
-    Logs for host[0] and its local_rank[0] worker are written to the launcher process stdout.
+    Logs for ``host[0]`` and its ``local_rank[0]`` worker are written to launcher process stdout.
     Logs for all agents/workers are written to files in ``log_dir`` (named by timestamp, hostname,
     local_rank).
     """

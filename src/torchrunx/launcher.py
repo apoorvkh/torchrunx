@@ -39,10 +39,7 @@ from .utils.logging import LogRecordSocketReceiver, default_handlers
 
 @dataclass
 class Launcher:
-    """Alias class for ``torchrunx.launch``.
-
-    Useful for sequential invocations on the same configuration or for specifying arguments via CLI.
-    """
+    """Useful for sequential invocations or for specifying arguments via CLI."""
 
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
@@ -69,7 +66,7 @@ class Launcher:
         func_kwargs: dict[str, Any] | None = None,
         log_handlers: list[Handler] | Literal["auto"] | None = "auto",
     ) -> LaunchResult:
-        """Run a function using the configuration in ``torchrunx.Launcher``."""
+        """Run a function using the :mod:`torchrunx.Launcher` configuration."""
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
@@ -267,21 +264,21 @@ class LaunchResult:
     hostnames: list[str]
     return_values: list[list[Any]]
 
-    def by_hostname(self) -> dict[str, list[Any]]:
+    def by_hostnames(self) -> dict[str, list[Any]]:
         """All return values from workers, indexed by host and local rank."""
         return dict(zip(self.hostnames, self.return_values))
 
-    def by_rank(self) -> list[Any]:
+    def by_ranks(self) -> list[Any]:
         """All return values from workers, indexed by global rank."""
         return reduce(add, self.return_values)
 
-    def get(self, hostname: str, rank: int) -> Any:
-        """Get return value from worker (indexed by host and local rank)."""
+    def index(self, hostname: str, rank: int) -> Any:
+        """Get return value from worker by host and local rank."""
         return self.return_values[self.hostnames.index(hostname)][rank]
 
-    def rank(self, idx: int) -> Any:
-        """Get return value from worker (indexed by global rank)."""
-        return self.by_rank()[idx]
+    def rank(self, i: int) -> Any:
+        """Get return value from worker by global rank."""
+        return self.by_rank()[i]
 
 
 def _resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:

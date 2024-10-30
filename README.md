@@ -56,12 +56,13 @@ Here's a simple example where we "train" a model on two nodes (with 2 GPUs each)
 import torchrunx as trx
 
 if __name__ == "__main__":
-    trained_model = trx.launch(
+    result = trx.launch(
         func=train,
         hostnames=["localhost", "other_node"],
-        workers_per_host=2  # num. GPUs
-    ).value(rank=0)  # get returned object
+        workers_per_host=2  # number of GPUs
+    )
 
+    trained_model = result.rank(0)
     torch.save(trained_model.state_dict(), "model.pth")
 ```
 
@@ -70,9 +71,9 @@ if __name__ == "__main__":
 
 ## Why should I use this?
 
-Whether you have 1 GPU, 8 GPUs, or 8 machines.
+Whether you have 1 GPU, 8 GPUs, or 8 machines:
 
-__Features:__
+__Features__
 
 - Our [`launch()`](https://torchrunx.readthedocs.io/stable/api.html#torchrunx.launch) utility is super _Pythonic_
     - Return objects from your workers
@@ -81,13 +82,13 @@ __Features:__
 - Fine-grained control over logging, environment variables, exception handling, etc.
 - Automatic integration with SLURM
 
-__Robustness:__
+__Robustness__
 
 - If you want to run a complex, _modular_ workflow in __one__ script
   - don't parallelize your entire script: just the functions you want!
   - no worries about memory leaks or OS failures
 
-__Convenience:__
+__Convenience__
 
 - If you don't want to:
   - set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself

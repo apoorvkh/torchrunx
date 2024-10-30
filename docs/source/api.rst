@@ -6,4 +6,6 @@ API
 .. autoclass:: torchrunx.LaunchResult
   :members:
 
-.. autoclass:: torchrunx.AgentKilledError
+.. autoclass:: torchrunx.AgentFailedError
+
+.. autoclass:: torchrunx.WorkerFailedError

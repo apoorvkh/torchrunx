@@ -17,8 +17,8 @@ extensions = [
     "myst_parser",
     "sphinx_toolbox.sidebar_links",
     "sphinx_toolbox.github",
-    "sphinx.ext.autodoc.typehints",
     "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc.typehints",
     "sphinx.ext.linkcode",
 ]
 

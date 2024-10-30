@@ -14,19 +14,19 @@ We could also launch multiple functions (e.g. train on many GPUs, test on one GP
         func=train,
         hostnames=["node1", "node2"],
         workers_per_host=8
-    ).value(rank=0)
+    ).rank(0)
 
     accuracy = trx.launch(
         func=test,
-        func_kwargs={'model': model},
+        func_args=(trained_model,),
         hostnames=["localhost"],
         workers_per_host=1
-    ).value(rank=0)
+    ).rank(0)
 
     print(f'Accuracy: {accuracy}')
 
 
-:mod:`torchrunx.launch` is self-cleaning: all processes are terminated (and the used memory is completely released) after each invocation.
+:mod:`torchrunx.launch` is self-cleaning: all processes are terminated (and the used memory is completely released) before the subsequent invocation.
 
 Launcher class
 --------------
@@ -85,9 +85,9 @@ Raises a ``RuntimeError`` if ``hostnames="slurm"`` or ``workers_per_host="slurm"
 Propagating exceptions
 ----------------------
 
-Exceptions that are raised in Workers will be raised by the launcher process.
+Exceptions that are raised in workers will be raised by the launcher process.
 
-A :mod:`torchrunx.AgentKilledError` will be raised if any agent dies unexpectedly (e.g. if force-killed by the OS, due to segmentation faults or OOM).
+A :mod:`torchrunx.AgentFailedError` or :mod:`torchrunx.WorkerFailedError` will be raised if any agent or worker dies unexpectedly (e.g. if sent a signal from the OS, due to segmentation faults or OOM).
 
 Environment variables
 ---------------------
@@ -100,14 +100,14 @@ Environment variables in the launcher process that match the ``default_env_vars`
 Custom logging
 --------------
 
-We forward all logs (i.e. from ``logging`` and ``stdio``) from workers and agents to the Launcher. By default, the logs from the first agent and its first worker are printed into the Launcher's ``stdout`` stream. Logs from all agents and workers are written to files in ``$TORCHRUNX_LOG_DIR`` (default: ``./torchrunx_logs``) and are named by timestamp, hostname, and local_rank.
+We forward all logs (i.e. from :mod:`logging` and :mod:`sys.stdin`/:mod:`sys.stdout`) from workers and agents to the launcher. By default, the logs from the first agent and its first worker are printed into the launcher's ``stdout`` stream. Logs from all agents and workers are written to files in ``$TORCHRUNX_LOG_DIR`` (default: ``./torchrunx_logs``) and are named by timestamp, hostname, and local_rank.
 
-``logging.Handler`` objects can be provided via the ``log_handlers`` argument to provide further customization (mapping specific agents/workers to custom output streams).
+:mod:`logging.Handler` objects can be provided via the ``log_handlers`` argument to provide further customization (mapping specific agents/workers to custom output streams).
 
 We provide some utilities to help:
-
-.. autofunction:: torchrunx.add_filter_to_handler
 
 .. autofunction:: torchrunx.file_handler
 
 .. autofunction:: torchrunx.stream_handler
+
+.. autofunction:: torchrunx.add_filter_to_handler
