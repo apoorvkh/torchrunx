@@ -26,7 +26,7 @@ from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from pathlib import Path
 from socketserver import StreamRequestHandler, ThreadingTCPServer
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
 import cloudpickle
 from typing_extensions import Self
@@ -187,7 +187,7 @@ class _LogRecordSocketReceiver(ThreadingTCPServer):
 class LoggingServerArgs:
     """Arguments for starting a :class:`_LogRecordSocketReceiver`."""
 
-    log_handlers: list[Handler] | Literal["auto"] | None
+    log_handlers_builder: Callable[[], list[Handler]] | Literal["auto"] | None
     logging_hostname: str
     logging_port: int
     hostnames: list[str]
@@ -212,16 +212,18 @@ def start_logging_server(
     """Serve :class:`_LogRecordSocketReceiver` until stop event triggered."""
     args = LoggingServerArgs.deserialize(serialized_args)
 
-    log_handlers = args.log_handlers
-    if log_handlers is None:
+    log_handlers = []
+    if args.log_handlers_builder is None:
         log_handlers = []
-    elif log_handlers == "auto":
+    elif args.log_handlers_builder == "auto":
         log_handlers = default_handlers(
             hostnames=args.hostnames,
             workers_per_host=args.workers_per_host,
             log_dir=args.log_dir,
             log_level=args.log_level,
         )
+    elif isinstance(args.log_handlers_builder, Callable):
+        log_handlers = args.log_handlers_builder()
 
     log_receiver = _LogRecordSocketReceiver(
         host=args.logging_hostname,
