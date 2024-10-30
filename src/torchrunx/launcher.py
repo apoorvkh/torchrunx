@@ -16,7 +16,7 @@ import sys
 from dataclasses import dataclass
 from functools import partial, reduce
 from logging import Handler
-from multiprocessing import Process
+from multiprocessing import Event, Process
 from operator import add
 from pathlib import Path
 from typing import Any, Callable, Literal
@@ -34,7 +34,7 @@ from .utils.errors import (
     ExceptionFromWorker,
     WorkerFailedError,
 )
-from .utils.logging import LogRecordSocketReceiver, default_handlers
+from .utils.logging import LoggingServerArgs, start_logging_server
 
 
 @dataclass
@@ -76,9 +76,10 @@ class Launcher:
 
         launcher_hostname = socket.getfqdn()
         launcher_port = get_open_port()
+        logging_port = get_open_port()
         world_size = len(hostnames) + 1
 
-        log_receiver = None
+        stop_logging_event = None
         log_process = None
         launcher_agent_group = None
         agent_payloads = None
@@ -86,17 +87,21 @@ class Launcher:
         try:
             # Start logging server (recieves LogRecords from agents/workers)
 
-            log_receiver = _build_logging_server(
+            logging_server_args = LoggingServerArgs(
                 log_handlers=log_handlers,
-                launcher_hostname=launcher_hostname,
+                logging_hostname=launcher_hostname,
+                logging_port=logging_port,
                 hostnames=hostnames,
                 workers_per_host=workers_per_host,
                 log_dir=Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")),
                 log_level=logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")],  # noqa: SLF001
             )
 
+            stop_logging_event = Event()
+
             log_process = Process(
-                target=log_receiver.serve_forever,
+                target=start_logging_server,
+                args=(logging_server_args.serialize(), stop_logging_event),
                 daemon=True,
             )
 
@@ -109,7 +114,7 @@ class Launcher:
                     command=_build_launch_command(
                         launcher_hostname=launcher_hostname,
                         launcher_port=launcher_port,
-                        logger_port=log_receiver.port,
+                        logger_port=logging_port,
                         world_size=world_size,
                         rank=i + 1,
                         env_vars=(self.default_env_vars + self.extra_env_vars),
@@ -166,11 +171,10 @@ class Launcher:
                 if all(s.state == "done" for s in agent_statuses):
                     break
         finally:
-            if log_receiver is not None:
-                log_receiver.shutdown()
-                if log_process is not None:
-                    log_receiver.server_close()
-                    log_process.kill()
+            if stop_logging_event is not None:
+                stop_logging_event.set()
+            if log_process is not None:
+                log_process.kill()
 
             if launcher_agent_group is not None:
                 launcher_agent_group.shutdown()
@@ -305,31 +309,6 @@ def _resolve_workers_per_host(
         raise ValueError(msg)
 
     return workers_per_host
-
-
-def _build_logging_server(
-    log_handlers: list[Handler] | Literal["auto"] | None,
-    launcher_hostname: str,
-    hostnames: list[str],
-    workers_per_host: list[int],
-    log_dir: str | os.PathLike,
-    log_level: int,
-) -> LogRecordSocketReceiver:
-    if log_handlers is None:
-        log_handlers = []
-    elif log_handlers == "auto":
-        log_handlers = default_handlers(
-            hostnames=hostnames,
-            workers_per_host=workers_per_host,
-            log_dir=log_dir,
-            log_level=log_level,
-        )
-
-    return LogRecordSocketReceiver(
-        host=launcher_hostname,
-        port=get_open_port(),
-        handlers=log_handlers,
-    )
 
 
 def _build_launch_command(
