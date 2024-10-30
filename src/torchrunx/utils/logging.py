@@ -195,25 +195,22 @@ class LoggingServerArgs:
     log_dir: str | os.PathLike
     log_level: int
 
-    def serialize(self) -> SerializedLoggingServerArgs:
+    def serialize(self) -> bytes:
         """Serialize :class:`LoggingServerArgs` for passing to a new process."""
-        return SerializedLoggingServerArgs(args=self)
+        return cloudpickle.dumps(self)
 
-
-class SerializedLoggingServerArgs:
-    def __init__(self, args: LoggingServerArgs) -> None:
-        self.bytes = cloudpickle.dumps(args)
-
-    def deserialize(self) -> LoggingServerArgs:
-        return cloudpickle.loads(self.bytes)
+    @staticmethod
+    def deserialize(serialized: bytes) -> LoggingServerArgs:
+        """Deserialize bytes to :class:`LoggingServerArgs`."""
+        return cloudpickle.loads(serialized)
 
 
 def start_logging_server(
-    serialized_args: SerializedLoggingServerArgs,
+    serialized_args: bytes,
     stop_event: EventClass,
 ) -> None:
     """Serve :class:`_LogRecordSocketReceiver` until stop event triggered."""
-    args: LoggingServerArgs = serialized_args.deserialize()
+    args = LoggingServerArgs.deserialize(serialized_args)
 
     log_handlers = args.log_handlers
     if log_handlers is None:
