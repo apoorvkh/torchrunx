@@ -103,7 +103,7 @@ Custom logging
 
 We forward all logs (i.e. from :mod:`logging` and :mod:`sys.stdout`/:mod:`sys.stderr`) from workers and agents to the launcher. By default, the logs from the first agent and its first worker are printed into the launcher's ``stdout`` stream. Logs from all agents and workers are written to files in ``$TORCHRUNX_LOG_DIR`` (default: ``./torchrunx_logs``) and are named by timestamp, hostname, and local_rank.
 
-:mod:`logging.Handler` objects can be provided via the ``log_handlers`` argument to provide further customization (mapping specific agents/workers to custom output streams).
+:mod:`logging.Handler` objects can be provided via the ``log_handlers_builder`` argument to provide further customization (mapping specific agents/workers to custom output streams). You must pass a function that returns a list of :mod:`logging.Handler`s to ``log_handlers_builder``.
 
 We provide some utilities to help:
 
