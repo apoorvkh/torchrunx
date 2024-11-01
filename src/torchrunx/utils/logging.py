@@ -187,7 +187,7 @@ class _LogRecordSocketReceiver(ThreadingTCPServer):
 class LoggingServerArgs:
     """Arguments for starting a :class:`_LogRecordSocketReceiver`."""
 
-    log_handlers_builder: Callable[[], list[Handler]] | Literal["auto"] | None
+    handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None
     logging_hostname: str
     logging_port: int
     hostnames: list[str]
@@ -213,17 +213,17 @@ def start_logging_server(
     args = LoggingServerArgs.deserialize(serialized_args)
 
     log_handlers = []
-    if args.log_handlers_builder is None:
+    if args.handler_factory is None:
         log_handlers = []
-    elif args.log_handlers_builder == "auto":
+    elif args.handler_factory == "auto":
         log_handlers = default_handlers(
             hostnames=args.hostnames,
             workers_per_host=args.workers_per_host,
             log_dir=args.log_dir,
             log_level=args.log_level,
         )
-    elif isinstance(args.log_handlers_builder, Callable):
-        log_handlers = args.log_handlers_builder()
+    elif isinstance(args.handler_factory, Callable):
+        log_handlers = args.handler_factory()
 
     log_receiver = _LogRecordSocketReceiver(
         host=args.logging_hostname,

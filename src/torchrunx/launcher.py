@@ -64,7 +64,7 @@ class Launcher:
         func: Callable,
         func_args: tuple[Any] | None = None,
         func_kwargs: dict[str, Any] | None = None,
-        log_handlers_builder: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
+        handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
     ) -> LaunchResult:
         """Run a function using the :mod:`torchrunx.Launcher` configuration."""
         if not dist.is_available():
@@ -88,7 +88,7 @@ class Launcher:
             # Start logging server (recieves LogRecords from agents/workers)
 
             logging_server_args = LoggingServerArgs(
-                log_handlers_builder=log_handlers_builder,
+                handler_factory=handler_factory,
                 logging_hostname=launcher_hostname,
                 logging_port=logging_port,
                 hostnames=hostnames,
@@ -214,7 +214,7 @@ def launch(
     ),
     extra_env_vars: tuple[str, ...] = (),
     env_file: str | os.PathLike | None = None,
-    log_handlers_builder: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
+    handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
 ) -> LaunchResult:
     """Launch a distributed PyTorch function on the specified nodes.
 
@@ -235,7 +235,7 @@ def launch(
             Supports bash pattern matching syntax.
         extra_env_vars: Additional user-specified environment variables to copy.
         env_file: Path to a file (e.g., `.env`) with additional environment variables to copy.
-        log_handlers_builder: Function to build handlers for managing agent and worker logs.
+        handler_factory: Function to build logging handlers that process agent and worker logs.
             Defaults to an automatic basic logging scheme.
 
     Raises:
@@ -257,7 +257,7 @@ def launch(
         func=func,
         func_args=func_args,
         func_kwargs=func_kwargs,
-        log_handlers_builder=log_handlers_builder,
+        handler_factory=handler_factory,
     )
 
 
