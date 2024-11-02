@@ -231,7 +231,10 @@ def start_logging_server(
         handlers=log_handlers,
     )
 
-    log_receiver.serve_forever()
+    try:
+        log_receiver.serve_forever()
+    except KeyboardInterrupt:
+        sys.exit(0)
 
     while not stop_event.is_set():
         pass
