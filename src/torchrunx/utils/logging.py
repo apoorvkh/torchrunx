@@ -17,6 +17,7 @@ __all__ = [
 import datetime
 import logging
 import pickle
+import signal
 import struct
 import sys
 from contextlib import redirect_stderr, redirect_stdout
@@ -234,7 +235,7 @@ def start_logging_server(
     try:
         log_receiver.serve_forever()
     except KeyboardInterrupt:
-        sys.exit(0)
+        sys.exit(128 + signal.SIGINT)
 
     while not stop_event.is_set():
         pass
