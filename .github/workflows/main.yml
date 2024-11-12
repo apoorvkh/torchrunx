@@ -60,5 +60,5 @@ jobs:
         with:
           version: "0.5.0"
       - if: contains('2.0,2.1,2.2', matrix.pytorch)
-        run: echo "NUMPY_VERSION='--with \"numpy<2\"'" >> $GITHUB_ENV
+        run: echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
       - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
