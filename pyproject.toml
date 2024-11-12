@@ -4,13 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "torchrunx"
-version = "0.2.3"
+version = "0.2.4"
 authors = [
-    {name = "Apoorv Khandelwal", email = "mail@apoorvkh.com"},
-    {name = "Peter Curtin", email = "peter_curtin@brown.edu"},
+  { name = "Apoorv Khandelwal", email = "mail@apoorvkh.com" },
+  { name = "Peter Curtin", email = "peter_curtin@brown.edu" },
 ]
 description = "Automatically initialize distributed PyTorch environments"
 readme = "README.md"
+urls = { Repository = "https://github.com/apoorvkh/torchrunx.git", Documentation = "https://torchrunx.readthedocs.io" }
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
@@ -42,21 +43,25 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "ANN101", "ANN102", "ANN401",  # self / cls / Any annotations
+  "ANN101",
+  "ANN102",
+  "ANN401",  # self / cls / Any annotations
   "BLE001",  # blind exceptions
-  "TD",  # todo syntax
+  "TD",      # todo syntax
   "FIX002",  # existing todos
-  "PLR0913",  # too many arguments
+  "PLR0913", # too many arguments
   "DTZ005",  # datetime timezone
-  "S301",  # bandit: pickle
-  "S603", "S607",  # bandit: subprocess
-  "COM812", "ISC001",  # conflict with formatter
+  "S301",    # bandit: pickle
+  "S603",
+  "S607",    # bandit: subprocess
+  "COM812",
+  "ISC001",  # conflict with formatter
 ]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
   "D",
-  "S101",  # allow asserts
-  "T201"  # allow prints
+  "S101", # allow asserts
+  "T201", # allow prints
 ]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
