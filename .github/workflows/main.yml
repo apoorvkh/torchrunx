@@ -54,12 +54,11 @@ jobs:
       matrix:
         python: ["3.9", "3.10", "3.11", "3.12"] 
         pytorch: ${{fromJson(needs.get-pytorch-versions.outputs.versions)}}
-
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3.2.2
         with:
           version: "0.5.0"
-    - if: contains('2.0,2.1,2.2', matrix.pytorch)
-      run: echo "NUMPY_VERSION='--with numpy<2'" >> $GITHUB_ENV
-    - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
+      - if: contains('2.0,2.1,2.2', matrix.pytorch)
+        run: echo "NUMPY_VERSION='--with \"numpy<2\"'" >> $GITHUB_ENV
+      - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
