@@ -9,15 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: astral-sh/setup-uv@v3
         with:
-          pixi-version: v0.27.1
-          frozen: true
-          cache: true
-          environments: dev
-          activate-environment: dev
-      - run: python -m build
-      - run: twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - run: uv build
+      - run: uv publish

@@ -1,10 +1,10 @@
 # Contributing
 
-We use the [`pixi`](https://pixi.sh) package manager. Simply [install `pixi`](https://pixi.sh/latest/#installation) and run `pixi shell` in this repository to activate the environment.
+We use the [`uv`](https://github.com/astral-sh/uv) package manager. Simply [install `uv`](https://github.com/astral-sh/uv#installation) and run `uv sync` in this repository to build the environment. Run `source .venv/bin/activate` to activate the environment.
 
 We use `ruff check` for linting, `ruff format` for formatting, `pyright` for static type checking, and `pytest` for testing.
 
-We build wheels with `python -m build` and upload to [PyPI](https://pypi.org/project/torchrunx) with [twine](https://twine.readthedocs.io). Our release pipeline is powered by Github Actions.
+We build wheels with `uv build` and upload to [PyPI](https://pypi.org/project/torchrunx) with `uv publish`. Our release pipeline is powered by Github Actions.
 
 ## Pull Requests
 

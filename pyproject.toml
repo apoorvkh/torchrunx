@@ -22,16 +22,19 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "cloudpickle>=3.0",
-    "fabric>=3.2",
-    "torch>=2.0",
-    # torch.distributed depends on numpy
-    "numpy>=1.20",
+  "cloudpickle>=3.0",
+  "fabric>=3.2",
+  "torch>=2.0",
+  # torch.distributed depends on numpy
+  "numpy>=1.20",
 ]
+[dependency-groups]
+dev = ["ruff", "pyright", "pytest", "build", "twine"]
+dev-extras = ["submitit", "transformers"]
 
-[project.urls]
-Repository = "https://github.com/apoorvkh/torchrunx.git"
-Documentation = "https://torchrunx.readthedocs.io"
+[tool.uv]
+managed = true
+python-preference = "only-managed"
 
 ## Development tools
 
