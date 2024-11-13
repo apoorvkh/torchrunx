@@ -7,13 +7,12 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
         with:
           version: "0.5.0"
-          python-version-file: ".python-version"
-          enable-cache: true
-      - run: uv sync
       - run: uv build
       - run: uv publish
