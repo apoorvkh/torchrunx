@@ -1,20 +1,21 @@
 import os
 
+import torch
+
 import torchrunx as trx
 
 
+class MLP(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.a = torch.nn.Linear(10, 10, bias=False)
+        self.b = torch.nn.Linear(10, 1, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.b(self.a(x))
+
+
 def worker() -> None:
-    import torch
-
-    class MLP(torch.nn.Module):
-        def __init__(self) -> None:
-            super().__init__()
-            self.a = torch.nn.Linear(10, 10, bias=False)
-            self.b = torch.nn.Linear(10, 1, bias=False)
-
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
-            return self.b(self.a(x))
-
     local_rank = int(os.environ["LOCAL_RANK"])
     print("init model")
     model = MLP().to(local_rank)
@@ -33,8 +34,6 @@ def worker() -> None:
 def test_distributed_train() -> None:
     trx.launch(
         worker,
-        hostnames="slurm",
-        workers_per_host="slurm",
         backend="nccl",
     )
 

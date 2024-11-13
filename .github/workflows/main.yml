@@ -9,36 +9,21 @@ on:
 
 jobs:
 
-  check:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: astral-sh/setup-uv@v3.2.2
         with:
-          pixi-version: v0.27.1
-          frozen: true
-          cache: true
-          environments: dev
-          activate-environment: dev
-      - run: ruff check
+          version: "0.5.0"
+          python-version-file: ".python-version"
+          enable-cache: true
+      - run: uv sync
+      - run: uv run --frozen ruff check
         if: success() || failure()
-      - run: ruff format --check
+      - run: uv run --frozen ruff format --check
         if: success() || failure()
-
-  ##
-
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.1
-        with:
-          pixi-version: v0.27.1
-          frozen: true
-          cache: true
-          environments: extra
-          activate-environment: extra
-      - run: pyright
+      - run: uv run --frozen pyright
         if: success() || failure()
 
   ##
@@ -64,26 +49,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: get-pytorch-versions
-    strategy: 
+    strategy:
       fail-fast: false
       matrix:
         python: ["3.9", "3.10", "3.11", "3.12"] 
         pytorch: ${{fromJson(needs.get-pytorch-versions.outputs.versions)}}
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Inject (python / pytorch) test deps into pixi.toml / pyproject.toml
-        run: |
-          sed -i 's/python = "3.9"/python = "${{ matrix.python }}.*"/' pixi.toml
-          sed -i 's/torch>=2.0.0/torch~=${{ matrix.pytorch }}/' pyproject.toml
-
-      - uses: prefix-dev/setup-pixi@v0.8.1
+      - uses: astral-sh/setup-uv@v3.2.2
         with:
-          pixi-version: v0.27.1
-          locked: false
-          frozen: false
-          cache: false
-          environments: default
-          activate-environment: default
-      - run: pytest tests/test_ci.py
+          version: "0.5.0"
+      - if: contains('2.0,2.1,2.2', matrix.pytorch)
+        run: echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
+      - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py

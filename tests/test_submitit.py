@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import copy
 
-import submitit
+import submitit  # pyright: ignore [reportMissingImports]
 import torch
 from torch.utils.data import Dataset
-from transformers import BertForMaskedLM, Trainer, TrainingArguments
+from transformers import (  # pyright: ignore [reportMissingImports]
+    BertForMaskedLM,
+    Trainer,
+    TrainingArguments,
+)
 
 import torchrunx as trx
 
