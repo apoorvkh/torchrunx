@@ -7,24 +7,56 @@
 [![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
 [![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/LICENSE)
 
-By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
-
 **Automatically distribute PyTorch functions onto multiple machines or GPUs**
 
+By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
+
+---
+
+`torchrunx` is a more convenient, *functional* replacement for CLI-based distributed PyTorch launchers (`torchrun`, `accelerate`, `deepspeed`, and so forth). Simply put, you can launch functions in Python like this [(complete examples below)](#demo):
+
+```python
+def my_train_function(): ...
+
+torchrunx.launch(
+    my_train_function,
+    hostnames=["localhost", "other_node"],
+    workers_per_host=2  # number of GPUs
+)
+```
+
+This library uniquely offers:
+
+1. **An automatic launcher that just works for everyone.** No system-specific dependencies and orchestration for *automatic* distribution. `torchrunx` is an SSH-based, pure-Python library that is universally easy to install.
+
+2. **Returned control over the CLI.** Our library permits conventional commands (`python my_script.py ...`), in contrast to launchers that override the `python` executable in a cumbersome way (e.g. `torchrun --nproc_per_node=2 --nnodes=2 --node_rank=0 --master_addr=100.43.331.111 --master_port=1234 my_script.py ...`).  Users can define their CLI as they wish and determine exactly which launcher/script arguments they want to expose.
+
+3. **Support for more complex workflows in a single script.** Your workflow may have independent steps that need different parallelizations (e.g. comparing training throughput on 4, then 8 GPUs; training on 8 GPUs, testing on 1 GPU; and so forth). CLI-based launchers naively parallelize the entire script for exactly N GPUs. In contrast, our library treats these steps in a modular way and permits degrees of parallelism in a single script. We clean memory leaks (which are unfortunately common in PyTorch) as we go, so previous steps won't crash or adversely affect future steps.
+
+4. **Better handling of system failures.** By default, your "work" is inherently coupled to your main Python process. If the system kills one of your workers (e.g. due to RAM OOM or segmentation faults), there is no way to fail gracefully in Python. Your processes might hang for at least 10 minutes (the NCCL timeout) or become perpetual zombies. `torchrunx` decouples "launcher" and "worker" processes. If the system kills a worker, our launcher immediately raises a `WorkerFailure` exception, which users can handle as they wish. We always clean up all nodes, so no more zombies!
+
+5. **Bonus features.**
+    - Fine-grained, custom handling of logging, environment variables, and exception propagation. We have nice defaults too: no more interleaved logs and irrelevant exceptions!
+    - No need to manually set up a [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group)
+    - We automatically detect and infer settings from SLURM environments.
+    - Start multi-node training from Python notebooks!
+
+There's more on our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, fuller typing, etc!
+
 ## Installation
+
+**Requires:** Linux (+ SSH & shared filesystems if using multiple machines)
 
 ```bash
 pip install torchrunx
 ```
 
-**Requires:** Linux (with shared filesystem & SSH access if using multiple machines)
+## Working demos
 
-## Demo
-
-Here's a simple example where we "train" a model on two nodes (with 2 GPUs each).
+Here's a simple example where we train a model on two nodes (with 2 GPUs each).
 
 <details>
-  <summary>Training code</summary>
+  <summary>Vanilla PyTorch</summary>
 
   ```python
   import os
@@ -68,28 +100,3 @@ if __name__ == "__main__":
 
 ### [Full API](https://torchrunx.readthedocs.io/stable/api.html)
 ### [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
-
-## Why should I use this?
-
-Whether you have 1 GPU, 8 GPUs, or 8 machines:
-
-__Features__
-
-- Our [`launch()`](https://torchrunx.readthedocs.io/stable/api.html#torchrunx.launch) utility is super _Pythonic_
-    - Return objects from your workers
-    - Run `python script.py` instead of `torchrun script.py`
-    - Launch multi-node functions, even from Python Notebooks
-- Fine-grained control over logging, environment variables, exception handling, etc.
-- Automatic integration with SLURM
-
-__Robustness__
-
-- If you want to run a complex, _modular_ workflow in __one__ script
-  - don't parallelize your entire script: just the functions you want!
-  - no worries about memory leaks or OS failures
-
-__Convenience__
-
-- If you don't want to:
-  - set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group) yourself
-  - manually SSH into every machine and `torchrun --master-ip --master-port ...`, babysit failed processes, etc.

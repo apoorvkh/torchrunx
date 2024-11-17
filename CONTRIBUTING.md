@@ -2,13 +2,11 @@
 
 We use the [`uv`](https://github.com/astral-sh/uv) package manager. Simply [install `uv`](https://github.com/astral-sh/uv#installation) and run `uv sync` in this repository to build the environment. Run `source .venv/bin/activate` to activate the environment.
 
-We use `ruff check` for linting, `ruff format` for formatting, `pyright` for static type checking, and `pytest` for testing.
-
-We build wheels with `uv build` and upload to [PyPI](https://pypi.org/project/torchrunx) with `uv publish`. Our release pipeline is powered by Github Actions.
+We use `ruff check` for linting, `ruff format` for formatting, `pyright` for static type checking, and `pytest` for testing. We expect all such checks to pass before merging changes to the main branch. We build wheels with `uv build` and upload to [PyPI](https://pypi.org/project/torchrunx) with `uv publish`. Our CI pipelines are powered by Github Actions.
 
 ## Pull Requests
 
-Make a pull request with your changes on Github and we'll try to look at soon! If addressing a specific issue, mention it in the PR, and offer a short explanation of your fix. If adding a new feature, explain why it's meaningful and belongs in __torchrunx__.
+Make a pull request with your changes on Github and we'll try to look at it soon! If addressing a specific issue, mention it in the PR, and offer a short explanation of your fix. If adding a new feature, explain why it's meaningful and belongs in __torchrunx__.
 
 ## Testing
 
