@@ -13,7 +13,7 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 
 ---
 
-`torchrunx` is a more convenient, *functional* replacement for CLI-based distributed PyTorch launchers (`torchrun`, `accelerate`, `deepspeed`, and so forth). Simply put, you can launch functions in Python like this [(complete examples below)](#demo):
+`torchrunx` is a more convenient, *functional* replacement for CLI-based distributed PyTorch launchers (`torchrun`, `accelerate`, `deepspeed`, and so forth). Simply put, you can launch functions in Python like this [(complete examples below)](#examples):
 
 ```python
 def my_train_function(): ...
@@ -51,38 +51,37 @@ There's more on our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%
 pip install torchrunx
 ```
 
-## Working demos
+## [Full API](https://torchrunx.readthedocs.io/stable/api.html)
+## [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
+
+## Examples
 
 Here's a simple example where we train a model on two nodes (with 2 GPUs each).
 
-<details>
-  <summary>Vanilla PyTorch</summary>
+### Vanilla PyTorch
 
-  ```python
-  import os
-  import torch
+```python
+import os
+import torch
 
-  def train():
-      rank = int(os.environ['RANK'])
-      local_rank = int(os.environ['LOCAL_RANK'])
+def train():
+    rank = int(os.environ['RANK'])
+    local_rank = int(os.environ['LOCAL_RANK'])
 
-      model = torch.nn.Linear(10, 10).to(local_rank)
-      ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
-      optimizer = torch.optim.AdamW(ddp_model.parameters())
+    model = torch.nn.Linear(10, 10).to(local_rank)
+    ddp_model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+    optimizer = torch.optim.AdamW(ddp_model.parameters())
 
-      optimizer.zero_grad()
-      outputs = ddp_model(torch.randn(5, 10))
-      labels = torch.randn(5, 10).to(local_rank)
-      torch.nn.functional.mse_loss(outputs, labels).backward()
-      optimizer.step()
+    for step in range(10):
+        optimizer.zero_grad()
+        outputs = ddp_model(torch.randn(5, 10))
+        labels = torch.randn(5, 10).to(local_rank)
+        torch.nn.functional.mse_loss(outputs, labels).backward()
+        optimizer.step()
 
-      if rank == 0:
-          return model
-  ```
-
-  You could also use `transformers.Trainer` (or similar) to automatically handle all the multi-GPU / DDP code above.
-</details>
-
+    if rank == 0:
+        return model
+```
 
 ```python
 import torchrunx as trx
@@ -98,5 +97,39 @@ if __name__ == "__main__":
     torch.save(trained_model.state_dict(), "model.pth")
 ```
 
-### [Full API](https://torchrunx.readthedocs.io/stable/api.html)
-### [Advanced Usage](https://torchrunx.readthedocs.io/stable/advanced.html)
+### With other libraries
+
+<details>
+  <summary>Accelerate</summary>
+
+  ```python
+  ```
+</details>
+
+<details>
+  <summary>HF Trainer</summary>
+
+  ```python
+  ```
+</details>
+
+<details>
+  <summary>Deepspeed</summary>
+
+  ```python
+  ```
+</details>
+
+<details>
+  <summary>PyTorch Lightning</summary>
+
+  ```python
+  ```
+</details>
+
+<details>
+  <summary>MosaicML Composer</summary>
+
+  ```python
+  ```
+</details>
