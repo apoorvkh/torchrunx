@@ -57,7 +57,17 @@ torch.save(trained_model.state_dict(), "model.pth")
 
 **Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
 
-**Why?** This library uniquely offers:
+## Installation
+
+**Requires:** Linux (+ SSH & shared filesystems if using multiple machines)
+
+```bash
+pip install torchrunx
+```
+
+## Why?
+
+This library uniquely offers:
 
 1. **An automatic launcher that just works for everyone.** No system-specific dependencies and orchestration for *automatic* distribution. `torchrunx` is an SSH-based, pure-Python library that is universally easy to install.
 
@@ -73,15 +83,7 @@ torch.save(trained_model.state_dict(), "model.pth")
     - We automatically detect and infer settings from SLURM environments.
     - Start multi-node training from Python notebooks!
 
-On our [Roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, fuller typing, and more!
-
-## Installation
-
-**Requires:** Linux (+ SSH & shared filesystems if using multiple machines)
-
-```bash
-pip install torchrunx
-```
+On our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, fuller typing, and more!
 
 ## Examples with other libraries
 
