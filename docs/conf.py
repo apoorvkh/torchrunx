@@ -9,6 +9,7 @@ project = "torchrunx"
 github_username = "apoorvkh"
 github_repository = "torchrunx"
 html_theme = "furo"
+language = "en"
 
 extensions = [
     "sphinx.ext.duration",
