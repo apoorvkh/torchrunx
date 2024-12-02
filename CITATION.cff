@@ -9,6 +9,6 @@ authors:
     family-names: Curtin
     email: peter_curtin@brown.edu
 repository-code: 'https://github.com/apoorvkh/torchrunx'
-url: torchrunx.readthedocs.io
-license: MIT
+url: 'https://torchrunx.readthedocs.io'
+license: GPL-3.0
 year: 2024
