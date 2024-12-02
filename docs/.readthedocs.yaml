@@ -9,4 +9,4 @@ build:
     - asdf install uv latest
     - asdf global uv latest
     - uv sync --group docs --frozen
-    - uv run -m sphinx -T -j auto -b html -d docs/_build/doctrees docs $READTHEDOCS_OUTPUT/html
+    - uv run -m sphinx -T -j auto -b html -d docs/.doctrees -c docs docs/source $READTHEDOCS_OUTPUT/html
