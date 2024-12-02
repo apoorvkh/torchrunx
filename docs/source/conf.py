@@ -22,7 +22,7 @@ extensions = [
 ]
 
 autodoc2_packages = [
-    "../../src",
+    "../../src/torchrunx",
 ]
 autodoc2_render_plugin = "myst"
 
