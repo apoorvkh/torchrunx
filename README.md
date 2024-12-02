@@ -18,7 +18,7 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 Simply put, you can distribute PyTorch functions from Python like:
 
 ```python
-def train(): ... # implemented below
+def train(num_steps: int): ... # implemented below
 
 import torchrunx as trx
 

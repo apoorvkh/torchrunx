@@ -12,13 +12,12 @@ html_theme = "furo"
 
 extensions = [
     "sphinx.ext.duration",
-    "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
+    "sphinx-autodoc2",
     "myst_parser",
     "sphinx_toolbox.sidebar_links",
     "sphinx_toolbox.github",
     "sphinx.ext.napoleon",
-    "sphinx.ext.autodoc.typehints",
     "sphinx.ext.linkcode",
 ]
 
