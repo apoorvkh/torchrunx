@@ -13,7 +13,7 @@ html_theme = "furo"
 extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.intersphinx",
-    "sphinx-autodoc2",
+    "autodoc2",
     "myst_parser",
     "sphinx_toolbox.sidebar_links",
     "sphinx_toolbox.github",
@@ -21,9 +21,10 @@ extensions = [
     "sphinx.ext.linkcode",
 ]
 
-autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "sys", "logging", "typing_extensions"]
-autodoc_typehints = "both"
-autodoc_typehints_description_target = "documented_params"
+autodoc2_packages = [
+    "../../src",
+]
+autodoc2_render_plugin = "myst"
 
 maximum_signature_line_length = 100
 
