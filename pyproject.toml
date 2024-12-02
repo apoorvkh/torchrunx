@@ -32,6 +32,7 @@ dependencies = [
 [dependency-groups]
 dev = ["ruff", "pyright", "pytest", "build", "twine"]
 dev-extras = ["submitit", "transformers"]
+docs = ["sphinx==6.2.1", "furo", "myst-parser", "sphinx-autodoc2", "sphinx-toolbox"]
 
 [tool.uv]
 managed = true
