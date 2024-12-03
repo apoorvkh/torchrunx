@@ -9,23 +9,17 @@ html_theme = "furo"
 language = "en"
 
 extensions = [
-    "sphinx.ext.duration",
-    "sphinx.ext.intersphinx",
     "autodoc2",
-    "myst_parser",
+    "myst_parser",  # support markdown
+    "sphinx.ext.intersphinx",  # link to external docs
+    "sphinx.ext.napoleon",  # for google style docstrings
+    "sphinx.ext.linkcode",  # link to github source
     "sphinx_toolbox.sidebar_links",
     "sphinx_toolbox.github",
-    "sphinx.ext.napoleon",
-    "sphinx.ext.linkcode",
 ]
-
-autodoc2_packages = [
-    "../src/torchrunx",
-]
-autodoc2_render_plugin = "myst"
 
 maximum_signature_line_length = 100
-
+autodoc2_render_plugin = "myst"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
 }
