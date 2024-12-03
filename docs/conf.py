@@ -1,6 +1,4 @@
-import os
-
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 
 project = "torchrunx"
 github_username = "apoorvkh"
