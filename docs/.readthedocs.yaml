@@ -8,4 +8,4 @@ build:
     - asdf plugin add uv
     - asdf install uv latest
     - asdf global uv latest
-    - uv run --only-group docs python -m sphinx --builder html --jobs auto --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source $READTHEDOCS_OUTPUT/html
+    - uv run --group docs python -m sphinx --builder html --jobs auto --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source $READTHEDOCS_OUTPUT/html

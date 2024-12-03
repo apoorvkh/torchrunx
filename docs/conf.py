@@ -1,7 +1,4 @@
 """Configuration file for the Sphinx documentation builder."""
-import sys
-import os
-sys.path.insert(0, os.path.abspath("../../src"))
 
 project = "torchrunx"
 github_username = "apoorvkh"
@@ -22,12 +19,14 @@ extensions = [
 maximum_signature_line_length = 100
 autodoc2_render_plugin = "myst"
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
+    "python": ("https://docs.python.org/3.9", None),
+    "fabric": ("https://docs.fabfile.org/en/stable", None),
+    'torch': ('https://pytorch.org/docs/stable', None),
+    "numpy": ("https://numpy.org/doc/stable", None),
 }
-intersphinx_disabled_domains = ["std"]
 
-
-## Link code to Github source
+## sphinx.ext.linkcode configuration
+# Link code to Github source
 # From: https://github.com/scikit-learn/scikit-learn/blob/main/doc/sphinxext/github_link.py
 
 import inspect
@@ -86,4 +85,4 @@ def linkcode_resolve(domain, info):
         lineno = ""
     return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
 
-## End of "link code to Github source"
+## End of "sphinx.ext.linkcode configuration"
