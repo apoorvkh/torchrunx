@@ -20,7 +20,6 @@ extensions = [
 ]
 
 maximum_signature_line_length = 100
-autodoc2_packages = ["../../src/torchrunx"]
 autodoc2_render_plugin = "myst"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
