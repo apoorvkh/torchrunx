@@ -1,40 +1,32 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath("../../src"))
-
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 
 project = "torchrunx"
 github_username = "apoorvkh"
 github_repository = "torchrunx"
 html_theme = "furo"
+language = "en"
 
 extensions = [
-    "sphinx.ext.duration",
-    "sphinx.ext.autodoc",
-    "sphinx.ext.intersphinx",
-    "myst_parser",
+    "autodoc2",
+    "myst_parser",  # support markdown
+    "sphinx.ext.intersphinx",  # link to external docs
+    "sphinx.ext.napoleon",  # for google style docstrings
+    "sphinx.ext.linkcode",  # link to github source
     "sphinx_toolbox.sidebar_links",
     "sphinx_toolbox.github",
-    "sphinx.ext.napoleon",
-    "sphinx.ext.autodoc.typehints",
-    "sphinx.ext.linkcode",
 ]
 
-autodoc_mock_imports = ["torch", "fabric", "cloudpickle", "sys", "logging", "typing_extensions"]
-autodoc_typehints = "both"
-autodoc_typehints_description_target = "documented_params"
-
 maximum_signature_line_length = 100
-
+autodoc2_render_plugin = "myst"
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
+    "python": ("https://docs.python.org/3.9", None),
+    "fabric": ("https://docs.fabfile.org/en/stable", None),
+    'torch': ('https://pytorch.org/docs/stable', None),
+    "numpy": ("https://numpy.org/doc/stable", None),
 }
-intersphinx_disabled_domains = ["std"]
 
-
-## Link code to Github source
+## sphinx.ext.linkcode configuration
+# Link code to Github source
 # From: https://github.com/scikit-learn/scikit-learn/blob/main/doc/sphinxext/github_link.py
 
 import inspect
@@ -93,4 +85,4 @@ def linkcode_resolve(domain, info):
         lineno = ""
     return url_fmt.format(revision=revision, package=package, path=fn, lineno=lineno)
 
-## End of "link code to Github source"
+## End of "sphinx.ext.linkcode configuration"

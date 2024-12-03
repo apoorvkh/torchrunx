@@ -4,10 +4,8 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.9"
-
-sphinx:
-  configuration: docs/source/conf.py
-
-python:
-  install:
-    - requirements: docs/requirements.txt
+  commands:
+    - asdf plugin add uv
+    - asdf install uv latest
+    - asdf global uv latest
+    - uv run --group docs python -m sphinx --builder html --jobs auto --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source $READTHEDOCS_OUTPUT/html
