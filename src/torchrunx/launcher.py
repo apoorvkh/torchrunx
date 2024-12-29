@@ -62,7 +62,7 @@ class Launcher:
     def run(  # noqa: C901, PLR0912
         self,
         func: Callable,
-        func_args: tuple[Any] | None = None,
+        func_args: tuple | None = None,
         func_kwargs: dict[str, Any] | None = None,
         handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
     ) -> LaunchResult:
@@ -195,7 +195,7 @@ class Launcher:
 
 def launch(
     func: Callable,
-    func_args: tuple[Any] | None = None,
+    func_args: tuple | None = None,
     func_kwargs: dict[str, Any] | None = None,
     hostnames: list[str] | Literal["auto", "slurm"] = "auto",
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
