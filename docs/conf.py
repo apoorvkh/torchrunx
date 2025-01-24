@@ -13,7 +13,7 @@ extensions = [
     "sphinx.ext.napoleon",  # for google style docstrings
     "sphinx.ext.linkcode",  # link to github source
     "sphinx_toolbox.sidebar_links",
-    "sphinx_toolbox.github",
+    # "sphinx_toolbox.github",
 ]
 
 maximum_signature_line_length = 100
