@@ -60,7 +60,6 @@ def train(model: nn.Module, num_steps: int = 5) -> nn.Module | None:
 </details>
 
 ```python
-import torch.nn as nn
 import torchrunx
 
 results = torchrunx.launch(
@@ -74,10 +73,12 @@ results = torchrunx.launch(
 )
 
 trained_model: nn.Module = results.rank(0)
-torch.save(trained_model.state_dict(), "model.pth")
+torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
 **Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
+
+**See [Examples](https://torchrunx.readthedocs.io/stable/examples.html) for usage with several deep learning libraries (HF Trainer, PyTorch Lightning, etc).**
 
 ## `torchrunx` uniquely offers
 
@@ -114,40 +115,3 @@ torch.save(trained_model.state_dict(), "model.pth")
 > - Start multi-node training from Python notebooks!
 
 **On our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, fuller typing, and more!**
-
-## Examples with other libraries
-
-<details>
-  <summary>Accelerate</summary>
-
-  ```python
-  ```
-</details>
-
-<details>
-  <summary>HF Trainer</summary>
-
-  ```python
-  ```
-</details>
-
-<details>
-  <summary>Deepspeed</summary>
-
-  ```python
-  ```
-</details>
-
-<details>
-  <summary>PyTorch Lightning</summary>
-
-  ```python
-  ```
-</details>
-
-<details>
-  <summary>MosaicML Composer</summary>
-
-  ```python
-  ```
-</details>
