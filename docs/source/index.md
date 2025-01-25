@@ -9,6 +9,7 @@
 
 api
 advanced
+examples
 how_it_works
 contributing
 ```
