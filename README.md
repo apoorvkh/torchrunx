@@ -13,7 +13,7 @@ By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.co
 
 ---
 
-**`torchrunx`** is a more convenient, *functional* replacement for CLI-based distributed PyTorch launchers (`torchrun`, `accelerate launch`, `deepspeed`, etc).
+**`torchrunx`** is a more convenient, *functional* replacement for CLI-based distributed PyTorch launchers, like `torchrun`, `accelerate launch`, and `deepspeed`.
 
 ```bash
 pip install torchrunx
@@ -76,9 +76,14 @@ trained_model: nn.Module = results.rank(0)
 torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
-**Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
+**See [Examples](https://torchrunx.readthedocs.io/stable/examples.html) for full examples (training GPT-2) with several deep learning libraries:**
+  - Accelerate
+  - HF Trainer
+  - DeepSpeed
+  - PyTorch Lightning
+  - MosaicML Composer
 
-**See [Examples](https://torchrunx.readthedocs.io/stable/examples.html) for usage with several deep learning libraries (HF Trainer, PyTorch Lightning, etc).**
+**Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
 
 ## `torchrunx` uniquely offers
 
