@@ -73,14 +73,14 @@ trained_model: nn.Module = results.rank(0)
 torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
-**See [more examples](./docs/source/examples.md) that showcase training GPT-2 using the following deep learning libraries:**
+**See [more examples](https://torchrunx.readthedocs.io/stable/examples.html) that showcase training GPT-2 using the following deep learning libraries:**
   - Accelerate
   - HF Trainer
   - DeepSpeed
   - PyTorch Lightning
   - MosaicML Composer
 
-**Refer to our [API](./docs/source/api.md) and [Advanced Usage Guide](./docs/source/advanced.md) for many more capabilities!**
+**Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
 
 ---
 
