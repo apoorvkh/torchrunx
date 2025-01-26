@@ -25,6 +25,17 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable", None),
 }
 
+## Copy README.md to docs/source/
+# Adjust relative paths to "docs/source/" files
+
+with open("../README.md", "r") as f:
+    readme_str = f.read().replace("docs/source/", "")
+
+with open("source/README.md", "w") as f:
+    f.write(readme_str)
+
+## End of "Copy README.md to docs/source/"
+
 ## sphinx.ext.linkcode configuration
 # Link code to Github source
 # From: https://github.com/scikit-learn/scikit-learn/blob/main/doc/sphinxext/github_link.py

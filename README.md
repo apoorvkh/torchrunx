@@ -7,13 +7,13 @@
 [![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
 [![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/LICENSE)
 
-By [Apoorv Khandelwal](http://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
+By [Apoorv Khandelwal](https://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
 
 **The easiest way to run PyTorch on multiple GPUs or machines.**
 
 ---
 
-**`torchrunx`** is a more convenient, *functional* replacement for CLI-based distributed PyTorch launchers, like `torchrun`, `accelerate launch`, and `deepspeed`.
+**`torchrunx`** is a *functional* utility for distributing PyTorch code across devices. This is a [more convenient, robust, and featureful](#torchrunx-uniquely-offers) alternative to CLI-based launchers, like `torchrun`, `accelerate launch`, and `deepspeed`.
 
 ```bash
 pip install torchrunx
@@ -21,24 +21,17 @@ pip install torchrunx
 
 Requires: Linux (+ SSH & shared filesystem if using multiple machines)
 
-**Example: Training a model on 2 machines with 2 GPUs each**
+---
+
+**Vanilla Example: Training a model on 2 machines with 2 GPUs each**
+
+Dummy distributed training function:
 
 ```python
 import os
 import torch
 import torch.nn as nn
 
-def train(model: nn.Module, num_steps: int) -> nn.Module | None:
-    # ...
-    rank = int(os.environ['RANK'])
-    if rank == 0:
-      return model.cpu()
-```
-
-<details>
-  <summary>Training function (expand)</summary>
-
-```python
 def train(model: nn.Module, num_steps: int = 5) -> nn.Module | None:
     rank = int(os.environ['RANK'])
     local_rank = int(os.environ['LOCAL_RANK'])
@@ -49,15 +42,19 @@ def train(model: nn.Module, num_steps: int = 5) -> nn.Module | None:
 
     for step in range(10):
         optimizer.zero_grad()
-        outputs = ddp_model(torch.randn(5, 10))
+
+        inputs = torch.randn(5, 10).to(local_rank)
         labels = torch.randn(5, 10).to(local_rank)
+        outputs = ddp_model(inputs)
+
         torch.nn.functional.mse_loss(outputs, labels).backward()
         optimizer.step()
 
     if rank == 0:
         return model.cpu()
 ```
-</details>
+
+Launching training with `torchrunx`:
 
 ```python
 import torchrunx
@@ -76,14 +73,16 @@ trained_model: nn.Module = results.rank(0)
 torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
-**See [Examples](https://torchrunx.readthedocs.io/stable/examples.html) for full examples (training GPT-2) with several deep learning libraries:**
+**See [more examples](./docs/source/examples.md) that showcase training GPT-2 using the following deep learning libraries:**
   - Accelerate
   - HF Trainer
   - DeepSpeed
   - PyTorch Lightning
   - MosaicML Composer
 
-**Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
+**Refer to our [API](./docs/source/api.md) and [Advanced Usage Guide](./docs/source/advanced.md) for many more capabilities!**
+
+---
 
 ## `torchrunx` uniquely offers
 
