@@ -25,16 +25,7 @@ print(f'Accuracy: {accuracy}')
 
 {mod}`torchrunx.launch` is self-cleaning: all processes are terminated (and the used memory is completely released) before the subsequent invocation.
 
-## Launcher class
-
-We provide the {mod}`torchrunx.Launcher` class as an alias to {mod}`torchrunx.launch`.
-
-```{eval-rst}
-.. autoclass:: torchrunx.Launcher
-  :members:
-```
-
-### CLI integration
+## CLI integration
 
 We can use {mod}`torchrunx.Launcher` to populate arguments from the CLI (e.g. with [tyro](https://brentyi.github.io/tyro/)):
 

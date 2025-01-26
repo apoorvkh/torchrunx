@@ -2,9 +2,11 @@
 
 ## Using `torchrunx` with other deep learning libraries
 
-## Accelerate
+We will show examples of how to use `torchrunx` to train a GPT-2 (small) with text data from wikitext.
 
-## HF Trainer
+### Accelerate
+
+### HF Trainer
 
 ```python
 import torch
@@ -75,8 +77,8 @@ if __name__ == "__main__":
     torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
-## DeepSpeed
+### DeepSpeed
 
-## PyTorch Lightning
+### PyTorch Lightning
 
-## MosaicML Composer
+### MosaicML Composer
