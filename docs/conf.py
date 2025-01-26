@@ -26,11 +26,8 @@ intersphinx_mapping = {
 }
 
 ## Copy README.md to docs/source/
-with open("../README.md", "r") as f:
-    readme_str = f.read().replace("https://torchrunx.readthedocs.io/stable/", "./")
-
-with open("source/README.md", "w") as f:
-    f.write(readme_str)
+import shutil
+shutil.copyfile("../README.md", "source/README.md")
 ## End of "Copy README.md to docs/source/"
 
 ## sphinx.ext.linkcode configuration
