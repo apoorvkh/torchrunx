@@ -1,8 +1,8 @@
 # Examples
 
-## Using `torchrunx` with other deep learning libraries
+## Training GPT-2 on WikiText
 
-We will show examples of how to use `torchrunx` to train a GPT-2 (small) with text data from wikitext.
+We will show examples of how to use `torchrunx` alongside several deep learning libraries to train a GPT-2 (small) model with text data from WikiText.
 
 ### Accelerate
 
