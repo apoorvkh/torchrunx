@@ -6,6 +6,7 @@ from datasets import load_dataset
 from torch import nn
 from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from tqdm import tqdm
 
 import torchrunx
 
@@ -41,7 +42,9 @@ class GPT2CausalLMDataset(Dataset):
 
 
 def train():
-    accelerator = Accelerator()
+    accelerator = Accelerator(log_with="tensorboard", project_dir="output_dir")
+
+    accelerator.init_trackers("example_project")
 
     model = AutoModelForCausalLM.from_pretrained("gpt2")
     optimizer = torch.optim.Adam(model.parameters())
@@ -52,19 +55,21 @@ def train():
     model, optimizer, loader = accelerator.prepare(model, optimizer, loader)
 
     model.train()
-    for batch_idx, batch in enumerate(loader):
-        if batch_idx == 10:
-            break
-        print(f"Step {batch_idx}")
+    for batch_idx, batch in tqdm(enumerate(loader)):
         device_batch = {k: v.to(accelerator.device) for k, v in batch.items()}
         optimizer.zero_grad()
 
         loss = model(**device_batch).loss
+
+        accelerator.log({"train_loss": loss.item()}, step=batch_idx)
+
         accelerator.backward(loss)
 
         optimizer.step()
 
-    return model
+    accelerator.end_training()
+
+    return accelerator.unwrap_model(model)
 
 
 if __name__ == "__main__":
