@@ -92,72 +92,84 @@ if __name__ == "__main__":
 ### HF Trainer
 
 ```python
-import torch
-from datasets import load_dataset
-from torch import nn
-from torch.utils.data import Dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
+from __future__ import annotations
+
+import os
+
+from datasets import Dataset, load_dataset
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    Trainer,
+    TrainingArguments,
+)
 
 
-class GPT2CausalLMDataset(Dataset):
-    def __init__(self, text_dataset):
-        self.dataset = text_dataset
-        self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.max_length = 1024
+def build_model() -> PreTrainedModel:
+    config = AutoConfig.from_pretrained("gpt2")
+    model = AutoModelForCausalLM.from_config(config)
+    return model
 
-    def __len__(self):
-        return len(self.dataset)
 
-    def __getitem__(self, idx):
-        encoded = self.tokenizer(
-            self.dataset[idx]["text"],
-            max_length=self.max_length,
-            truncation=True,
-            padding="max_length",
-            return_tensors="pt",
+def load_training_data() -> Dataset:
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"  # to suppress warnings
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    tokenizer.pad_token = tokenizer.eos_token
+
+    return (
+        load_dataset("Salesforce/wikitext", name="wikitext-2-v1", split="train")
+        .select(range(8))
+        .map(
+            lambda x: tokenizer(
+                x["text"],
+                max_length=1024,
+                truncation=True,
+                padding="max_length",
+            ),
+            batched=True,
+            remove_columns=["text"],
         )
-
-        input_ids = encoded.input_ids.squeeze()
-        labels = input_ids.clone()
-
-        return {"input_ids": input_ids, "labels": labels}
-
-
-def train():
-    model = AutoModelForCausalLM.from_pretrained("gpt2")
-    wikitext_train = load_dataset(
-        "Salesforce/wikitext", name="wikitext-2-v1", split="train"
+        .map(lambda x: {"labels": x["input_ids"]})
     )
-    train_dataset = GPT2CausalLMDataset(text_dataset=wikitext_train)
 
+
+def train(
+    model: PreTrainedModel, training_args: TrainingArguments, train_dataset: Dataset
+) -> PreTrainedModel | None:
     trainer = Trainer(
         model=model,
-        args=TrainingArguments(
-            output_dir="output",
-            per_device_train_batch_size=16,
-            max_steps=10,
-        ),
+        args=training_args,
         train_dataset=train_dataset,
     )
-
     trainer.train()
 
-    return model
+    if int(os.environ["RANK"]) == 0:
+        return model
 ```
 
 ```python
 import torchrunx
 
+
 if __name__ == "__main__":
+    model = build_model()
+    training_args = TrainingArguments(
+        output_dir="output",
+        per_device_train_batch_size=2,
+        report_to="tensorboard",
+    )
+    train_dataset = load_training_data()
+
     results = torchrunx.launch(
         func=train,
+        func_args=(model, training_args, train_dataset),
         hostnames=["localhost"],
-        workers_per_host=1,
+        workers_per_host=2,
     )
 
-    trained_model: nn.Module = results.rank(0)
-    torch.save(trained_model.state_dict(), "output/model.pth")
+    model = results.rank(0)
 ```
 
 ### DeepSpeed
