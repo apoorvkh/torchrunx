@@ -5,6 +5,7 @@
 #     "tensorboard",
 #     "torchrunx",
 #     "transformers[torch]",
+#     "tyro",
 # ]
 # ///
 
@@ -21,6 +22,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
+import tyro
 
 
 def build_model() -> PreTrainedModel:
@@ -65,20 +67,17 @@ def train(
         return model
 
 
-if __name__ == "__main__":
+def main(launcher: torchrunx.Launcher, args: TrainingArguments):
     model = build_model()
-    training_args = TrainingArguments(
-        output_dir="output",
-        per_device_train_batch_size=2,
-        report_to="tensorboard",
-    )
     train_dataset = load_training_data()
 
-    results = torchrunx.launch(
+    results = launcher.run(
         func=train,
-        func_args=(model, training_args, train_dataset),
-        hostnames=["localhost"],
-        workers_per_host=2,
+        func_args=(model, args, train_dataset),
     )
 
     model = results.rank(0)
+
+
+if __name__ == "__main__":
+    tyro.cli(main)
