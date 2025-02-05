@@ -1,0 +1,15 @@
+{
+    "zero_optimization": {
+        "stage": 1,
+        "reduce_bucket_size": 5e8
+    },
+    "optimizer": {
+        "type": "AdamW",
+        "params": {
+        "betas": [0.9, 0.999],
+        "eps": 1e-8
+       }
+    },
+    "steps_per_print": 2000,
+    "train_batch_size": 8
+}
