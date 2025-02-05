@@ -1,6 +1,5 @@
 # Accelerate
 
 ```{eval-rst}
-.. literalinclude:: ./scripts/torchrunx_accelerate.py
-   :start-after: # [docs:include]
+.. literalinclude:: ./accelerate_example.py
 ```

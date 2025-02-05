@@ -10,16 +10,16 @@
 # ]
 # ///
 
-# [docs:include]
 from pathlib import Path
 
-import torchrunx
 import torch
 from accelerate import Accelerator
 from datasets import load_dataset
 from torch import nn
 from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+import torchrunx
 
 
 class GPT2CausalLMDataset(Dataset):
