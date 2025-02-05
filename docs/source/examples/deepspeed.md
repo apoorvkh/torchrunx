@@ -2,5 +2,5 @@
 
 ```{eval-rst}
 .. literalinclude:: ./deepspeed_example.py
-.. literalinclude:: ./deepspeed_config.py
+.. literalinclude:: ./deepspeed_config.json
 ```
