@@ -47,7 +47,7 @@ class GPT2LightningWrapper(L.LightningModule):
         super().__init__()
         self.model = AutoModelForCausalLM.from_pretrained("gpt2")
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, *args): # pyright: ignore
         device_batch = {k: v.to(self.model.device) for k, v in batch.items()}
         loss = self.model(**device_batch).loss
         self.log("train_loss", loss)
