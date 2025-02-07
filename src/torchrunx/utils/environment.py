@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["in_slurm_job", "slurm_hosts", "slurm_workers", "auto_hosts", "auto_workers"]
+__all__ = ["auto_hosts", "auto_workers", "in_slurm_job", "slurm_hosts", "slurm_workers"]
 
 import os
 import subprocess

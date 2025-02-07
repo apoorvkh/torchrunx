@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 __all__ = [
     "AgentFailedError",
-    "WorkerFailedError",
     "ExceptionFromWorker",
+    "WorkerFailedError",
 ]
 
 

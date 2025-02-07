@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__all__ = ["Launcher", "launch", "LaunchResult"]
+__all__ = ["LaunchResult", "Launcher", "launch"]
 
 import fnmatch
 import ipaddress
