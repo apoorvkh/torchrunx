@@ -1,3 +1,5 @@
+"""Pytorch Lightning extension utilities."""
+
 import torch
 from lightning.fabric.plugins.environments.torchelastic import TorchElasticEnvironment
 

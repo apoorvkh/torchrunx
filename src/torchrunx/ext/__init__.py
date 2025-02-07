@@ -1,1 +1,1 @@
-"Extensions classes and functions."
+"""Extensions classes and functions."""
