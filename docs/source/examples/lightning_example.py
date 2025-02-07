@@ -84,7 +84,6 @@ def train():
 
 
 if __name__ == "__main__":
-    Path("output").mkdir(exist_ok=True)
     results = torchrunx.launch(
         func=train,
         hostnames=["localhost"],
