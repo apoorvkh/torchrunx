@@ -1,5 +1,5 @@
 # Accelerate
 
 ```{eval-rst}
-.. literalinclude:: ./scripts/accelerate_example.py
+.. literalinclude:: ./scripts/accelerate_train.py
 ```

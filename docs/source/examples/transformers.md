@@ -14,7 +14,7 @@ The following arguments are required: `--model.name`, `--dataset.tokenizer-name`
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python transformers_train.py --help</span></code></p> (expand)</summary>
 
   ```{eval-rst}
-  .. literalinclude:: ./transformers_help.txt
+  .. literalinclude:: ./scripts/transformers_help.txt
   ```
 </details>
 
