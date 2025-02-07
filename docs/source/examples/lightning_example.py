@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 import torchrunx
-
+from torchrunx.ext.lightning import TorchrunxClusterEnvironment
 
 class GPT2CausalLMDataset(Dataset):
     def __init__(self, text_dataset):
@@ -72,6 +72,7 @@ def train():
         devices=2,
         num_nodes=1,
         strategy="ddp",
+        plugins=[TorchrunxClusterEnvironment()]
     )
 
     trainer.fit(model=lightning_model, train_dataloaders=train_loader)
@@ -82,8 +83,6 @@ def train():
 
 
 if __name__ == "__main__":
-    # hack to prevent lightning from recognizing SLURM environment...
-    os.environ["SLURM_JOB_NAME"] = "bash"
     Path("output").mkdir(exist_ok=True)
     results = torchrunx.launch(
         func=train,
