@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 import torchrunx
-from torchrunx.ext.lightning import TorchrunxClusterEnvironment
+from torchrunx.integrations.lightning import TorchrunxClusterEnvironment
 
 class GPT2CausalLMDataset(Dataset):
     def __init__(self, text_dataset):
