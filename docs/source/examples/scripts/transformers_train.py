@@ -9,6 +9,8 @@
 # ]
 # ///
 
+# [docs:start-after]
+import functools
 import os
 from typing import Annotated
 
@@ -25,7 +27,7 @@ from transformers import (
 import torchrunx
 
 
-def build_model(name: str = "gpt2") -> PreTrainedModel:
+def build_model(name: str) -> PreTrainedModel:
     return AutoModelForCausalLM.from_pretrained(name)
 
 
@@ -41,6 +43,12 @@ def load_training_data(
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenize_fn = functools.partial(
+        tokenizer,
+        max_length=tokenizer.model_max_length,
+        truncation=True,
+        padding="max_length",
+    )
 
     dataset = load_dataset(path, name=name, split=split)
 
@@ -50,12 +58,7 @@ def load_training_data(
     return (
         dataset.select(range(num_samples))
         .map(
-            lambda x: tokenizer(
-                x[text_column_name],
-                max_length=tokenizer.model_max_length,
-                truncation=True,
-                padding="max_length",
-            ),
+            tokenize_fn,
             batched=True,
             input_columns=[text_column_name],
             remove_columns=[text_column_name],
@@ -74,6 +77,7 @@ def train(
     )
     trainer.train()
 
+    # TODO: return checkpoint path
     if int(os.environ["RANK"]) == 0:
         return model
 

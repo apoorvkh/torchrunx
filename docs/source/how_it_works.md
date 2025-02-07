@@ -1,4 +1,4 @@
-# How it works
+# How It Works
 
 If you want to (e.g.) train your model on several machines with **N** GPUs each, you should run your training function in **N** parallel processes on each machine. During training, each of these processes runs the same training code (i.e. your function) and communicate with each other (e.g. to synchronize gradients) using a [distributed process group](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group).
 

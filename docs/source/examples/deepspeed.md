@@ -1,6 +1,6 @@
 # DeepSpeed
 
 ```{eval-rst}
-.. literalinclude:: ./deepspeed_example.py
-.. literalinclude:: ./deepspeed_config.json
+.. literalinclude:: ./scripts/deepspeed_example.py
+.. literalinclude:: ./scripts/deepspeed_config.json
 ```

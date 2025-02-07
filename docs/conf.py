@@ -6,6 +6,8 @@ github_repository = "torchrunx"
 html_theme = "furo"
 language = "en"
 
+html_extra_path = ["source/examples/scripts"]
+
 extensions = [
     "autodoc2",
     "myst_parser",  # support markdown

@@ -1,9 +1,7 @@
 # API
 
-## Launching functions
-
 ```{eval-rst}
-.. autofunction:: torchrunx.launch(func: Callable, ...)
+.. autofunction:: torchrunx.launch
 ```
 
 We provide the {mod}`torchrunx.Launcher` class as an alias to {mod}`torchrunx.launch`.

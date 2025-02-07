@@ -73,14 +73,14 @@ trained_model: nn.Module = results.rank(0)
 torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
-**See [training GPT-2 on WikiText](https://torchrunx.readthedocs.io/stable/examples.html#training-gpt-2-on-wikitext) for more examples using the following deep learning libraries:**
-  - Accelerate
-  - HF Transformers
-  - DeepSpeed
-  - PyTorch Lightning
-  - MosaicML Composer
+**See examples where we fine-tune LLMs (e.g. GPT-2 on WikiText) using:**
+  - [Accelerate](https://torchrun.xyz/examples/accelerate.html)
+  - [HF Transformers](https://torchrun.xyz/examples/transformers.html)
+  - [DeepSpeed](https://torchrun.xyz/examples/deepspeed.html)
+  - [PyTorch Lightning](https://torchrun.xyz/examples/lightning.html)
+  - [MosaicML Composer](https://torchrun.xyz/examples/composer.html)
 
-**Refer to our [API](https://torchrunx.readthedocs.io/stable/api.html) and [Advanced Usage Guide](https://torchrunx.readthedocs.io/stable/advanced.html) for many more capabilities!**
+**Refer to our [API](https://torchrun.xyz/api.html) and [Advanced Usage Guide](https://torchrun.xyz/advanced.html) for many more capabilities!**
 
 ---
 

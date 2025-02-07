@@ -1,0 +1,478 @@
+usage: transformers_train.py [-h] [OPTIONS]
+
+╭─ options ──────────────────────────────────────────────────────────────────╮
+│ -h, --help                                                                 │
+│     show this help message and exit                                        │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ launcher options ─────────────────────────────────────────────────────────╮
+│ Useful for sequential invocations or for specifying arguments via CLI.     │
+│ ────────────────────────────────────────────────────────────────────────── │
+│ --launcher.hostnames {[STR [STR ...]]}|{auto,slurm}                        │
+│     (default: auto)                                                        │
+│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto,slurm}             │
+│     (default: auto)                                                        │
+│ --launcher.ssh-config-file {None}|STR|PATHLIKE                             │
+│     (default: None)                                                        │
+│ --launcher.backend {None,nccl,gloo,mpi,ucc,auto}                           │
+│     (default: auto)                                                        │
+│ --launcher.timeout INT                                                     │
+│     (default: 600)                                                         │
+│ --launcher.default-env-vars [STR [STR ...]]                                │
+│     (default: PATH LD_LIBRARY LIBRARY_PATH 'PYTHON*' 'CUDA*' 'TORCH*'      │
+│     'PYTORCH*' 'NCCL*')                                                    │
+│ --launcher.extra-env-vars [STR [STR ...]]                                  │
+│     (default: )                                                            │
+│ --launcher.env-file {None}|STR|PATHLIKE                                    │
+│     (default: None)                                                        │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ model options ────────────────────────────────────────────────────────────╮
+│ --model.name STR                                                           │
+│     (required)                                                             │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ dataset options ──────────────────────────────────────────────────────────╮
+│ --dataset.tokenizer-name STR                                               │
+│     (required)                                                             │
+│ --dataset.path STR                                                         │
+│     (required)                                                             │
+│ --dataset.name {None}|STR                                                  │
+│     (default: None)                                                        │
+│ --dataset.split {None}|STR                                                 │
+│     (default: None)                                                        │
+│ --dataset.text-column-name STR                                             │
+│     (default: text)                                                        │
+│ --dataset.num-samples {None}|INT                                           │
+│     (default: None)                                                        │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ trainer options ──────────────────────────────────────────────────────────╮
+│ --trainer.output-dir STR                                                   │
+│     The output directory where the model predictions and checkpoints will  │
+│     be written. (required)                                                 │
+│ --trainer.overwrite-output-dir, --trainer.no-overwrite-output-dir          │
+│     Overwrite the content of the output directory. Use this to continue    │
+│     training if output_dir points to a checkpoint directory. (default:     │
+│     False)                                                                 │
+│ --trainer.do-train, --trainer.no-do-train                                  │
+│     Whether to run training. (default: False)                              │
+│ --trainer.do-eval, --trainer.no-do-eval                                    │
+│     Whether to run eval on the dev set. (default: False)                   │
+│ --trainer.do-predict, --trainer.no-do-predict                              │
+│     Whether to run predictions on the test set. (default: False)           │
+│ --trainer.eval-strategy {NO,STEPS,EPOCH}|STR                               │
+│     The evaluation strategy to use. (default: no)                          │
+│ --trainer.prediction-loss-only, --trainer.no-prediction-loss-only          │
+│     When performing evaluation and predictions, only returns the loss.     │
+│     (default: False)                                                       │
+│ --trainer.per-device-train-batch-size INT                                  │
+│     Batch size per GPU/TPU/MPS/NPU core/CPU for training. (default: 8)     │
+│ --trainer.per-device-eval-batch-size INT                                   │
+│     Batch size per GPU/TPU/MPS/NPU core/CPU for evaluation. (default: 8)   │
+│ --trainer.per-gpu-train-batch-size {None}|INT                              │
+│     Deprecated, the use of `--per_device_train_batch_size` is preferred.   │
+│     Batch size per GPU/TPU core/CPU for training. (default: None)          │
+│ --trainer.per-gpu-eval-batch-size {None}|INT                               │
+│     Deprecated, the use of `--per_device_eval_batch_size` is preferred.    │
+│     Batch size per GPU/TPU core/CPU for evaluation. (default: None)        │
+│ --trainer.gradient-accumulation-steps INT                                  │
+│     Number of updates steps to accumulate before performing a              │
+│     backward/update pass. (default: 1)                                     │
+│ --trainer.eval-accumulation-steps {None}|INT                               │
+│     Number of predictions steps to accumulate before moving the tensors to │
+│     the CPU. (default: None)                                               │
+│ --trainer.eval-delay {None}|FLOAT                                          │
+│     Number of epochs or steps to wait for before the first evaluation can  │
+│     be performed, depending on the eval_strategy. (default: 0)             │
+│ --trainer.torch-empty-cache-steps {None}|INT                               │
+│     Number of steps to wait before calling                                 │
+│     `torch.<device>.empty_cache()`.This can help avoid CUDA out-of-memory  │
+│     errors by lowering peak VRAM usage at a cost of about [10% slower      │
+│     performance](https://github.com/huggingface/transformers/issues/31372… │
+│     left unset or set to None, cache will not be emptied. (default: None)  │
+│ --trainer.learning-rate FLOAT                                              │
+│     The initial learning rate for AdamW. (default: 5e-05)                  │
+│ --trainer.weight-decay FLOAT                                               │
+│     Weight decay for AdamW if we apply some. (default: 0.0)                │
+│ --trainer.adam-beta1 FLOAT                                                 │
+│     Beta1 for AdamW optimizer (default: 0.9)                               │
+│ --trainer.adam-beta2 FLOAT                                                 │
+│     Beta2 for AdamW optimizer (default: 0.999)                             │
+│ --trainer.adam-epsilon FLOAT                                               │
+│     Epsilon for AdamW optimizer. (default: 1e-08)                          │
+│ --trainer.max-grad-norm FLOAT                                              │
+│     Max gradient norm. (default: 1.0)                                      │
+│ --trainer.num-train-epochs FLOAT                                           │
+│     Total number of training epochs to perform. (default: 3.0)             │
+│ --trainer.max-steps INT                                                    │
+│     If > 0: set total number of training steps to perform. Override        │
+│     num_train_epochs. (default: -1)                                        │
+│ --trainer.lr-scheduler-type                                                │
+│ {LINEAR,COSINE,COSINE_WITH_RESTARTS,POLYNOMIAL,CONSTANT,CONSTANT_WITH_WAR… │
+│     The scheduler type to use. (default: linear)                           │
+│ --trainer.lr-scheduler-kwargs {None}|{[STR STR [STR STR ...]]}|STR         │
+│     Extra parameters for the lr_scheduler such as {'num_cycles': 1} for    │
+│     the cosine with hard restarts. (default: )                             │
+│ --trainer.warmup-ratio FLOAT                                               │
+│     Linear warmup over warmup_ratio fraction of total steps. (default:     │
+│     0.0)                                                                   │
+│ --trainer.warmup-steps INT                                                 │
+│     Linear warmup over warmup_steps. (default: 0)                          │
+│ --trainer.log-level {None}|STR                                             │
+│     Logger log level to use on the main node. Possible choices are the log │
+│     levels as strings: 'debug', 'info', 'warning', 'error' and 'critical', │
+│     plus a 'passive' level which doesn't set anything and lets the         │
+│     application set the level. Defaults to 'passive'. (default: passive)   │
+│ --trainer.log-level-replica {None}|STR                                     │
+│     Logger log level to use on replica nodes. Same choices and defaults as │
+│     ``log_level`` (default: warning)                                       │
+│ --trainer.log-on-each-node, --trainer.no-log-on-each-node                  │
+│     When doing a multinode distributed training, whether to log once per   │
+│     node or just once on the main node. (default: True)                    │
+│ --trainer.logging-dir {None}|STR                                           │
+│     Tensorboard log dir. (default: None)                                   │
+│ --trainer.logging-strategy {NO,STEPS,EPOCH}|STR                            │
+│     The logging strategy to use. (default: steps)                          │
+│ --trainer.logging-first-step, --trainer.no-logging-first-step              │
+│     Log the first global_step (default: False)                             │
+│ --trainer.logging-steps FLOAT                                              │
+│     Log every X updates steps. Should be an integer or a float in range    │
+│     `[0,1)`. If smaller than 1, will be interpreted as ratio of total      │
+│     training steps. (default: 500)                                         │
+│ --trainer.logging-nan-inf-filter, --trainer.no-logging-nan-inf-filter      │
+│     Filter nan and inf losses for logging. (default: True)                 │
+│ --trainer.save-strategy {NO,STEPS,EPOCH,BEST}|STR                          │
+│     The checkpoint save strategy to use. (default: steps)                  │
+│ --trainer.save-steps FLOAT                                                 │
+│     Save checkpoint every X updates steps. Should be an integer or a float │
+│     in range `[0,1)`. If smaller than 1, will be interpreted as ratio of   │
+│     total training steps. (default: 500)                                   │
+│ --trainer.save-total-limit {None}|INT                                      │
+│     If a value is passed, will limit the total amount of checkpoints.      │
+│     Deletes the older checkpoints in `output_dir`. When                    │
+│     `load_best_model_at_end` is enabled, the 'best' checkpoint according   │
+│     to `metric_for_best_model` will always be retained in addition to the  │
+│     most recent ones. For example, for `save_total_limit=5` and            │
+│     `load_best_model_at_end=True`, the four last checkpoints will always   │
+│     be retained alongside the best model. When `save_total_limit=1` and    │
+│     `load_best_model_at_end=True`, it is possible that two checkpoints are │
+│     saved: the last one and the best one (if they are different). Default  │
+│     is unlimited checkpoints (default: None)                               │
+│ --trainer.save-safetensors {None,True,False}                               │
+│     Use safetensors saving and loading for state dicts instead of default  │
+│     torch.load and torch.save. (default: True)                             │
+│ --trainer.save-on-each-node, --trainer.no-save-on-each-node                │
+│     When doing multi-node distributed training, whether to save models and │
+│     checkpoints on each node, or only on the main one (default: False)     │
+│ --trainer.save-only-model, --trainer.no-save-only-model                    │
+│     When checkpointing, whether to only save the model, or also the        │
+│     optimizer, scheduler & rng state.Note that when this is true, you      │
+│     won't be able to resume training from checkpoint.This enables you to   │
+│     save storage by not storing the optimizer, scheduler & rng state.You   │
+│     can only load the model using from_pretrained with this option set to  │
+│     True. (default: False)                                                 │
+│ --trainer.restore-callback-states-from-checkpoint,                         │
+│ --trainer.no-restore-callback-states-from-checkpoint                       │
+│     Whether to restore the callback states from the checkpoint. If `True`, │
+│     will override callbacks passed to the `Trainer` if they exist in the   │
+│     checkpoint. (default: False)                                           │
+│ --trainer.no-cuda, --trainer.no-no-cuda                                    │
+│     This argument is deprecated. It will be removed in version 5.0 of 🤗   │
+│     Transformers. (default: False)                                         │
+│ --trainer.use-cpu, --trainer.no-use-cpu                                    │
+│     Whether or not to use cpu. If set to False, we will use                │
+│     cuda/tpu/mps/npu device if available. (default: False)                 │
+│ --trainer.use-mps-device, --trainer.no-use-mps-device                      │
+│     This argument is deprecated. `mps` device will be used if available    │
+│     similar to `cuda` device. It will be removed in version 5.0 of 🤗      │
+│     Transformers (default: False)                                          │
+│ --trainer.seed INT                                                         │
+│     Random seed that will be set at the beginning of training. (default:   │
+│     42)                                                                    │
+│ --trainer.data-seed {None}|INT                                             │
+│     Random seed to be used with data samplers. (default: None)             │
+│ --trainer.jit-mode-eval, --trainer.no-jit-mode-eval                        │
+│     Whether or not to use PyTorch jit trace for inference (default: False) │
+│ --trainer.use-ipex, --trainer.no-use-ipex                                  │
+│     Use Intel extension for PyTorch when it is available, installation:    │
+│     'https://github.com/intel/intel-extension-for-pytorch' (default:       │
+│     False)                                                                 │
+│ --trainer.bf16, --trainer.no-bf16                                          │
+│     Whether to use bf16 (mixed) precision instead of 32-bit. Requires      │
+│     Ampere or higher NVIDIA architecture or using CPU (use_cpu) or Ascend  │
+│     NPU. This is an experimental API and it may change. (default: False)   │
+│ --trainer.fp16, --trainer.no-fp16                                          │
+│     Whether to use fp16 (mixed) precision instead of 32-bit (default:      │
+│     False)                                                                 │
+│ --trainer.fp16-opt-level STR                                               │
+│     For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2',   │
+│     and 'O3']. See details at https://nvidia.github.io/apex/amp.html       │
+│     (default: O1)                                                          │
+│ --trainer.half-precision-backend STR                                       │
+│     The backend to be used for half precision. (default: auto)             │
+│ --trainer.bf16-full-eval, --trainer.no-bf16-full-eval                      │
+│     Whether to use full bfloat16 evaluation instead of 32-bit. This is an  │
+│     experimental API and it may change. (default: False)                   │
+│ --trainer.fp16-full-eval, --trainer.no-fp16-full-eval                      │
+│     Whether to use full float16 evaluation instead of 32-bit (default:     │
+│     False)                                                                 │
+│ --trainer.tf32 {None,True,False}                                           │
+│     Whether to enable tf32 mode, available in Ampere and newer GPU         │
+│     architectures. This is an experimental API and it may change.          │
+│     (default: None)                                                        │
+│ --trainer.local-rank INT                                                   │
+│     For distributed training: local_rank (default: -1)                     │
+│ --trainer.ddp-backend {None}|STR                                           │
+│     The backend to be used for distributed training (default: None)        │
+│ --trainer.tpu-num-cores {None}|INT                                         │
+│     TPU: Number of TPU cores (automatically passed by launcher script)     │
+│     (default: None)                                                        │
+│ --trainer.tpu-metrics-debug, --trainer.no-tpu-metrics-debug                │
+│     Deprecated, the use of `--debug tpu_metrics_debug` is preferred. TPU:  │
+│     Whether to print debug metrics (default: False)                        │
+│ --trainer.debug STR|{[{UNDERFLOW_OVERFLOW,TPU_METRICS_DEBUG} [...]]}       │
+│     Whether or not to enable debug mode. Current options:                  │
+│     `underflow_overflow` (Detect underflow and overflow in activations and │
+│     weights), `tpu_metrics_debug` (print debug metrics on TPU). (default:  │
+│     '')                                                                    │
+│ --trainer.dataloader-drop-last, --trainer.no-dataloader-drop-last          │
+│     Drop the last incomplete batch if it is not divisible by the batch     │
+│     size. (default: False)                                                 │
+│ --trainer.eval-steps {None}|FLOAT                                          │
+│     Run an evaluation every X steps. Should be an integer or a float in    │
+│     range `[0,1)`. If smaller than 1, will be interpreted as ratio of      │
+│     total training steps. (default: None)                                  │
+│ --trainer.dataloader-num-workers INT                                       │
+│     Number of subprocesses to use for data loading (PyTorch only). 0 means │
+│     that the data will be loaded in the main process. (default: 0)         │
+│ --trainer.dataloader-prefetch-factor {None}|INT                            │
+│     Number of batches loaded in advance by each worker. 2 means there will │
+│     be a total of 2 * num_workers batches prefetched across all workers.   │
+│     Default is 2 for PyTorch < 2.0.0 and otherwise None. (default: None)   │
+│ --trainer.past-index INT                                                   │
+│     If >=0, uses the corresponding part of the output as the past state    │
+│     for next step. (default: -1)                                           │
+│ --trainer.run-name {None}|STR                                              │
+│     An optional descriptor for the run. Notably used for wandb, mlflow and │
+│     comet logging. (default: None)                                         │
+│ --trainer.disable-tqdm {None,True,False}                                   │
+│     Whether or not to disable the tqdm progress bars. (default: None)      │
+│ --trainer.remove-unused-columns {None,True,False}                          │
+│     Remove columns not required by the model when using an nlp.Dataset.    │
+│     (default: True)                                                        │
+│ --trainer.label-names {None}|{[STR [STR ...]]}                             │
+│     The list of keys in your dictionary of inputs that correspond to the   │
+│     labels. (default: None)                                                │
+│ --trainer.load-best-model-at-end {None,True,False}                         │
+│     Whether or not to load the best model found during training at the end │
+│     of training. When this option is enabled, the best checkpoint will     │
+│     always be saved. See `save_total_limit` for more. (default: False)     │
+│ --trainer.metric-for-best-model {None}|STR                                 │
+│     The metric to use to compare two different models. (default: None)     │
+│ --trainer.greater-is-better {None,True,False}                              │
+│     Whether the `metric_for_best_model` should be maximized or not.        │
+│     (default: None)                                                        │
+│ --trainer.ignore-data-skip, --trainer.no-ignore-data-skip                  │
+│     When resuming training, whether or not to skip the first epochs and    │
+│     batches to get to the same training data. (default: False)             │
+│ --trainer.fsdp                                                             │
+│ {None}|{[{FULL_SHARD,SHARD_GRAD_OP,NO_SHARD,HYBRID_SHARD,HYBRID_SHARD_ZER… │
+│ [...]]}|STR                                                                │
+│     Whether or not to use PyTorch Fully Sharded Data Parallel (FSDP)       │
+│     training (in distributed training only). The base option should be     │
+│     `full_shard`, `shard_grad_op` or `no_shard` and you can add            │
+│     CPU-offload to `full_shard` or `shard_grad_op` like this: full_shard   │
+│     offload` or `shard_grad_op offload`. You can add auto-wrap to          │
+│     `full_shard` or `shard_grad_op` with the same syntax: full_shard       │
+│     auto_wrap` or `shard_grad_op auto_wrap`. (default: '')                 │
+│ --trainer.fsdp-min-num-params INT                                          │
+│     This parameter is deprecated. FSDP's minimum number of parameters for  │
+│     Default Auto Wrapping. (useful only when `fsdp` field is passed).      │
+│     (default: 0)                                                           │
+│ --trainer.fsdp-config {None}|{[STR STR [STR STR ...]]}|STR                 │
+│     Config to be used with FSDP (Pytorch Fully Sharded  Data Parallel).    │
+│     The value is either a fsdp json config file (e.g., `fsdp_config.json`) │
+│     or an already loaded json file as `dict`. (default: None)              │
+│ --trainer.fsdp-transformer-layer-cls-to-wrap {None}|STR                    │
+│     This parameter is deprecated. Transformer layer class name             │
+│     (case-sensitive) to wrap, e.g, `BertLayer`, `GPTJBlock`, `T5Block`     │
+│     .... (useful only when `fsdp` flag is passed). (default: None)         │
+│ --trainer.accelerator-config {None}|{[STR STR [STR STR ...]]}|STR          │
+│     Config to be used with the internal Accelerator object initializtion.  │
+│     The value is either a accelerator json config file (e.g.,              │
+│     `accelerator_config.json`) or an already loaded json file as `dict`.   │
+│     (default: None)                                                        │
+│ --trainer.deepspeed {None}|{[STR STR [STR STR ...]]}|STR                   │
+│     Enable deepspeed and pass the path to deepspeed json config file (e.g. │
+│     `ds_config.json`) or an already loaded json file as a dict (default:   │
+│     None)                                                                  │
+│ --trainer.label-smoothing-factor FLOAT                                     │
+│     The label smoothing epsilon to apply (zero means no label smoothing).  │
+│     (default: 0.0)                                                         │
+│ --trainer.optim                                                            │
+│ {ADAMW_HF,ADAMW_TORCH,ADAMW_TORCH_FUSED,ADAMW_TORCH_XLA,ADAMW_TORCH_NPU_F… │
+│     The optimizer to use. (default: adamw_torch)                           │
+│ --trainer.optim-args {None}|STR                                            │
+│     Optional arguments to supply to optimizer. (default: None)             │
+│ --trainer.adafactor, --trainer.no-adafactor                                │
+│     Whether or not to replace AdamW by Adafactor. (default: False)         │
+│ --trainer.group-by-length, --trainer.no-group-by-length                    │
+│     Whether or not to group samples of roughly the same length together    │
+│     when batching. (default: False)                                        │
+│ --trainer.length-column-name {None}|STR                                    │
+│     Column name with precomputed lengths to use when grouping by length.   │
+│     (default: length)                                                      │
+│ --trainer.report-to {None}|STR|{[STR [STR ...]]}                           │
+│     The list of integrations to report the results and logs to. (default:  │
+│     None)                                                                  │
+│ --trainer.ddp-find-unused-parameters {None,True,False}                     │
+│     When using distributed training, the value of the flag                 │
+│     `find_unused_parameters` passed to `DistributedDataParallel`.          │
+│     (default: None)                                                        │
+│ --trainer.ddp-bucket-cap-mb {None}|INT                                     │
+│     When using distributed training, the value of the flag `bucket_cap_mb` │
+│     passed to `DistributedDataParallel`. (default: None)                   │
+│ --trainer.ddp-broadcast-buffers {None,True,False}                          │
+│     When using distributed training, the value of the flag                 │
+│     `broadcast_buffers` passed to `DistributedDataParallel`. (default:     │
+│     None)                                                                  │
+│ --trainer.dataloader-pin-memory, --trainer.no-dataloader-pin-memory        │
+│     Whether or not to pin memory for DataLoader. (default: True)           │
+│ --trainer.dataloader-persistent-workers,                                   │
+│ --trainer.no-dataloader-persistent-workers                                 │
+│     If True, the data loader will not shut down the worker processes after │
+│     a dataset has been consumed once. This allows to maintain the workers  │
+│     Dataset instances alive. Can potentially speed up training, but will   │
+│     increase RAM usage. (default: False)                                   │
+│ --trainer.skip-memory-metrics, --trainer.no-skip-memory-metrics            │
+│     Whether or not to skip adding of memory profiler reports to metrics.   │
+│     (default: True)                                                        │
+│ --trainer.use-legacy-prediction-loop,                                      │
+│ --trainer.no-use-legacy-prediction-loop                                    │
+│     Whether or not to use the legacy prediction_loop in the Trainer.       │
+│     (default: False)                                                       │
+│ --trainer.push-to-hub, --trainer.no-push-to-hub                            │
+│     Whether or not to upload the trained model to the model hub after      │
+│     training. (default: False)                                             │
+│ --trainer.resume-from-checkpoint {None}|STR                                │
+│     The path to a folder with a valid checkpoint for your model. (default: │
+│     None)                                                                  │
+│ --trainer.hub-model-id {None}|STR                                          │
+│     The name of the repository to keep in sync with the local              │
+│     `output_dir`. (default: None)                                          │
+│ --trainer.hub-strategy {END,EVERY_SAVE,CHECKPOINT,ALL_CHECKPOINTS}|STR     │
+│     The hub strategy to use when `--push_to_hub` is activated. (default:   │
+│     every_save)                                                            │
+│ --trainer.hub-token {None}|STR                                             │
+│     The token to use to push to the Model Hub. (default: None)             │
+│ --trainer.hub-private-repo {None,True,False}                               │
+│     Whether to make the repo private. If `None` (default), the repo will   │
+│     be public unless the organization's default is private. This value is  │
+│     ignored if the repo already exists. (default: None)                    │
+│ --trainer.hub-always-push, --trainer.no-hub-always-push                    │
+│     Unless `True`, the Trainer will skip pushes if the previous one wasn't │
+│     finished yet. (default: False)                                         │
+│ --trainer.gradient-checkpointing, --trainer.no-gradient-checkpointing      │
+│     If True, use gradient checkpointing to save memory at the expense of   │
+│     slower backward pass. (default: False)                                 │
+│ --trainer.gradient-checkpointing-kwargs {None}|{[STR STR [STR STR          │
+│ ...]]}|STR                                                                 │
+│     Gradient checkpointing key word arguments such as `use_reentrant`.     │
+│     Will be passed to `torch.utils.checkpoint.checkpoint` through          │
+│     `model.gradient_checkpointing_enable`. (default: None)                 │
+│ --trainer.include-inputs-for-metrics,                                      │
+│ --trainer.no-include-inputs-for-metrics                                    │
+│     This argument is deprecated and will be removed in version 5 of 🤗     │
+│     Transformers. Use `include_for_metrics` instead. (default: False)      │
+│ --trainer.include-for-metrics [STR [STR ...]]                              │
+│     List of strings to specify additional data to include in the           │
+│     `compute_metrics` function.Options: 'inputs', 'loss'. (default: )      │
+│ --trainer.eval-do-concat-batches, --trainer.no-eval-do-concat-batches      │
+│     Whether to recursively concat inputs/losses/labels/predictions across  │
+│     batches. If `False`, will instead store them as lists, with each batch │
+│     kept separate. (default: True)                                         │
+│ --trainer.fp16-backend STR                                                 │
+│     Deprecated. Use half_precision_backend instead (default: auto)         │
+│ --trainer.evaluation-strategy {None,NO,STEPS,EPOCH}|STR                    │
+│     Deprecated. Use `eval_strategy` instead (default: None)                │
+│ --trainer.push-to-hub-model-id {None}|STR                                  │
+│     The name of the repository to which push the `Trainer`. (default:      │
+│     None)                                                                  │
+│ --trainer.push-to-hub-organization {None}|STR                              │
+│     The name of the organization in with to which push the `Trainer`.      │
+│     (default: None)                                                        │
+│ --trainer.push-to-hub-token {None}|STR                                     │
+│     The token to use to push to the Model Hub. (default: None)             │
+│ --trainer.mp-parameters STR                                                │
+│     Used by the SageMaker launcher to send mp-specific args. Ignored in    │
+│     Trainer (default: '')                                                  │
+│ --trainer.auto-find-batch-size, --trainer.no-auto-find-batch-size          │
+│     Whether to automatically decrease the batch size in half and rerun the │
+│     training loop again each time a CUDA Out-of-Memory was reached         │
+│     (default: False)                                                       │
+│ --trainer.full-determinism, --trainer.no-full-determinism                  │
+│     Whether to call enable_full_determinism instead of set_seed for        │
+│     reproducibility in distributed training. Important: this will          │
+│     negatively impact the performance, so only use it for debugging.       │
+│     (default: False)                                                       │
+│ --trainer.torchdynamo {None}|STR                                           │
+│     This argument is deprecated, use `--torch_compile_backend` instead.    │
+│     (default: None)                                                        │
+│ --trainer.ray-scope {None}|STR                                             │
+│     The scope to use when doing hyperparameter search with Ray. By         │
+│     default, `"last"` will be used. Ray will then use the last checkpoint  │
+│     of all trials, compare those, and select the best one. However, other  │
+│     options are also available. See the Ray documentation                  │
+│     (https://docs.ray.io/en/latest/tune/api_docs/analysis.html#ray.tune.E… │
+│     for more options. (default: last)                                      │
+│ --trainer.ddp-timeout {None}|INT                                           │
+│     Overrides the default timeout for distributed training (value should   │
+│     be given in seconds). (default: 1800)                                  │
+│ --trainer.torch-compile, --trainer.no-torch-compile                        │
+│     If set to `True`, the model will be wrapped in `torch.compile`.        │
+│     (default: False)                                                       │
+│ --trainer.torch-compile-backend {None}|STR                                 │
+│     Which backend to use with `torch.compile`, passing one will trigger a  │
+│     model compilation. (default: None)                                     │
+│ --trainer.torch-compile-mode {None}|STR                                    │
+│     Which mode to use with `torch.compile`, passing one will trigger a     │
+│     model compilation. (default: None)                                     │
+│ --trainer.dispatch-batches {None,True,False}                               │
+│     Deprecated. Pass {'dispatch_batches':VALUE} to `accelerator_config`.   │
+│     (default: None)                                                        │
+│ --trainer.split-batches {None,True,False}                                  │
+│     Deprecated. Pass {'split_batches':True} to `accelerator_config`.       │
+│     (default: None)                                                        │
+│ --trainer.include-tokens-per-second {None,True,False}                      │
+│     If set to `True`, the speed metrics will include `tgs` (tokens per     │
+│     second per device). (default: False)                                   │
+│ --trainer.include-num-input-tokens-seen {None,True,False}                  │
+│     If set to `True`, will track the number of input tokens seen           │
+│     throughout training. (May be slower in distributed training) (default: │
+│     False)                                                                 │
+│ --trainer.neftune-noise-alpha {None}|FLOAT                                 │
+│     Activates neftune noise embeddings into the model. NEFTune has been    │
+│     proven to drastically improve model performances for instrcution       │
+│     fine-tuning. Check out the original paper here:                        │
+│     https://arxiv.org/abs/2310.05914 and the original code here:           │
+│     https://github.com/neelsjain/NEFTune. Only supported for               │
+│     `PreTrainedModel` and `PeftModel` classes. (default: None)             │
+│ --trainer.optim-target-modules {None}|STR|{[STR [STR ...]]}                │
+│     Target modules for the optimizer defined in the `optim` argument. Only │
+│     used for the GaLore optimizer at the moment. (default: None)           │
+│ --trainer.batch-eval-metrics, --trainer.no-batch-eval-metrics              │
+│     Break eval metrics calculation into batches to save memory. (default:  │
+│     False)                                                                 │
+│ --trainer.eval-on-start, --trainer.no-eval-on-start                        │
+│     Whether to run through the entire `evaluation` step at the very        │
+│     beginning of training as a sanity check. (default: False)              │
+│ --trainer.use-liger-kernel {None,True,False}                               │
+│     Whether or not to enable the Liger Kernel for model training.          │
+│     (default: False)                                                       │
+│ --trainer.eval-use-gather-object {None,True,False}                         │
+│     Whether to run recursively gather object in a nested                   │
+│     list/tuple/dictionary of objects from all devices. (default: False)    │
+│ --trainer.average-tokens-across-devices {None,True,False}                  │
+│     Whether or not to average tokens across devices. If enabled, will use  │
+│     all_reduce to synchronize num_tokens_in_batch for precise loss         │
+│     calculation. Reference:                                                │
+│     https://github.com/huggingface/transformers/issues/34242 (default:     │
+│     False)                                                                 │
+╰────────────────────────────────────────────────────────────────────────────╯

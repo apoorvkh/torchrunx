@@ -1,5 +1,5 @@
 # Pytorch Lightning
 
 ```{eval-rst}
-.. literalinclude:: ./lightning_example.py
+.. literalinclude:: ./scripts/lightning_example.py
 ```
