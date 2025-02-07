@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 import torchrunx
-
+from torchrunx.ext.lightning import TorchrunxClusterEnvironment
 
 class GPT2CausalLMDataset(Dataset):
     def __init__(self, text_dataset):
@@ -47,7 +47,7 @@ class GPT2LightningWrapper(L.LightningModule):
         super().__init__()
         self.model = AutoModelForCausalLM.from_pretrained("gpt2")
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, *args): # pyright: ignore
         device_batch = {k: v.to(self.model.device) for k, v in batch.items()}
         loss = self.model(**device_batch).loss
         self.log("train_loss", loss)
@@ -72,24 +72,23 @@ def train():
         devices=2,
         num_nodes=1,
         strategy="ddp",
+        plugins=[TorchrunxClusterEnvironment()],
+        enable_checkpointing=False
     )
 
     trainer.fit(model=lightning_model, train_dataloaders=train_loader)
+    checkpoint  = f"{trainer.log_dir}/final.ckpt"
+    trainer.save_checkpoint(checkpoint)
 
-    if int(os.environ["RANK"]) == 0:
-        return trainer.model.model
-    return None
+    return checkpoint
 
 
 if __name__ == "__main__":
-    # hack to prevent lightning from recognizing SLURM environment...
-    os.environ["SLURM_JOB_NAME"] = "bash"
-    Path("output").mkdir(exist_ok=True)
     results = torchrunx.launch(
         func=train,
         hostnames=["localhost"],
         workers_per_host=2,
     )
 
-    trained_model: nn.Module = results.rank(0)
-    torch.save(trained_model.state_dict(), "output/model.pth")
+    checkpoint_path = results.rank(0)
+    print(f"Checkpoint at: {checkpoint_path}")

@@ -32,6 +32,7 @@ class WorkerArgs:
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None
     rank: int
     local_rank: int
+    node_rank: int
     local_world_size: int
     world_size: int
     hostname: str
@@ -79,6 +80,7 @@ def worker_entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | Exc
 
     os.environ["RANK"] = str(worker_args.rank)
     os.environ["LOCAL_RANK"] = str(worker_args.local_rank)
+    os.environ["GROUP_RANK"] = str(worker_args.node_rank)
     os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
     os.environ["WORLD_SIZE"] = str(worker_args.world_size)
     os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname

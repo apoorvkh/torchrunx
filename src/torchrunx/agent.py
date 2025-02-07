@@ -83,6 +83,7 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
                     backend=launcher_payload.backend,
                     rank=worker_global_ranks[i],
                     local_rank=i,
+                    node_rank=agent_rank,
                     local_world_size=num_workers,
                     world_size=worker_world_size,
                     hostname=launcher_payload.hostnames[agent_rank],
