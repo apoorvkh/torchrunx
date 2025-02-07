@@ -1,8 +1,8 @@
 """Pytorch Lightning extension utilities."""
 
 import torch
-from lightning.fabric.plugins.environments.torchelastic import (
-    TorchElasticEnvironment,  # pyright: ignore [reportMissingImports]
+from lightning.fabric.plugins.environments.torchelastic import (  # pyright: ignore [reportMissingImports]
+    TorchElasticEnvironment,
 )
 
 
