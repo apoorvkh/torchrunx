@@ -72,14 +72,15 @@ def train():
         devices=2,
         num_nodes=1,
         strategy="ddp",
-        plugins=[TorchrunxClusterEnvironment()]
+        plugins=[TorchrunxClusterEnvironment()],
+        enable_checkpointing=False
     )
 
     trainer.fit(model=lightning_model, train_dataloaders=train_loader)
+    checkpoint  = f"{trainer.log_dir}/final.ckpt"
+    trainer.save_checkpoint(checkpoint)
 
-    if int(os.environ["RANK"]) == 0:
-        return trainer.model.model
-    return None
+    return checkpoint
 
 
 if __name__ == "__main__":
@@ -90,5 +91,5 @@ if __name__ == "__main__":
         workers_per_host=2,
     )
 
-    trained_model: nn.Module = results.rank(0)
-    torch.save(trained_model.state_dict(), "output/model.pth")
+    checkpoint_path = results.rank(0)
+    print(f"Checkpoint at: {checkpoint_path}")
