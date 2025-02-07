@@ -37,7 +37,7 @@ We don't need to pass `--launcher` arguments by default. But if you want to do m
 
 ### Script
 
-[The [raw source code](https://torchrun.xyz/transformers_train.py) also specifies dependencies at the top of the file — in [PEP 723](https://peps.python.org/pep-0723) format — e.g. for `uv` as above.]
+The [raw source code](https://torchrun.xyz/transformers_train.py) also specifies dependencies at the top of this file — in [PEP 723](https://peps.python.org/pep-0723) format — e.g. for `uv` as above.
 
 ```{eval-rst}
 .. literalinclude:: ./scripts/transformers_train.py
