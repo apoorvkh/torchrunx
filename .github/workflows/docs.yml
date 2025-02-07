@@ -2,7 +2,7 @@ name: Build and publish docs
 
 on:
   push:
-    branches: [main]
+    branches: [update-docs]
 
 jobs:
 
@@ -21,7 +21,7 @@ jobs:
           version: "0.5.0"
           python-version-file: ".python-version"
           enable-cache: true
-      - run: uv run --group docs python -m sphinx --builder html --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source docs/_build/html
+      - run: uv run --only-group docs python -m sphinx --builder html --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source docs/_build/html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v2
         with:
