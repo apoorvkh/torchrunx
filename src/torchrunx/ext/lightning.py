@@ -1,7 +1,9 @@
 """Pytorch Lightning extension utilities."""
 
 import torch
-from lightning.fabric.plugins.environments.torchelastic import TorchElasticEnvironment
+from lightning.fabric.plugins.environments.torchelastic import (
+    TorchElasticEnvironment,  # pyright: ignore [reportMissingImports]
+)
 
 
 class TorchrunxClusterEnvironment(TorchElasticEnvironment):
