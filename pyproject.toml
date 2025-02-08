@@ -48,8 +48,6 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "ANN101",
-  "ANN102",
   "ANN401",  # self / cls / Any annotations
   "BLE001",  # blind exceptions
   "TD",      # todo syntax

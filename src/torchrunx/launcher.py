@@ -34,7 +34,7 @@ from .utils.errors import (
     ExceptionFromWorker,
     WorkerFailedError,
 )
-from .utils.logging import LoggingServerArgs, start_logging_server
+from .utils.logging_server import LoggingServerArgs, start_logging_server
 
 
 @dataclass
