@@ -12,9 +12,9 @@
 # [docs:start-after]
 import functools
 import os
+from dataclasses import dataclass
 from typing import Annotated
 
-import tyro
 from datasets import Dataset, load_dataset
 from transformers import (
     AutoModelForCausalLM,
@@ -22,23 +22,38 @@ from transformers import (
     PreTrainedModel,
     Trainer,
     TrainingArguments,
+    trainer_utils,
 )
-
 import torchrunx
+import tyro
 
 
-def build_model(name: str) -> PreTrainedModel:
-    return AutoModelForCausalLM.from_pretrained(name)
+@dataclass
+class ModelConfig:
+    name: str
+
+
+@dataclass
+class DatasetConfig:
+    path: str
+    name: str | None = None
+    split: str | None = None
+    text_column: str = "text"
+    num_samples: int | None = None
 
 
 def load_training_data(
     tokenizer_name: str,
-    path: str,
-    name: str | None = None,
-    split: str | None = None,
-    text_column_name: str = "text",
-    num_samples: int | None = None,
+    dataset_config: DatasetConfig,
 ) -> Dataset:
+    # Load dataset
+
+    dataset = load_dataset(dataset_config.path, name=dataset_config.name, split=dataset_config.split)
+    if dataset_config.num_samples is not None:
+        dataset = dataset.select(range(dataset_config.num_samples))
+
+    # Build tokenizer
+
     os.environ["TOKENIZERS_PARALLELISM"] = "false"  # to suppress warnings
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     if tokenizer.pad_token is None:
@@ -50,46 +65,47 @@ def load_training_data(
         padding="max_length",
     )
 
-    dataset = load_dataset(path, name=name, split=split)
+    # Tokenize dataset
 
-    if num_samples is None:
-        num_samples = len(dataset)
-
-    return (
-        dataset.select(range(num_samples))
-        .map(
-            tokenize_fn,
-            batched=True,
-            input_columns=[text_column_name],
-            remove_columns=[text_column_name],
-        )
-        .map(lambda x: {"labels": x["input_ids"]})
-    )
+    return dataset.map(
+        tokenize_fn,
+        batched=True,
+        input_columns=[dataset_config.text_column],
+        remove_columns=[dataset_config.text_column],
+    ).map(lambda x: {"labels": x["input_ids"]})
 
 
 def train(
-    model: PreTrainedModel, training_args: TrainingArguments, train_dataset: Dataset
-) -> PreTrainedModel | None:
+    model: PreTrainedModel,
+    train_dataset: Dataset,
+    training_args: TrainingArguments,
+) -> str:
     trainer = Trainer(
         model=model,
-        args=training_args,
         train_dataset=train_dataset,
+        args=training_args,
     )
+
     trainer.train()
 
-    # TODO: return checkpoint path
-    if int(os.environ["RANK"]) == 0:
-        return model
+    return trainer_utils.get_last_checkpoint(training_args.output_dir)
 
 
 def main(
     launcher: torchrunx.Launcher,
-    model: Annotated[PreTrainedModel, tyro.conf.arg(prefix_name=False, constructor=build_model)],
-    train_dataset: Annotated[Dataset, tyro.conf.arg(name="dataset", constructor=load_training_data)],
+    model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
+    dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
     training_args: Annotated[TrainingArguments, tyro.conf.arg(name="trainer", help="")],
 ):
-    results = launcher.run(train, (model, training_args, train_dataset))
-    model = results.rank(0)
+    model = AutoModelForCausalLM.from_pretrained(model_config.name)
+    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+
+    # Launch training
+    results = launcher.run(train, (model, train_dataset, training_args))
+
+    # Loading trained model from checkpoint
+    checkpoint_path = results.rank(0)
+    trained_model = AutoModelForCausalLM.from_pretrained(checkpoint_path)
 
 
 if __name__ == "__main__":

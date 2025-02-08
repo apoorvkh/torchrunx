@@ -30,15 +30,13 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     (required)                                                             │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ dataset options ──────────────────────────────────────────────────────────╮
-│ --dataset.tokenizer-name STR                                               │
-│     (required)                                                             │
 │ --dataset.path STR                                                         │
 │     (required)                                                             │
 │ --dataset.name {None}|STR                                                  │
 │     (default: None)                                                        │
 │ --dataset.split {None}|STR                                                 │
 │     (default: None)                                                        │
-│ --dataset.text-column-name STR                                             │
+│ --dataset.text-column STR                                                  │
 │     (default: text)                                                        │
 │ --dataset.num-samples {None}|INT                                           │
 │     (default: None)                                                        │
