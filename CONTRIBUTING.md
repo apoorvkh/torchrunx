@@ -13,3 +13,7 @@ Make a pull request with your changes on Github and we'll try to look at it soon
 `tests/` contains `pytest`-style tests for validating that code changes do not break the core functionality of our library.
 
 At the moment, we run `pytest tests/test_ci.py` (i.e. simple single-node CPU-only tests) in our Github Actions CI pipeline (`.github/workflows/release.yml`). One can manually run our more involved tests (on GPUs, on multiple machines from SLURM) on their own hardware.
+
+## Documentation
+
+Our documentation is hosted on Github Pages and is updated with every package release. We build our documentation with `sphinx` using the command: `uv run --group docs python -m sphinx --builder html --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source docs/_build/html`. The documentation will then be generated at `docs/_build/html`.
