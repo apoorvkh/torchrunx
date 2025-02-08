@@ -80,14 +80,8 @@ def train(
     train_dataset: Dataset,
     training_args: TrainingArguments,
 ) -> str:
-    trainer = Trainer(
-        model=model,
-        train_dataset=train_dataset,
-        args=training_args,
-    )
-
+    trainer = Trainer(model=model, train_dataset=train_dataset, args=training_args)
     trainer.train()
-
     return trainer_utils.get_last_checkpoint(training_args.output_dir)
 
 
