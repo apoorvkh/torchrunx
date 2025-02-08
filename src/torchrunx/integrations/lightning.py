@@ -1,15 +1,14 @@
-"""Pytorch Lightning extension utilities."""
+"""Integration with PyTorch Lightning Trainer."""
 
-import torch
 from lightning.fabric.plugins.environments.torchelastic import (  # pyright: ignore [reportMissingImports]
     TorchElasticEnvironment,
 )
 
 
 class TorchrunxClusterEnvironment(TorchElasticEnvironment):
-    """PyTorch Lightning ClusterEnvironment compatible with torchrunx."""
+    """Compatible ClusterEnvironment for PyTorch Lightning."""
 
     @staticmethod
     def detect() -> bool:
-        """Returns ``True`` if the current process was launched using torchrunx."""
-        return torch.distributed.is_available()
+        """Force use of the TorchElasticEnvironment."""
+        return True

@@ -1,4 +1,4 @@
-# Pytorch Lightning
+# PyTorch Lightning
 
 ```{eval-rst}
 .. literalinclude:: ./scripts/lightning_train.py
