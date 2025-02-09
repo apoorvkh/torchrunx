@@ -17,6 +17,7 @@ jobs:
         with:
           version: "0.5.29"
           enable-cache: true
+      - run: uv lock --check
       - run: uv sync
       - run: uv run --frozen ruff check
         if: success() || failure()
