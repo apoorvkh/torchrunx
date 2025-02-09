@@ -26,6 +26,20 @@ jobs:
       - run: uv run --frozen pyright
         if: success() || failure()
 
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.29"
+      - run: uv run --group docs python -m sphinx --builder html --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source docs/_build/html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-html-build
+          path: docs/_build/html
+          retention-days: 14
+
   ##
 
   get-python-pytorch-versions:
@@ -80,6 +94,10 @@ jobs:
       matrix:
         versions: ${{fromJson(needs.get-python-pytorch-versions.outputs.versions)}}
     steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.29"
       - run: |
           IFS=',' read -r python_version pytorch_version <<< ${{ matrix.versions }}
           echo "PYTHON_VERSION=$python_version" >> $GITHUB_ENV
@@ -87,34 +105,4 @@ jobs:
           if [[ "$pytorch_version" =~ ^2\.(0|1|2)$ ]]; then
             echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
           fi
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.5.29"
       - run: uv run --python ${{ env.PYTHON_VERSION }} --with torch~=${{ env.PYTORCH_VERSION }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
-
-  publish-docs:
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.5.29"
-      - run: uv run --group docs python -m sphinx --builder html --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source docs/_build/html
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/_build/html
-      - id: deployment
-        uses: actions/deploy-pages@v4
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docs-html-build
-          path: docs/_build/html
-          retention-days: 14
