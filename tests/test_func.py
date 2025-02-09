@@ -1,4 +1,6 @@
 import os
+from functools import reduce
+from operator import add
 
 import torch
 import torch.distributed as dist
@@ -13,7 +15,7 @@ def test_launch() -> None:
         workers_per_host="slurm",
     )
 
-    result_values = result.by_ranks()
+    result_values = reduce(add, result.results.values())
 
     t = True
     for i in range(len(result_values)):

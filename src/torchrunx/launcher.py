@@ -14,10 +14,9 @@ import socket
 import subprocess
 import sys
 from dataclasses import dataclass
-from functools import partial, reduce
+from functools import partial
 from logging import Handler
 from multiprocessing import Event, Process
-from operator import add
 from pathlib import Path
 from typing import Any, Callable, Literal
 
@@ -265,24 +264,21 @@ def launch(
 class LaunchResult:
     """Container for objects returned from workers after successful launches."""
 
-    hostnames: list[str]
-    return_values: list[list[Any]]
-
-    def by_hostnames(self) -> dict[str, list[Any]]:
-        """All return values from workers, indexed by host and local rank."""
-        return dict(zip(self.hostnames, self.return_values))
-
-    def by_ranks(self) -> list[Any]:
-        """All return values from workers, indexed by global rank."""
-        return reduce(add, self.return_values)
+    def __init__(self, hostnames: list[str], return_values: list[list[Any]]) -> None:
+        """Initialize from corresponding lists of hostnames and worker return values."""
+        self.results: dict[str, list[Any]] = dict(zip(hostnames, return_values))
 
     def index(self, hostname: str, rank: int) -> Any:
         """Get return value from worker by host and local rank."""
-        return self.return_values[self.hostnames.index(hostname)][rank]
+        return self.results[hostname][rank]
 
     def rank(self, i: int) -> Any:
         """Get return value from worker by global rank."""
-        return self.by_ranks()[i]
+        for results_per_host in self.results.values():
+            if i < len(results_per_host):
+                return results_per_host[i]
+            i -= len(results_per_host)
+        raise IndexError
 
 
 def _resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:

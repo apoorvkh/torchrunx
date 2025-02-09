@@ -12,9 +12,12 @@
 .. toctree::
    :caption: Examples
    :hidden:
-   :glob:
 
-   ./examples/*
+   ./examples/transformers.md
+   ./examples/accelerate.md
+   ./examples/deepspeed.md
+   ./examples/lightning.md
+   ./examples/composer.md
 
 .. sidebar-links::
    :github:
