@@ -35,11 +35,18 @@ jobs:
       - name: "Get (Python, PyTorch) versions"
         id: get-versions
         run: |
+          # Get PyTorch versions (>=2.0) from PyPI
+
           pytorch_versions=$(
               curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' |
               # remove versions <2.0; strip "patch" from versions
               grep -v '^1\.' | grep -E '\.[0]+$' | sort -V | sed 's/\.0$//'
           )
+
+          # For each PyTorch version, get Python versions that have builds
+          # Generate JSON list of "python,pytorch" versions
+          # e.g. [ "3.10,2.0", "3.11,2.0", "3.8,2.0", ... ]
+
           version_matrix=()
           for pytorch_version in $pytorch_versions; do
             cp_versions=$(curl -s "https://pypi.org/pypi/torch/$pytorch_version/json" | jq -r '.urls[].filename | select(test("manylinux1_x86_64")) | capture("(?<cp>cp[0-9]+)-") | .cp')
@@ -49,8 +56,9 @@ jobs:
             done
           done
           version_matrix=$(printf '%s\n' "${version_matrix[@]}" | jq -R . | jq -s -c .)
+
+          # Write to outputs
           echo "versions=$version_matrix" >> $GITHUB_OUTPUT
-          # e.g. [ "3.10,2.0", "3.11,2.0", "3.8,2.0", ... ]
 
   test:
     runs-on: ubuntu-latest
@@ -60,14 +68,18 @@ jobs:
       matrix:
         versions: ${{fromJson(needs.get-python-pytorch-versions.outputs.versions)}}
     steps:
-      - run: echo ${{ matrix.versions }}
-      # - uses: actions/checkout@v4
-      # - uses: astral-sh/setup-uv@v5
-      #   with:
-      #     version: "0.5.29"
-      # - if: contains('2.0,2.1,2.2', matrix.pytorch)
-      #   run: echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
-      # - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
+      - run: |
+          IFS=',' read -r python_version pytorch_version <<< ${{ matrix.versions }}
+          echo "PYTHON_VERSION=$python_version" >> $GITHUB_ENV
+          echo "PYTORCH_VERSION=$pytorch_version" >> $GITHUB_ENV
+          if [[ "$pytorch_version" =~ ^2\.(0|1|2)$ ]]; then
+            echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
+          fi
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.29"
+      - run: uv run --python ${{ env.PYTHON_VERSION }} --with torch~=${{ env.PYTORCH_VERSION }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
 
   publish-docs:
     runs-on: ubuntu-latest
