@@ -29,7 +29,7 @@ from .utils.comm import (
     LauncherPayload,
     get_open_port,
 )
-from .utils.environment import auto_hosts, auto_workers, slurm_hosts, slurm_workers
+from .utils.environment import auto_hosts, slurm_hosts
 from .utils.errors import (
     ExceptionFromWorker,
     WorkerFailedError,
@@ -43,7 +43,7 @@ def launch(
     kwargs: dict[str, Any] | None = None,
     *,
     hostnames: list[str] | Literal["auto", "slurm"] = "auto",
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
+    workers_per_host: int | list[int] | Literal["auto"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
     timeout: int = 600,
@@ -71,6 +71,7 @@ def launch(
         hostnames: Nodes on which to launch the function.
             Default: infer from localhost or SLURM.
         workers_per_host: Number of processes to run (e.g. # of GPUs) per node.
+            Default: use number of GPUs on each host.
         ssh_config_file: Path to an SSH configuration file for connecting to nodes.
             Default: ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
         backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
@@ -86,9 +87,10 @@ def launch(
 
     Raises:
         RuntimeError: If there are configuration issues.
-        AgentFailedError: If an agent fails, e.g. from an OS signal.
-        WorkerFailedError: If a worker fails, e.g. from a segmentation fault.
         Exception: Any exception raised in a worker process is propagated.
+        WorkerFailedError: If a worker fails (e.g. from a segmentation fault)
+            or raises an exception and ``propagate_exceptions=False``.
+        AgentFailedError: If an agent fails, e.g. from an OS signal.
     """
     return (
         Launcher(
@@ -116,7 +118,7 @@ class Launcher:
     """Useful for sequential invocations or for specifying arguments via CLI."""
 
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto"
+    workers_per_host: int | list[int] | Literal["auto"] = "auto"
     ssh_config_file: str | os.PathLike | None = None
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
     timeout: int = 600
@@ -156,8 +158,8 @@ class Launcher:
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
 
-        hostnames = _resolve_hostnames(self.hostnames)
-        workers_per_host = _resolve_workers_per_host(self.workers_per_host, len(hostnames))
+        hostnames: list[str] = _resolve_hostnames(self.hostnames)
+        workers_per_host: list[int] = _resolve_workers_per_host(hostnames, self.workers_per_host)
 
         launcher_hostname = socket.getfqdn()
         launcher_port = get_open_port()
@@ -310,19 +312,23 @@ def _resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[
 
 
 def _resolve_workers_per_host(
-    workers_per_host: int | list[int] | Literal["auto", "slurm"],
-    num_hosts: int,
+    hostnames: list[str],
+    workers_per_host: int | list[int] | Literal["auto"],
 ) -> list[int]:
-    if workers_per_host == "auto":
-        workers_per_host = auto_workers()
-    elif workers_per_host == "slurm":
-        workers_per_host = slurm_workers()
-
     if isinstance(workers_per_host, int):
-        workers_per_host = [workers_per_host] * num_hosts
-    elif len(workers_per_host) != num_hosts:
-        msg = "len(workers_per_host) != len(hostnames)"
-        raise ValueError(msg)
+        return [workers_per_host] * len(hostnames)
+
+    if workers_per_host == "auto":
+        python = shlex.quote(sys.executable)
+        command = f"{python} -c \"import torch; print(torch.cuda.device_count(), end='')\""
+        gpus_per_host = [
+            int(_execute_command(command, hostname, return_stdout_stderr=True)[0])
+            for hostname in hostnames
+        ]
+        if any(g == 0 for g in gpus_per_host):
+            msg = 'workers_per_host="auto", but no GPUs detected on at least one host.'
+            raise RuntimeError(msg)
+        return gpus_per_host
 
     return workers_per_host
 
@@ -372,8 +378,10 @@ def _build_launch_command(
 def _execute_command(
     command: str,
     hostname: str,
+    *,
     ssh_config_file: str | os.PathLike | None = None,
-) -> None:
+    return_stdout_stderr: bool = False,
+) -> tuple[str, str]:
     is_localhost = True
     _hostname_or_ip = hostname
     try:
@@ -389,7 +397,13 @@ def _execute_command(
     if is_localhost:
         # S602: subprocess.Popen is called with shell=True (https://docs.python.org/3.9/library/subprocess.html#security-considerations)
         # Made sure to shlex.quote arguments in build_command to prevent shell injection
-        subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # noqa: S602
+        process = subprocess.Popen(  # noqa: S602
+            command, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+
+        if return_stdout_stderr:
+            stdout, stderr = process.communicate()
+            return stdout, stderr
     else:
         runtime_ssh_path = ssh_config_file
         if isinstance(ssh_config_file, os.PathLike):
@@ -399,4 +413,10 @@ def _execute_command(
             host=hostname,
             config=fabric.Config(runtime_ssh_path=runtime_ssh_path),
         ) as conn:
-            conn.run(f"{command} >> /dev/null 2>&1 &", asynchronous=True)
+            promise = conn.run(command, asynchronous=True, hide=True)
+
+            if return_stdout_stderr:
+                results = promise.join()
+                return results.stdout, results.stderr
+
+    return ("", "")

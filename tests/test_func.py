@@ -12,7 +12,6 @@ def test_launch() -> None:
     result = trx.launch(
         func=simple_matmul,
         hostnames="slurm",
-        workers_per_host="slurm",
     )
 
     result_values = reduce(add, result.results.values())
