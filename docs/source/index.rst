@@ -5,9 +5,17 @@
    :hidden:
 
    api
-   advanced
    how_it_works
    contributing
+
+.. toctree::
+   :caption: Features
+   :hidden:
+
+   ./features/customization.md
+   ./features/workflows.md
+   ./features/cli.md
+   ./features/slurm.md
 
 .. toctree::
    :caption: Examples
