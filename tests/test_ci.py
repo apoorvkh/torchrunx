@@ -31,8 +31,7 @@ def test_simple_localhost() -> None:
     os.environ["TORCHRUNX_DIR"] = tmp
 
     r = trx.launch(
-        func=dist_func,
-        func_kwargs={},
+        dist_func,
         workers_per_host=2,
         backend="gloo",  # log_dir="./test_logs"
     )
@@ -51,8 +50,7 @@ def test_logging() -> None:
     num_workers = 2
 
     trx.launch(
-        func=dist_func,
-        func_kwargs={},
+        dist_func,
         workers_per_host=num_workers,
         backend="gloo",
     )
@@ -81,8 +79,7 @@ def test_error() -> None:
 
     with pytest.raises(ValueError) as excinfo:  # noqa: PT011
         trx.launch(
-            func=error_func,
-            func_kwargs={},
+            error_func,
             workers_per_host=1,
             backend="gloo",
         )
