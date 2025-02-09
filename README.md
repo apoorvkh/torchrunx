@@ -3,8 +3,8 @@
 [![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fapoorvkh%2Ftorchrunx%2Fmain%2Fpyproject.toml)](https://github.com/apoorvkh/torchrunx/blob/main/pyproject.toml)
 [![PyTorch Version](https://img.shields.io/badge/torch-%3E%3D2.0-orange)](https://github.com/pytorch/pytorch)
 [![PyPI - Version](https://img.shields.io/pypi/v/torchrunx)](https://pypi.org/project/torchrunx/)
+[![Documentation](https://img.shields.io/badge/Documentation-blue)](https://torchrun.xyz)
 ![Tests](https://img.shields.io/github/actions/workflow/status/apoorvkh/torchrunx/.github%2Fworkflows%2Fmain.yml)
-[![Docs](https://readthedocs.org/projects/torchrunx/badge/?version=stable)](https://torchrunx.readthedocs.io)
 [![GitHub License](https://img.shields.io/github/license/apoorvkh/torchrunx)](https://github.com/apoorvkh/torchrunx/blob/main/LICENSE)
 
 By [Apoorv Khandelwal](https://apoorvkh.com) and [Peter Curtin](https://github.com/pmcurtin)
@@ -106,7 +106,7 @@ torch.save(trained_model.state_dict(), "output/model.pth")
 
 4. **Better handling of system failures. No more zombies!** 🧟
 
-> With `torchrun`, your "work" is inherently coupled to your main Python process. If the system kills one of your workers (e.g. due to RAM OOM or segmentation faults), there is no way to fail gracefully in Python. Your processes might hang for at least 10 minutes (the NCCL timeout) or become perpetual zombies.
+> With `torchrun`, your "work" is inherently coupled to your main Python process. If the system kills one of your workers (e.g. due to RAM OOM or segmentation faults), there is no way to fail gracefully in Python. Your processes might hang for 10 minutes (the NCCL timeout) or become perpetual zombies.
 >
 > 
 > `torchrunx` decouples "launcher" and "worker" processes. If the system kills a worker, our launcher immediately raises a `WorkerFailure` exception, which users can handle as they wish. We always clean up all nodes, so no more zombies!

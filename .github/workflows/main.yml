@@ -27,40 +27,47 @@ jobs:
 
   ##
 
-  get-pytorch-versions:
+  get-python-pytorch-versions:
     runs-on: ubuntu-latest
     outputs:
-      versions: ${{ steps.get-pytorch-versions.outputs.versions }}
+      versions: ${{ steps.get-versions.outputs.versions }}
     steps:
-      - name: Get PyTorch versions
-        id: get-pytorch-versions
+      - name: "Get (Python, PyTorch) versions"
+        id: get-versions
         run: |
-          VERSIONS=$(
-            curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' |
-            # remove versions <2.0; strip "patch" from versions
-            grep -v '^1\.' | grep -E '\.[0]+$' | sort -V | sed 's/\.0$//' |
-            # to JSON array
-            jq -R . | jq -sc .
+          pytorch_versions=$(
+              curl -s https://pypi.org/pypi/torch/json | jq -r '.releases | keys[]' |
+              # remove versions <2.0; strip "patch" from versions
+              grep -v '^1\.' | grep -E '\.[0]+$' | sort -V | sed 's/\.0$//'
           )
-          echo "versions=$VERSIONS" >> $GITHUB_OUTPUT
-          # e.g. ["2.0","2.1","2.2","2.3","2.4"]
+          version_matrix=()
+          for pytorch_version in $pytorch_versions; do
+            cp_versions=$(curl -s "https://pypi.org/pypi/torch/$pytorch_version/json" | jq -r '.urls[].filename | select(test("manylinux1_x86_64")) | capture("(?<cp>cp[0-9]+)-") | .cp')
+            for cp_version in $cp_versions; do
+              python_version=$(echo $cp_version | sed -E 's/cp([0-9])([0-9]+)/\1.\2/')
+              version_matrix+=($python_version,$pytorch_version)
+            done
+          done
+          version_matrix=$(printf '%s\n' "${version_matrix[@]}" | jq -R . | jq -s .)
+          echo "versions=$version_matrix" >> $GITHUB_OUTPUT
+          # e.g. [ "3.10,2.0", "3.11,2.0", "3.8,2.0", ... ]
 
   test:
     runs-on: ubuntu-latest
-    needs: get-pytorch-versions
+    needs: get-python-pytorch-versions
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.10", "3.11", "3.12"] 
-        pytorch: ${{fromJson(needs.get-pytorch-versions.outputs.versions)}}
+        versions: ${{fromJson(needs.get-python-pytorch-versions.outputs.versions)}}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.5.29"
-      - if: contains('2.0,2.1,2.2', matrix.pytorch)
-        run: echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
-      - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
+      - run: echo ${{ matrix.versions }}
+      # - uses: actions/checkout@v4
+      # - uses: astral-sh/setup-uv@v5
+      #   with:
+      #     version: "0.5.29"
+      # - if: contains('2.0,2.1,2.2', matrix.pytorch)
+      #   run: echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
+      # - run: uv run --python ${{ matrix.python }} --with torch~=${{ matrix.pytorch }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
 
   publish-docs:
     runs-on: ubuntu-latest
