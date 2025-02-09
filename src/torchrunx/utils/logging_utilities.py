@@ -102,20 +102,18 @@ def file_handlers(
 ) -> list[Handler]:
     """Handler builder function for writing logs for all workers/agents to a directory.
 
-    Files are named with timestamp, hostname, and the local_rank (for workers).
+    Files are named with hostname and the local_rank (for workers).
     """
     handlers = []
 
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
+    log_dir = Path(log_dir) / timestamp
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     for hostname, num_workers in zip(hostnames, workers_per_host):
         for local_rank in [None, *range(num_workers)]:
-            file_path = (
-                f"{log_dir}/{timestamp}-{hostname}"
-                + (f"[{local_rank}]" if local_rank is not None else "")
-                + ".log"
-            )
+            local_rank_str = f"[{local_rank}]" if local_rank is not None else ""
+            file_path = log_dir / f"{hostname}{local_rank_str}.log"
             handlers.append(file_handler(hostname, local_rank, file_path, log_level=log_level))
 
     return handlers

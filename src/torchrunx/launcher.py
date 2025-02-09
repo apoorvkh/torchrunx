@@ -22,6 +22,7 @@ from typing import Any, Callable, Literal
 
 import fabric
 import torch.distributed as dist
+from typing_extensions import Self
 
 from .utils.comm import (
     LauncherAgentGroup,
@@ -33,7 +34,7 @@ from .utils.errors import (
     ExceptionFromWorker,
     WorkerFailedError,
 )
-from .utils.logging_server import LoggingServerArgs, start_logging_server
+from .utils.logging_utilities import LoggingServerArgs, start_logging_server
 
 
 def launch(
@@ -139,7 +140,7 @@ class Launcher:
 
     def set_handler_factory(
         self, factory: Callable[[], list[Handler]] | Literal["auto"] | None
-    ) -> Launcher:
+    ) -> Self:
         """Setter for log handler factory."""
         self.handler_factory = factory
         return self
