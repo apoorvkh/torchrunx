@@ -36,6 +36,74 @@ from .utils.errors import (
 from .utils.logging_server import LoggingServerArgs, start_logging_server
 
 
+def launch(
+    func: Callable,
+    func_args: tuple | None = None,
+    func_kwargs: dict[str, Any] | None = None,
+    hostnames: list[str] | Literal["auto", "slurm"] = "auto",
+    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
+    ssh_config_file: str | os.PathLike | None = None,
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
+    timeout: int = 600,
+    default_env_vars: tuple[str, ...] = (
+        "PATH",
+        "LD_LIBRARY",
+        "LIBRARY_PATH",
+        "PYTHON*",
+        "CUDA*",
+        "TORCH*",
+        "PYTORCH*",
+        "NCCL*",
+    ),
+    extra_env_vars: tuple[str, ...] = (),
+    env_file: str | os.PathLike | None = None,
+    handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
+) -> LaunchResult:
+    """Launch a distributed PyTorch function on the specified nodes.
+
+    Arguments:
+        func: Function to run on each worker.
+        func_args: Positional arguments for ``func``.
+        func_kwargs: Keyword arguments for ``func``.
+        hostnames: Nodes on which to launch the function.
+            Defaults to nodes inferred from a SLURM environment or localhost.
+        workers_per_host: Number of processes to run per node.
+            Can specify different counts per node with a list.
+        ssh_config_file: Path to an SSH configuration file for connecting to nodes.
+            Defaults to ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+        backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
+            for worker process group. Defaults to NCCL (GPU) or GLOO (CPU). Set `None` to disable.
+        timeout: Worker process group timeout (seconds).
+        default_env_vars: Environment variables to copy from the launcher process to workers.
+            Supports bash pattern matching syntax.
+        extra_env_vars: Additional user-specified environment variables to copy.
+        env_file: Path to a file (e.g., `.env`) with additional environment variables to copy.
+        handler_factory: Function to build logging handlers that process agent and worker logs.
+            Defaults to an automatic basic logging scheme.
+
+    Raises:
+        RuntimeError: If there are configuration issues.
+        AgentFailedError: If an agent fails, e.g. from an OS signal.
+        WorkerFailedError: If a worker fails, e.g. from a segmentation fault.
+        Exception: Any exception raised in a worker process is propagated.
+    """
+    return Launcher(
+        hostnames=hostnames,
+        workers_per_host=workers_per_host,
+        ssh_config_file=ssh_config_file,
+        backend=backend,
+        timeout=timeout,
+        default_env_vars=default_env_vars,
+        extra_env_vars=extra_env_vars,
+        env_file=env_file,
+    ).run(
+        func=func,
+        func_args=func_args,
+        func_kwargs=func_kwargs,
+        handler_factory=handler_factory,
+    )
+
+
 @dataclass
 class Launcher:
     """Useful for sequential invocations or for specifying arguments via CLI."""
@@ -190,74 +258,6 @@ class Launcher:
         # if launch is successful: return objects from workers
         return_values = [s.return_values for s in agent_statuses]
         return LaunchResult(hostnames=hostnames, return_values=return_values)
-
-
-def launch(
-    func: Callable,
-    func_args: tuple | None = None,
-    func_kwargs: dict[str, Any] | None = None,
-    hostnames: list[str] | Literal["auto", "slurm"] = "auto",
-    workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
-    ssh_config_file: str | os.PathLike | None = None,
-    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto",
-    timeout: int = 600,
-    default_env_vars: tuple[str, ...] = (
-        "PATH",
-        "LD_LIBRARY",
-        "LIBRARY_PATH",
-        "PYTHON*",
-        "CUDA*",
-        "TORCH*",
-        "PYTORCH*",
-        "NCCL*",
-    ),
-    extra_env_vars: tuple[str, ...] = (),
-    env_file: str | os.PathLike | None = None,
-    handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
-) -> LaunchResult:
-    """Launch a distributed PyTorch function on the specified nodes.
-
-    Arguments:
-        func: Function to run on each worker.
-        func_args: Positional arguments for ``func``.
-        func_kwargs: Keyword arguments for ``func``.
-        hostnames: Nodes on which to launch the function.
-            Defaults to nodes inferred from a SLURM environment or localhost.
-        workers_per_host: Number of processes to run per node.
-            Can specify different counts per node with a list.
-        ssh_config_file: Path to an SSH configuration file for connecting to nodes.
-            Defaults to ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
-        backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
-            for worker process group. Defaults to NCCL (GPU) or GLOO (CPU). Set `None` to disable.
-        timeout: Worker process group timeout (seconds).
-        default_env_vars: Environment variables to copy from the launcher process to workers.
-            Supports bash pattern matching syntax.
-        extra_env_vars: Additional user-specified environment variables to copy.
-        env_file: Path to a file (e.g., `.env`) with additional environment variables to copy.
-        handler_factory: Function to build logging handlers that process agent and worker logs.
-            Defaults to an automatic basic logging scheme.
-
-    Raises:
-        RuntimeError: If there are configuration issues.
-        AgentFailedError: If an agent fails, e.g. from an OS signal.
-        WorkerFailedError: If a worker fails, e.g. from a segmentation fault.
-        Exception: Any exception raised in a worker process is propagated.
-    """
-    return Launcher(
-        hostnames=hostnames,
-        workers_per_host=workers_per_host,
-        ssh_config_file=ssh_config_file,
-        backend=backend,
-        timeout=timeout,
-        default_env_vars=default_env_vars,
-        extra_env_vars=extra_env_vars,
-        env_file=env_file,
-    ).run(
-        func=func,
-        func_args=func_args,
-        func_kwargs=func_kwargs,
-        handler_factory=handler_factory,
-    )
 
 
 @dataclass
