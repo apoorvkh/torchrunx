@@ -63,7 +63,7 @@ jobs:
               # Skip if Python version less than minium
               if [[ "$(printf '%s\n' "$python_version" "$MIN_PYTHON_VERSION" | sort -V | head -n 1)" != "$MIN_PYTHON_VERSION" ]]; then continue; fi
 
-              version_matrix+=($python_version, $pytorch_version)
+              version_matrix+=($python_version,$pytorch_version)
             done
           done
           version_matrix=$(printf '%s\n' "${version_matrix[@]}" | jq -R . | jq -s -c .)
@@ -80,7 +80,7 @@ jobs:
         versions: ${{fromJson(needs.get-python-pytorch-versions.outputs.versions)}}
     steps:
       - run: |
-          IFS=', ' read -r python_version pytorch_version <<< ${{ matrix.versions }}
+          IFS=',' read -r python_version pytorch_version <<< ${{ matrix.versions }}
           echo "PYTHON_VERSION=$python_version" >> $GITHUB_ENV
           echo "PYTORCH_VERSION=$pytorch_version" >> $GITHUB_ENV
           if [[ "$pytorch_version" =~ ^2\.(0|1|2)$ ]]; then
