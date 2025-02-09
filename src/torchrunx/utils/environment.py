@@ -12,17 +12,17 @@ import torch
 
 def in_slurm_job() -> bool:
     """Check if current process is running in a Slurm allocation."""
-    return "SLURM_JOB_ID" in os.environ
+    return "SLURM_JOB_ID" in os.environ or "SLURM_JOBID" in os.environ
 
 
 def slurm_hosts() -> list[str]:
     """Retrieves hostnames of Slurm-allocated nodes."""
-    # TODO: sanity check SLURM variables, commands
     if not in_slurm_job():
         msg = "Not in a SLURM job"
         raise RuntimeError(msg)
+
     return (
-        subprocess.check_output(["scontrol", "show", "hostnames", os.environ["SLURM_JOB_NODELIST"]])
+        subprocess.check_output(["scontrol", "show", "hostnames"])
         .decode()
         .strip()
         .split("\n")
