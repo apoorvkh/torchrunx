@@ -48,7 +48,7 @@ jobs:
               version_matrix+=($python_version,$pytorch_version)
             done
           done
-          version_matrix=$(printf '%s\n' "${version_matrix[@]}" | jq -R . | jq -s .)
+          version_matrix=$(printf '%s\n' "${version_matrix[@]}" | jq -R . | jq -s -c .)
           echo "versions=$version_matrix" # >> $GITHUB_OUTPUT
           # e.g. [ "3.10,2.0", "3.11,2.0", "3.8,2.0", ... ]
 
