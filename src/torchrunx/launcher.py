@@ -38,8 +38,9 @@ from .utils.logging_server import LoggingServerArgs, start_logging_server
 
 def launch(
     func: Callable,
-    func_args: tuple | None = None,
-    func_kwargs: dict[str, Any] | None = None,
+    args: tuple | None = None,
+    kwargs: dict[str, Any] | None = None,
+    *,
     hostnames: list[str] | Literal["auto", "slurm"] = "auto",
     workers_per_host: int | list[int] | Literal["auto", "slurm"] = "auto",
     ssh_config_file: str | os.PathLike | None = None,
@@ -57,29 +58,30 @@ def launch(
     ),
     extra_env_vars: tuple[str, ...] = (),
     env_file: str | os.PathLike | None = None,
+    propagate_exceptions: bool = True,
     handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
 ) -> LaunchResult:
-    """Launch a distributed PyTorch function on the specified nodes.
+    """Distribute and parallelize a function onto specified nodes and workers.
 
     Arguments:
-        func: Function to run on each worker.
-        func_args: Positional arguments for ``func``.
-        func_kwargs: Keyword arguments for ``func``.
+        func: Function to launch on each node and replicate for each worker.
+        args: Positional arguments for ``func``.
+        kwargs: Keyword arguments for ``func``.
         hostnames: Nodes on which to launch the function.
-            Defaults to nodes inferred from a SLURM environment or localhost.
-        workers_per_host: Number of processes to run per node.
-            Can specify different counts per node with a list.
+            Default: infer from localhost or SLURM.
+        workers_per_host: Number of processes to run (e.g. # of GPUs) per node.
         ssh_config_file: Path to an SSH configuration file for connecting to nodes.
-            Defaults to ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+            Default: ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
         backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
-            for worker process group. Defaults to NCCL (GPU) or GLOO (CPU). Set `None` to disable.
+            for worker process group. Set `None` to disable. Default: NCCL (GPU) or GLOO (CPU).
         timeout: Worker process group timeout (seconds).
         default_env_vars: Environment variables to copy from the launcher process to workers.
             Supports bash pattern matching syntax.
         extra_env_vars: Additional user-specified environment variables to copy.
-        env_file: Path to a file (e.g., `.env`) with additional environment variables to copy.
-        handler_factory: Function to build logging handlers that process agent and worker logs.
-            Defaults to an automatic basic logging scheme.
+        env_file: Path to a file (e.g., ``.env``) with additional environment variables to copy.
+        propagate_exceptions: Raise exceptions from worker processes in the launcher.
+            If false, raises :obj:`WorkerFailedError` instead.
+        handler_factory: Function to customize processing of agent and worker logs with handlers.
 
     Raises:
         RuntimeError: If there are configuration issues.
@@ -87,20 +89,24 @@ def launch(
         WorkerFailedError: If a worker fails, e.g. from a segmentation fault.
         Exception: Any exception raised in a worker process is propagated.
     """
-    return Launcher(
-        hostnames=hostnames,
-        workers_per_host=workers_per_host,
-        ssh_config_file=ssh_config_file,
-        backend=backend,
-        timeout=timeout,
-        default_env_vars=default_env_vars,
-        extra_env_vars=extra_env_vars,
-        env_file=env_file,
-    ).run(
-        func=func,
-        func_args=func_args,
-        func_kwargs=func_kwargs,
-        handler_factory=handler_factory,
+    return (
+        Launcher(
+            hostnames=hostnames,
+            workers_per_host=workers_per_host,
+            ssh_config_file=ssh_config_file,
+            backend=backend,
+            timeout=timeout,
+            default_env_vars=default_env_vars,
+            extra_env_vars=extra_env_vars,
+            env_file=env_file,
+            propagate_exceptions=propagate_exceptions,
+        )
+        .set_handler_factory(handler_factory)
+        .run(
+            func,
+            args,
+            kwargs,
+        )
     )
 
 
@@ -125,13 +131,24 @@ class Launcher:
     )
     extra_env_vars: tuple[str, ...] = ()
     env_file: str | os.PathLike | None = None
+    propagate_exceptions: bool = True
+
+    def __post_init__(self) -> None:
+        """Initializing ``handler_factory``. Inclusion in ``__init__`` inhibits CLI generation."""
+        self.handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto"
+
+    def set_handler_factory(
+        self, factory: Callable[[], list[Handler]] | Literal["auto"] | None
+    ) -> Launcher:
+        """Setter for log handler factory."""
+        self.handler_factory = factory
+        return self
 
     def run(  # noqa: C901, PLR0912
         self,
         func: Callable,
-        func_args: tuple | None = None,
-        func_kwargs: dict[str, Any] | None = None,
-        handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto",
+        args: tuple | None = None,
+        kwargs: dict[str, Any] | None = None,
     ) -> LaunchResult:
         """Run a function using the :mod:`torchrunx.Launcher` configuration."""
         if not dist.is_available():
@@ -155,7 +172,7 @@ class Launcher:
             # Start logging server (recieves LogRecords from agents/workers)
 
             logging_server_args = LoggingServerArgs(
-                handler_factory=handler_factory,
+                handler_factory=self.handler_factory,
                 logging_hostname=launcher_hostname,
                 logging_port=logging_port,
                 hostnames=hostnames,
@@ -211,7 +228,7 @@ class Launcher:
             ]
 
             payload = LauncherPayload(
-                fn=partial(func, *(func_args or ()), **(func_kwargs or {})),
+                fn=partial(func, *(args or ()), **(kwargs or {})),
                 hostnames=hostnames,
                 worker_global_ranks=worker_global_ranks,
                 worker_world_size=sum(workers_per_host),
@@ -231,7 +248,9 @@ class Launcher:
                 for s in agent_statuses:
                     for value in s.return_values:
                         if isinstance(value, ExceptionFromWorker):
-                            raise value.exception
+                            if self.propagate_exceptions:
+                                raise value.exception
+                            raise WorkerFailedError from value.exception
                         if isinstance(value, WorkerFailedError):
                             raise value
 
@@ -268,9 +287,9 @@ class LaunchResult:
         """Initialize from corresponding lists of hostnames and worker return values."""
         self.results: dict[str, list[Any]] = dict(zip(hostnames, return_values))
 
-    def index(self, hostname: str, rank: int) -> Any:
+    def index(self, hostname: str, locak_rank: int) -> Any:
         """Get return value from worker by host and local rank."""
-        return self.results[hostname][rank]
+        return self.results[hostname][locak_rank]
 
     def rank(self, i: int) -> Any:
         """Get return value from worker by global rank."""
