@@ -25,7 +25,7 @@ dependencies = [
 [dependency-groups]
 dev = ["ruff==0.9.5", "pyright[nodejs]==1.1.393", "pytest==8.3.4"]
 test-extras = ["submitit", "transformers"]
-docs = ["sphinx==7.4.7", "furo==2024.8.6", "myst-parser==3.0.1", "sphinx-autodoc2==0.5.0", "sphinx-toolbox==3.8.1"]
+docs = ["sphinx==7.4.7", "furo==2024.8.6", "myst-parser==3.0.1", "sphinx-toolbox==3.8.2"]
 
 
 [tool.ruff]

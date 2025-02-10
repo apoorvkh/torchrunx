@@ -23,13 +23,13 @@ We forward all logs (i.e. from {mod}`logging` and {mod}`sys.stdout`/{mod}`sys.st
 We provide some utilities to help:
 
 ```{eval-rst}
-.. autofunction:: torchrunx.file_handler
+.. autofunction:: torchrunx.utils.file_handler
 ```
 
 ```{eval-rst}
-.. autofunction:: torchrunx.stream_handler
+.. autofunction:: torchrunx.utils.stream_handler
 ```
 
 ```{eval-rst}
-.. autofunction:: torchrunx.add_filter_to_handler
+.. autofunction:: torchrunx.utils.add_filter_to_handler
 ```

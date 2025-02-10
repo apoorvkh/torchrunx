@@ -1,10 +1,10 @@
 # API
 
 ```{eval-rst}
-.. autofunction:: torchrunx.launch
+.. autofunction:: torchrunx.launch(func, args, kwargs, ...)
 ```
 
-We provide the {mod}`torchrunx.Launcher` class as an alias to {mod}`torchrunx.launch`.
+We provide the {obj}`torchrunx.Launcher` class as an alias to {obj}`torchrunx.launch`.
 
 ```{eval-rst}
 .. autoclass:: torchrunx.Launcher
@@ -21,9 +21,9 @@ We provide the {mod}`torchrunx.Launcher` class as an alias to {mod}`torchrunx.la
 ## Exceptions
 
 ```{eval-rst}
-.. autoclass:: torchrunx.AgentFailedError
+.. autoexception:: torchrunx.AgentFailedError
 ```
 
 ```{eval-rst}
-.. autoclass:: torchrunx.WorkerFailedError
+.. autoexception:: torchrunx.WorkerFailedError
 ```

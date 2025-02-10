@@ -15,7 +15,7 @@ import torch
 import torch.distributed as dist
 
 from .utils.errors import ExceptionFromWorker
-from .utils.logging_utilities import log_records_to_socket, redirect_stdio_to_logger
+from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
 
 __all__ = ["WorkerArgs", "worker_entrypoint"]
 

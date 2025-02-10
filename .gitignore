@@ -1,4 +1,5 @@
 docs/source/README.md
+docs/source/contributing.md
 torchrunx_logs/
 .pixi/
 .ruff_cache/

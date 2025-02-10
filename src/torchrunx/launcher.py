@@ -34,7 +34,7 @@ from .utils.errors import (
     ExceptionFromWorker,
     WorkerFailedError,
 )
-from .utils.logging_utilities import LoggingServerArgs, start_logging_server
+from .utils.logging import LoggingServerArgs, start_logging_server
 
 
 def launch(
@@ -65,25 +65,33 @@ def launch(
     """Distribute and parallelize a function onto specified nodes and workers.
 
     Arguments:
-        func: Function to launch on each node and replicate for each worker.
-        args: Positional arguments for ``func``.
-        kwargs: Keyword arguments for ``func``.
+        func: Function to replicate on each node/worker.
+        args: Positional arguments for ``func``. Default: :py:obj:`None`.
+        kwargs: Keyword arguments for ``func``. Default: :py:obj:`None`.
         hostnames: Nodes on which to launch the function.
-            Default: infer from localhost or SLURM.
+            Default: ``"auto"`` (infer from localhost or SLURM).
         workers_per_host: Number of processes to run (e.g. # of GPUs) per node.
-            Default: use number of GPUs on each host.
+            Default: ``"auto"`` (number of GPUs per host).
         ssh_config_file: Path to an SSH configuration file for connecting to nodes.
-            Default: ``~/.ssh/config`` or ``/etc/ssh/ssh_config``.
+            Default: ``"~/.ssh/config"`` or ``"/etc/ssh/ssh_config"``.
         backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
-            for worker process group. Set `None` to disable. Default: NCCL (GPU) or GLOO (CPU).
+            for worker process group. Set `None` to disable.
+            Default: ``"auto"`` (NCCL if GPU or GLOO if CPU).
         timeout: Worker process group timeout (seconds).
+            Default: ``600``.
         default_env_vars: Environment variables to copy from the launcher process to workers.
             Supports bash pattern matching syntax.
+            Default: ``("PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*",
+            "PYTORCH*", "NCCL*")``.
         extra_env_vars: Additional user-specified environment variables to copy.
+            Default: ``()``.
         env_file: Path to a file (e.g., ``.env``) with additional environment variables to copy.
+            Default: :py:obj:`None`.
         propagate_exceptions: Raise exceptions from worker processes in the launcher.
-            If false, raises :obj:`WorkerFailedError` instead.
+            If false, raises :exc:`WorkerFailedError` instead.
+            Default: :py:obj:`True`.
         handler_factory: Function to customize processing of agent and worker logs with handlers.
+            Default: ``"auto"`` (see `custom logging <https://torchrun.xyz/features/customization.html#logging>`_).
 
     Raises:
         RuntimeError: If there are configuration issues.
@@ -115,7 +123,7 @@ def launch(
 
 @dataclass
 class Launcher:
-    """Useful for sequential invocations or for specifying arguments via CLI."""
+    """Alias class for :func:`launch`. Refer to that function for documentation."""
 
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
     workers_per_host: int | list[int] | Literal["auto"] = "auto"
@@ -153,7 +161,7 @@ class Launcher:
         args: tuple | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> LaunchResult:
-        """Run a function using the :mod:`torchrunx.Launcher` configuration."""
+        """Launch a function using class configuration."""
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
