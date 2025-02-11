@@ -1,5 +1,7 @@
+import datetime
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import NoReturn
 
@@ -49,18 +51,33 @@ def test_logging() -> None:
 
     num_workers = 2
 
+    before_timestamp = datetime.datetime.now()
+
+    time.sleep(1)
+
     trx.launch(
         dist_func,
         workers_per_host=num_workers,
         backend="gloo",
     )
 
-    log_files = next(os.walk(tmp), (None, None, []))[2]
+    after_timestamp = datetime.datetime.now()
+
+    log_dirs = next(os.walk(tmp), (None, [], None))[1]
+
+    assert len(log_dirs) == 1
+
+    # this should error if mis-formatted
+    log_timestamp = datetime.datetime.fromisoformat(log_dirs[0])
+
+    assert before_timestamp <= log_timestamp <= after_timestamp
+
+    log_files = next(os.walk(f"{tmp}/{log_dirs[0]}"), (None, None, []))[2]
 
     assert len(log_files) == num_workers + 1
 
     for file in log_files:
-        with Path(f"{tmp}/{file}").open() as f:
+        with Path(f"{tmp}/{log_dirs[0]}/{file}").open() as f:
             contents = f.read()
             print(contents)
             if file.endswith("[0].log"):
