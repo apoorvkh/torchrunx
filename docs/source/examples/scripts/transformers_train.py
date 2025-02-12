@@ -15,6 +15,7 @@ import os
 from dataclasses import dataclass
 from typing import Annotated
 
+import tyro
 from datasets import Dataset, load_dataset
 from transformers import (
     AutoModelForCausalLM,
@@ -24,8 +25,8 @@ from transformers import (
     TrainingArguments,
     trainer_utils,
 )
+
 import torchrunx
-import tyro
 
 
 @dataclass
@@ -48,7 +49,9 @@ def load_training_data(
 ) -> Dataset:
     # Load dataset
 
-    dataset = load_dataset(dataset_config.path, name=dataset_config.name, split=dataset_config.split)
+    dataset = load_dataset(
+        dataset_config.path, name=dataset_config.name, split=dataset_config.split
+    )
     if dataset_config.num_samples is not None:
         dataset = dataset.select(range(dataset_config.num_samples))
 
@@ -92,7 +95,9 @@ def main(
     training_args: Annotated[TrainingArguments, tyro.conf.arg(name="trainer", help="")],
 ):
     model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
 
     # Launch training
     results = launcher.run(train, (model, train_dataset, training_args))

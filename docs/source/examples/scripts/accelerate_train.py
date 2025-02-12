@@ -10,19 +10,21 @@
 # ]
 # ///
 
+# [docs:start-after]
 import functools
 import os
 from dataclasses import dataclass
 from typing import Annotated
 
 import torch
+import tyro
 from accelerate import Accelerator
 from datasets import load_dataset
 from torch.utils.data import Dataset
-from transformers import AutoModelForCausalLM, PreTrainedModel, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
-import tyro
+
 
 @dataclass
 class ModelConfig:
@@ -37,13 +39,16 @@ class DatasetConfig:
     text_column: str = "text"
     num_samples: int | None = None
 
+
 def load_training_data(
     tokenizer_name: str,
     dataset_config: DatasetConfig,
 ) -> Dataset:
     # Load dataset
 
-    dataset = load_dataset(dataset_config.path, name=dataset_config.name, split=dataset_config.split)
+    dataset = load_dataset(
+        dataset_config.path, name=dataset_config.name, split=dataset_config.split
+    )
     if dataset_config.num_samples is not None:
         dataset = dataset.select(range(dataset_config.num_samples))
 
@@ -74,7 +79,6 @@ def train(
     model: PreTrainedModel,
     train_dataset: Dataset,
 ) -> str:
-
     accelerator = Accelerator()
 
     optimizer = torch.optim.Adam(model.parameters())
@@ -99,6 +103,7 @@ def train(
 
     return "output/"
 
+
 def main(
     launcher: torchrunx.Launcher,
     model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
@@ -106,7 +111,9 @@ def main(
     # training_args: Annotated[TrainingArguments, tyro.conf.arg(name="trainer", help="")],
 ):
     model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
 
     # Launch training
     results = launcher.run(train, (model, train_dataset))

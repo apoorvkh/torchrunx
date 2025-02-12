@@ -10,25 +10,25 @@
 # ]
 # ///
 
-import os
+# [docs:start-after]
 import functools
+import os
 from dataclasses import dataclass
 from typing import Annotated
 
 import lightning as L
 import torch
-from datasets import load_dataset
 
-from torch.utils.data import Dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, PreTrainedModel
-
-import torchrunx
 # from torchrunx.integrations.lightning import TorchrunxClusterEnvironment
 import tyro
-
+from datasets import load_dataset
 from lightning.fabric.plugins.environments.torchelastic import (
     TorchElasticEnvironment,
 )
+from torch.utils.data import Dataset
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
+
+import torchrunx
 
 
 class TorchrunxClusterEnvironment(TorchElasticEnvironment):
@@ -60,7 +60,9 @@ def load_training_data(
 ) -> Dataset:
     # Load dataset
 
-    dataset = load_dataset(dataset_config.path, name=dataset_config.name, split=dataset_config.split)
+    dataset = load_dataset(
+        dataset_config.path, name=dataset_config.name, split=dataset_config.split
+    )
     if dataset_config.num_samples is not None:
         dataset = dataset.select(range(dataset_config.num_samples))
 
@@ -87,13 +89,12 @@ def load_training_data(
     ).map(lambda x: {"labels": x["input_ids"]})
 
 
-
 class CausalLMLightningWrapper(L.LightningModule):
     def __init__(self, model):
         super().__init__()
         self.model = model
 
-    def training_step(self, batch, *args): # pyright: ignore
+    def training_step(self, batch, *args):  # pyright: ignore
         device_batch = {k: torch.stack(v, dim=0).to(self.model.device) for k, v in batch.items()}
         loss = self.model(**device_batch).loss
         self.log("train_loss", loss)
@@ -104,11 +105,7 @@ class CausalLMLightningWrapper(L.LightningModule):
         return optimizer
 
 
-def train(
-    model: PreTrainedModel,
-    train_dataset: Dataset
-) -> str:
-
+def train(model: PreTrainedModel, train_dataset: Dataset) -> str:
     lightning_model = CausalLMLightningWrapper(model)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=8)
@@ -118,11 +115,11 @@ def train(
         max_epochs=1,
         strategy="ddp",
         plugins=[TorchrunxClusterEnvironment()],
-        enable_checkpointing=False
+        enable_checkpointing=False,
     )
 
     trainer.fit(model=lightning_model, train_dataloaders=train_loader)
-    checkpoint  = f"{trainer.log_dir}/final.ckpt"
+    checkpoint = f"{trainer.log_dir}/final.ckpt"
     trainer.save_checkpoint(checkpoint)
 
     return checkpoint
@@ -134,16 +131,16 @@ def main(
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
 ):
     model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
 
     # Launch training
     results = launcher.run(train, (model, train_dataset))
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)
-    dummy_model = AutoModelForCausalLM.from_config(
-        AutoConfig.from_pretrained(model_config.name)
-    )
+    dummy_model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(model_config.name))
     model = CausalLMLightningWrapper(dummy_model)
     model.load_state_dict(torch.load(checkpoint_path)["state_dict"])
     trained_model = model.model

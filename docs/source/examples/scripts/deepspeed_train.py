@@ -11,22 +11,21 @@
 # ]
 # ///
 
-import argparse
+# [docs:start-after]
 import functools
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, InitVar
 from typing import Annotated
 
 import deepspeed
-from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
 import torch
-
+import tyro
 from datasets import load_dataset
+from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
 from torch.utils.data import Dataset
-from transformers import AutoModelForCausalLM, PreTrainedModel, AutoTokenizer, AutoConfig
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
-import tyro
 
 
 @dataclass
@@ -55,7 +54,9 @@ def load_training_data(
 ) -> Dataset:
     # Load dataset
 
-    dataset = load_dataset(dataset_config.path, name=dataset_config.name, split=dataset_config.split)
+    dataset = load_dataset(
+        dataset_config.path, name=dataset_config.name, split=dataset_config.split
+    )
     if dataset_config.num_samples is not None:
         dataset = dataset.select(range(dataset_config.num_samples))
 
@@ -82,19 +83,14 @@ def load_training_data(
     ).map(lambda x: {"labels": x["input_ids"]})
 
 
-def train(
-    model: PreTrainedModel,
-    train_dataset: Dataset,
-    deepspeed_args: DeepSpeedArgs
-) -> str:
-
+def train(model: PreTrainedModel, train_dataset: Dataset, deepspeed_args: DeepSpeedArgs) -> str:
     deepspeed_args.local_rank = int(os.environ["LOCAL_RANK"])
 
     model_engine, _, loader, _ = deepspeed.initialize(
         args=deepspeed_args,
         model=model,
         model_parameters=model.parameters(),
-        training_data=train_dataset
+        training_data=train_dataset,
     )
 
     model_engine.train()
@@ -115,14 +111,17 @@ def train(
 
     return checkpoint_dir
 
+
 def main(
     launcher: torchrunx.Launcher,
     model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
-    deepspeed_args: Annotated[DeepSpeedArgs, tyro.conf.arg(name="deepspeed")]
+    deepspeed_args: Annotated[DeepSpeedArgs, tyro.conf.arg(name="deepspeed")],
 ):
     model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
 
     # Launch training
     results = launcher.run(train, (model, train_dataset, deepspeed_args))
@@ -130,9 +129,7 @@ def main(
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)
     state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_path)
-    trained_model = AutoModelForCausalLM.from_config(
-        AutoConfig.from_pretrained(model_config.name)
-    )
+    trained_model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(model_config.name))
     trained_model.load_state_dict(state_dict)
 
 

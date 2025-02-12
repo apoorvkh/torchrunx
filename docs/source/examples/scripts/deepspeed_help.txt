@@ -1,0 +1,47 @@
+[2025-02-12 15:50:18,674] [INFO] [real_accelerator.py:222:get_accelerator] Setting ds_accelerator to cuda (auto detect)
+Warning: The cache directory for DeepSpeed Triton autotune, /users/pcurtin1/.triton/autotune, appears to be on an NFS system. While this is generally acceptable, if you experience slowdowns or hanging when DeepSpeed exits, it is recommended to set the TRITON_CACHE_DIR environment variable to a non-NFS path.
+usage: deepspeed_train.py [-h] [OPTIONS]
+
+╭─ options ──────────────────────────────────────────────────────────────────╮
+│ -h, --help              show this help message and exit                    │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ launcher options ─────────────────────────────────────────────────────────╮
+│ Useful for sequential invocations or for specifying arguments via CLI.     │
+│ ────────────────────────────────────────────────────────────────────────── │
+│ --launcher.hostnames {[STR [STR ...]]}|{auto,slurm}                        │
+│                         (default: auto)                                    │
+│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto,slurm}             │
+│                         (default: auto)                                    │
+│ --launcher.ssh-config-file {None}|STR|PATHLIKE                             │
+│                         (default: None)                                    │
+│ --launcher.backend {None,nccl,gloo,mpi,ucc,auto}                           │
+│                         (default: auto)                                    │
+│ --launcher.timeout INT  (default: 600)                                     │
+│ --launcher.default-env-vars [STR [STR ...]]                                │
+│                         (default: PATH LD_LIBRARY LIBRARY_PATH 'PYTHON*'   │
+│                         'CUDA*' 'TORCH*' 'PYTORCH*' 'NCCL*')               │
+│ --launcher.extra-env-vars [STR [STR ...]]                                  │
+│                         (default: )                                        │
+│ --launcher.env-file {None}|STR|PATHLIKE                                    │
+│                         (default: None)                                    │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ model options ────────────────────────────────────────────────────────────╮
+│ --model.name STR        (required)                                         │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ dataset options ──────────────────────────────────────────────────────────╮
+│ --dataset.path STR      (required)                                         │
+│ --dataset.name {None}|STR                                                  │
+│                         (default: None)                                    │
+│ --dataset.split {None}|STR                                                 │
+│                         (default: None)                                    │
+│ --dataset.text-column STR                                                  │
+│                         (default: text)                                    │
+│ --dataset.num-samples {None}|INT                                           │
+│                         (default: None)                                    │
+╰────────────────────────────────────────────────────────────────────────────╯
+╭─ deepspeed options ────────────────────────────────────────────────────────╮
+│ --deepspeed.deepspeed-config STR                                           │
+│                         (required)                                         │
+│ --deepspeed.local-rank {None}|INT                                          │
+│                         (default: None)                                    │
+╰────────────────────────────────────────────────────────────────────────────╯
