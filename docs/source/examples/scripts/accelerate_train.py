@@ -3,7 +3,6 @@
 # dependencies = [
 #     "accelerate",
 #     "datasets",
-#     "tensorboard",
 #     "torch",
 #     "torchrunx",
 #     "transformers",

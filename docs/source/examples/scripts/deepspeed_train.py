@@ -1,88 +1,140 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "deepspeed",
+#     "datasets",
+#     "tensorboard",
+#     "torch",
+#     "torchrunx",
+#     "transformers",
+#     "tyro",
+# ]
+# ///
+
+import argparse
+import functools
+import os
 from dataclasses import dataclass
-from pathlib import Path
+from typing import Annotated
 
 import deepspeed
+from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
 import torch
 
 from datasets import load_dataset
-from torch import nn
 from torch.utils.data import Dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, PreTrainedModel, AutoTokenizer, AutoConfig
 
 import torchrunx
-
-
-class GPT2CausalLMDataset(Dataset):
-    def __init__(self, text_dataset):
-        self.dataset = text_dataset
-        self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.max_length = 1024
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-        encoded = self.tokenizer(
-            self.dataset[idx]["text"],
-            max_length=self.max_length,
-            truncation=True,
-            padding="max_length",
-            return_tensors="pt",
-        )
-
-        input_ids = encoded.input_ids.squeeze()
-        attention_mask = encoded.attention_mask.squeeze()
-        labels = input_ids.clone()
-
-        return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels,
-        }
+import tyro
 
 
 @dataclass
-class DSPArgs:
+class ModelConfig:
+    name: str
+
+
+@dataclass
+class DatasetConfig:
+    path: str
+    name: str | None = None
+    split: str | None = None
+    text_column: str = "text"
+    num_samples: int | None = None
+
+
+@dataclass
+class DeepSpeedArgs:
     deepspeed_config: str
-    # train_batch_size: int
-    # batch_size: int
+    local_rank: int | None = None
 
 
-def train():
-    model = AutoModelForCausalLM.from_pretrained("gpt2")
-    # optimizer = torch.optim.Adam(model.parameters())
-    wikitext_train = load_dataset("Salesforce/wikitext", "wikitext-2-v1", split="train")
-    train_dataset = GPT2CausalLMDataset(text_dataset=wikitext_train)
+def load_training_data(
+    tokenizer_name: str,
+    dataset_config: DatasetConfig,
+) -> Dataset:
+    # Load dataset
 
-    loader = torch.utils.data.DataLoader(train_dataset, batch_size=8)
+    dataset = load_dataset(dataset_config.path, name=dataset_config.name, split=dataset_config.split)
+    if dataset_config.num_samples is not None:
+        dataset = dataset.select(range(dataset_config.num_samples))
 
-    model_engine, optimizer, _, _ = deepspeed.initialize(
-        args=DSPArgs(deepspeed_config="dsp_config.json"),
-        model=model,
-        model_parameters=model.parameters(),
+    # Build tokenizer
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"  # to suppress warnings
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenize_fn = functools.partial(
+        tokenizer,
+        max_length=tokenizer.model_max_length,
+        truncation=True,
+        padding="max_length",
     )
 
-    model.train()
+    # Tokenize dataset
+
+    return dataset.map(
+        tokenize_fn,
+        batched=True,
+        input_columns=[dataset_config.text_column],
+        remove_columns=[dataset_config.text_column],
+    ).map(lambda x: {"labels": x["input_ids"]})
+
+
+def train(
+    model: PreTrainedModel,
+    train_dataset: Dataset,
+    deepspeed_args: DeepSpeedArgs
+) -> str:
+
+    deepspeed_args.local_rank = int(os.environ["LOCAL_RANK"])
+
+    model_engine, _, loader, _ = deepspeed.initialize(
+        args=deepspeed_args,
+        model=model,
+        model_parameters=model.parameters(),
+        training_data=train_dataset
+    )
+
+    model_engine.train()
     for batch_idx, batch in enumerate(loader):
         if batch_idx == 10:
             break
-        print(f"Step {batch_idx}")
-
-        device_batch = {k: v.to(model.device) for k, v in batch.items()}
-
-        model.zero_grad()
+        device_batch = {k: torch.stack(v, dim=0).to(model_engine.device) for k, v in batch.items()}
+        model_engine.zero_grad()
 
         loss = model_engine(**device_batch).loss
+        print(f"Step {batch_idx}, loss: {loss.item()}", flush=True, end="")
         model_engine.backward(loss)
 
         model_engine.step()
 
+    checkpoint_dir = "output"
+    model_engine.save_checkpoint(checkpoint_dir)
+
+    return checkpoint_dir
+
+def main(
+    launcher: torchrunx.Launcher,
+    model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
+    dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
+    deepspeed_args: Annotated[DeepSpeedArgs, tyro.conf.arg(name="deepspeed")]
+):
+    model = AutoModelForCausalLM.from_pretrained(model_config.name)
+    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+
+    # Launch training
+    results = launcher.run(train, (model, train_dataset, deepspeed_args))
+
+    # Loading trained model from checkpoint
+    checkpoint_path = results.rank(0)
+    state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_path)
+    trained_model = AutoModelForCausalLM.from_config(
+        AutoConfig.from_pretrained(model_config.name)
+    )
+    trained_model.load_state_dict(state_dict)
+
 
 if __name__ == "__main__":
-    Path("output").mkdir(exist_ok=True)
-    results = torchrunx.launch(
-        func=train,
-        hostnames=["localhost"],
-        workers_per_host=1,
-    )
+    tyro.cli(main)
