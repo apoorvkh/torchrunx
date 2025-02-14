@@ -69,17 +69,18 @@ class LauncherAgentGroup:
         return cloudpickle.loads(serialized)
 
     def _all_gather(self, obj: Any) -> list:
-        """Gather object from every rank to list on every rank.
+        """Gather object from each rank to list (in rank-order).
 
         Raises:
             AgentFailedError: if any agent fails (observed by this communication).
         """
         try:
-            object_bytes = self._serialize(obj)
-            object_list = [b""] * self.world_size
+            rank_obj = self._serialize((self.rank, obj))
+            rank_obj_list = [b""] * self.world_size
             # raises RuntimeError if timeout
-            dist.all_gather_object(object_list=object_list, obj=object_bytes, group=self.group)
-            return [self._deserialize(o) for o in object_list]
+            dist.all_gather_object(object_list=rank_obj_list, obj=rank_obj, group=self.group)
+            rank_obj_list = sorted([self._deserialize(o) for o in rank_obj_list])
+            return [obj for _, obj in sorted(rank_obj_list)]
         except RuntimeError as e:
             # occurs if launcher or any agent dies and communication times out
             raise AgentFailedError from e
@@ -147,7 +148,7 @@ class AgentStatus:
         for local_rank, failure in result.failures.items():
             result.return_values[local_rank] = WorkerFailedError(failure.message)
 
-        return_values = list(result.return_values.values())
+        return_values = [result.return_values[key] for key in sorted(result.return_values.keys())]
 
         failed = any(isinstance(v, (ExceptionFromWorker, WorkerFailedError)) for v in return_values)
         state = "failed" if failed else "done"
