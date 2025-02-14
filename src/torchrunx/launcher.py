@@ -126,10 +126,19 @@ class Launcher:
     """Alias class for :func:`launch`. Refer to that function for documentation."""
 
     hostnames: list[str] | Literal["auto", "slurm"] = "auto"
+    """Node hostnames to use in distributed execution. "auto" and "slurm" attempt to detect this
+    for you based on your environmental variables."""
     workers_per_host: int | list[int] | Literal["auto"] = "auto"
+    """Number of worker processes per node. You can specify a constant number of workers for all
+    nodes (int), a different number of workers for each node (list[int]), or automatically determine
+    it per-node ("auto")."""
     ssh_config_file: str | os.PathLike | None = None
+    """Path to custom SSH Config for passwordless SSH into each node."""
     backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
+    """A torch.distributed backend to use for inter-process communication. "auto" will use NCCL if
+    GPUs are detected, otherwise GLOO."""
     timeout: int = 600
+    """The torch.distributed communication timeout of the worker process group, in seconds."""
     default_env_vars: tuple[str, ...] = (
         "PATH",
         "LD_LIBRARY",
@@ -140,9 +149,15 @@ class Launcher:
         "PYTORCH*",
         "NCCL*",
     )
+    """Environmental variables to clone from the launcher process to worker processes,
+    supporting unix pattern matching."""
     extra_env_vars: tuple[str, ...] = ()
+    """Additional environmental variables to set in the worker process environments,
+    formatted identically to the defaul_env_vars field."""
     env_file: str | os.PathLike | None = None
+    """A bash style .env file that will be sourced by worker processes."""
     propagate_exceptions: bool = True
+    """Whether worker exceptions should be raised by the launcher."""
 
     def __post_init__(self) -> None:
         """Initializing ``handler_factory``. Inclusion in ``__init__`` inhibits CLI generation."""
