@@ -10,6 +10,8 @@
 # ///
 
 # [docs:start-after]
+from __future__ import annotations
+
 import functools
 import os
 from dataclasses import dataclass

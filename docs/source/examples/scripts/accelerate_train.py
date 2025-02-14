@@ -11,9 +11,12 @@
 # ///
 
 # [docs:start-after]
+from __future__ import annotations
+
 import functools
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated
 
 import torch
@@ -78,18 +81,18 @@ def load_training_data(
 def train(
     model: PreTrainedModel,
     train_dataset: Dataset,
-) -> str:
+    batch_size: int,
+    output_dir: Path,
+) -> Path:
     accelerator = Accelerator()
 
     optimizer = torch.optim.Adam(model.parameters())
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=8)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
 
     model, optimizer, train_dataloader = accelerator.prepare(model, optimizer, train_dataloader)
 
     model.train()
     for batch_idx, batch in enumerate(train_dataloader):
-        if batch_idx == 10:
-            break
         device_batch = {k: torch.stack(v, dim=0).to(accelerator.device) for k, v in batch.items()}
         optimizer.zero_grad()
 
@@ -99,28 +102,27 @@ def train(
 
         optimizer.step()
 
-    accelerator.unwrap_model(model).save_pretrained("output/")
-
-    return "output/"
+    accelerator.wait_for_everyone()
+    accelerator.save_state(output_dir=output_dir, safe_serialization=False)
+    return output_dir / "pytorch_model.bin"
 
 
 def main(
     launcher: torchrunx.Launcher,
     model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
-    # training_args: Annotated[TrainingArguments, tyro.conf.arg(name="trainer", help="")],
+    batch_size: int,
+    output_dir: Path,
 ):
     model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(
-        tokenizer_name=model_config.name, dataset_config=dataset_config
-    )
+    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
 
     # Launch training
-    results = launcher.run(train, (model, train_dataset))
+    results = launcher.run(train, (model, train_dataset, batch_size, output_dir))
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)
-    trained_model = AutoModelForCausalLM.from_pretrained(checkpoint_path)
+    trained_model = AutoModelForCausalLM.from_pretrained(model_config.name, state_dict=torch.load(checkpoint_path))
 
 
 if __name__ == "__main__":

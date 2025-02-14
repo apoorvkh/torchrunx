@@ -27,7 +27,7 @@ The following command runs our script end-to-end: installing all dependencies, d
 uv run https://torchrun.xyz/transformers_train.py \
    --model.name gpt2 \
    --dataset.path "Salesforce/wikitext" --dataset.name "wikitext-2-v1" --dataset.split "train" --dataset.num-samples 80 \
-   --trainer.output_dir output --trainer.per-device-train-batch-size 4 --trainer.report-to tensorboard
+   --trainer.output-dir output --trainer.per-device-train-batch-size 4 --trainer.report-to tensorboard
 ```
 
 For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`.

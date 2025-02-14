@@ -2,13 +2,15 @@ usage: accelerate_train.py [-h] [OPTIONS]
 
 ╭─ options ──────────────────────────────────────────────────────────────────╮
 │ -h, --help              show this help message and exit                    │
+│ --batch-size INT        (required)                                         │
+│ --output-dir PATH       (required)                                         │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ launcher options ─────────────────────────────────────────────────────────╮
-│ Useful for sequential invocations or for specifying arguments via CLI.     │
+│ Alias class for :func:`launch`. Refer to that function for documentation.  │
 │ ────────────────────────────────────────────────────────────────────────── │
 │ --launcher.hostnames {[STR [STR ...]]}|{auto,slurm}                        │
 │                         (default: auto)                                    │
-│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto,slurm}             │
+│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto}                   │
 │                         (default: auto)                                    │
 │ --launcher.ssh-config-file {None}|STR|PATHLIKE                             │
 │                         (default: None)                                    │
@@ -22,6 +24,8 @@ usage: accelerate_train.py [-h] [OPTIONS]
 │                         (default: )                                        │
 │ --launcher.env-file {None}|STR|PATHLIKE                                    │
 │                         (default: None)                                    │
+│ --launcher.propagate-exceptions, --launcher.no-propagate-exceptions        │
+│                         (default: True)                                    │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ model options ────────────────────────────────────────────────────────────╮
 │ --model.name STR        (required)                                         │
