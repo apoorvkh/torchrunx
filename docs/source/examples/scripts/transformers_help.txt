@@ -5,11 +5,11 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     show this help message and exit                                        │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ launcher options ─────────────────────────────────────────────────────────╮
-│ Alias class for :func:`launch`. Refer to that function for documentation.  │
+│ Useful for sequential invocations or for specifying arguments via CLI.     │
 │ ────────────────────────────────────────────────────────────────────────── │
 │ --launcher.hostnames {[STR [STR ...]]}|{auto,slurm}                        │
 │     (default: auto)                                                        │
-│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto}                   │
+│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto,slurm}             │
 │     (default: auto)                                                        │
 │ --launcher.ssh-config-file {None}|STR|PATHLIKE                             │
 │     (default: None)                                                        │
@@ -24,8 +24,6 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     (default: )                                                            │
 │ --launcher.env-file {None}|STR|PATHLIKE                                    │
 │     (default: None)                                                        │
-│ --launcher.propagate-exceptions, --launcher.no-propagate-exceptions        │
-│     (default: True)                                                        │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ model options ────────────────────────────────────────────────────────────╮
 │ --model.name STR                                                           │

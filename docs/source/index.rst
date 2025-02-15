@@ -22,10 +22,9 @@
    :hidden:
 
    ./examples/transformers.md
-   ./examples/accelerate.md
    ./examples/deepspeed.md
    ./examples/lightning.md
-   ./examples/composer.md
+   ./examples/accelerate.md
 
 .. sidebar-links::
    :github:

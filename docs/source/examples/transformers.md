@@ -12,27 +12,26 @@ Here's an example script that uses `torchrunx` with [`transformers.Trainer`](htt
   ```
 </details>
 
-  - `--launcher`: [torchrunx.Launcher](../api.md#torchrunx.Launcher)
-  - `--model`: [`transformers.AutoModelForCausalLM`](https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoModelForCausalLM)
-  - `--dataset`: [`datasets.load_dataset`](https://huggingface.co/docs/datasets/en/package_reference/loading_methods#datasets.load_dataset)
-  - `--trainer`: [`transformers.TrainingArguments`](https://huggingface.co/docs/transformers/en/main_classes/trainer#transformers.TrainingArguments)
+## Training GPT-2 on WikiText in One Line
 
-Required: `--model.name`, `--dataset.path`, `--trainer.output-dir`
+The following command runs our script end-to-end: installing all dependencies, downloading model and data, training, logging to TensorBoard, etc. For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`.
 
-### Training GPT-2 on WikiText in One Line
-
-The following command runs our script end-to-end: installing all dependencies, downloading model and data, training, logging to TensorBoard, etc. Pre-requisite: [uv](https://docs.astral.sh/uv)
+Pre-requisite: [uv](https://docs.astral.sh/uv)
 
 ```bash
-uv run https://torchrun.xyz/transformers_train.py \
+uv run --python "3.12" https://torchrun.xyz/transformers_train.py \
    --model.name gpt2 \
    --dataset.path "Salesforce/wikitext" --dataset.name "wikitext-2-v1" --dataset.split "train" --dataset.num-samples 80 \
    --trainer.output-dir output --trainer.per-device-train-batch-size 4 --trainer.report-to tensorboard
 ```
 
-For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`.
+You can visualize the logs with:
 
-### Script
+```bash
+uv run --with tensorboard tensorboard --logdir output/runs
+```
+
+## Script
 
 ```{eval-rst}
 .. literalinclude:: ./scripts/transformers_train.py

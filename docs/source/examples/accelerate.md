@@ -12,25 +12,18 @@ Here's an example script that uses `torchrunx` with [Accelerate](https://hugging
   ```
 </details>
 
-  - Custom script arguments: `--batch-size`, `--output-dir`
-  - `--launcher`: [torchrunx.Launcher](../api.md#torchrunx.Launcher)
-  - `--model`: [`transformers.AutoModelForCausalLM`](https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoModelForCausalLM)
-  - `--dataset`: [`datasets.load_dataset`](https://huggingface.co/docs/datasets/en/package_reference/loading_methods#datasets.load_dataset)
-
-Required: `--batch-size`, `--output-dir`, `--model.name`, `--dataset.path`
-
----
+## Training GPT-2 on WikiText in One Line
 
 The following command installs dependencies and runs our script (for example, with `GPT-2` on `WikiText`). For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`. Pre-requisite: [uv](https://docs.astral.sh/uv)
 
 ```bash
-uv run https://torchrun.xyz/accelerate_train.py \
+uv run --python "3.12" https://torchrun.xyz/accelerate_train.py \
    --batch-size 8 --output-dir output \
    --model.name gpt2 \
    --dataset.path "Salesforce/wikitext" --dataset.name "wikitext-2-v1" --dataset.split "train" --dataset.num-samples 80
 ```
 
-### Script
+## Script
 
 ```{eval-rst}
 .. literalinclude:: ./scripts/accelerate_train.py

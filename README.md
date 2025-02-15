@@ -61,10 +61,11 @@ import torchrunx
 
 results = torchrunx.launch(
     func = train,
-    func_kwargs = dict(
+    kwargs = dict(
         model = nn.Linear(10, 10),
         num_steps = 10
     ),
+    #
     hostnames = ["localhost", "second_machine"],
     workers_per_host = 2
 )
@@ -78,7 +79,6 @@ torch.save(trained_model.state_dict(), "output/model.pth")
   - [HF Transformers](https://torchrun.xyz/examples/transformers.html)
   - [DeepSpeed](https://torchrun.xyz/examples/deepspeed.html)
   - [PyTorch Lightning](https://torchrun.xyz/examples/lightning.html)
-  - [MosaicML Composer](https://torchrun.xyz/examples/composer.html)
 
 **Refer to our [API](https://torchrun.xyz/api.html) and [Advanced Usage Guide](https://torchrun.xyz/advanced.html) for many more capabilities!**
 

@@ -5,32 +5,26 @@ Here's an example script that uses `torchrunx` with [PyTorch Lightning](https://
 [https://torchrun.xyz/lightning_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/docs/source/examples/scripts/lightning_train.py)
 
 <details>
-  <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python accelerate_train.py --help</span></code></p> (expand)</summary>
+  <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python lightning_train.py --help</span></code></p> (expand)</summary>
 
   ```{eval-rst}
   .. literalinclude:: ./scripts/lightning_help.txt
   ```
 </details>
 
-  - `--launcher`: [torchrunx.Launcher](../api.md#torchrunx.Launcher)
-  - `--model`: [`transformers.AutoModelForCausalLM`](https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoModelForCausalLM)
-  - `--dataset`: [`datasets.load_dataset`](https://huggingface.co/docs/datasets/en/package_reference/loading_methods#datasets.load_dataset)
+## Training GPT-2 on WikiText in One Line
 
-Required: `--model.name`, `--dataset.path`
-
-### Training GPT-2 on WikiText in One Line
-
-The following command runs our script end-to-end: installing all dependencies, downloading model and data, training, logging to TensorBoard, etc. Pre-requisite: [uv](https://docs.astral.sh/uv)
+The following command runs our script end-to-end: installing all dependencies, downloading model and data, training, etc. Pre-requisite: [uv](https://docs.astral.sh/uv)
 
 ```bash
-uv run https://torchrun.xyz/lightning_train.py \
+uv run --python "3.12" https://torchrun.xyz/lightning_train.py \
    --model.name gpt2 \
    --dataset.path "Salesforce/wikitext" --dataset.name "wikitext-2-v1" --dataset.split "train" --dataset.num-samples 80
 ```
 
 For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`.
 
-### Script
+## Script
 
 ```{eval-rst}
 .. literalinclude:: ./scripts/lightning_train.py

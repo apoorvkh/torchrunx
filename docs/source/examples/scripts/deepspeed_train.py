@@ -1,22 +1,9 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "deepspeed",
-#     "datasets",
-#     "tensorboard",
-#     "torch",
-#     "torchrunx",
-#     "transformers",
-#     "tyro",
-# ]
-# ///
-
-# [docs:start-after]
 from __future__ import annotations
 
 import functools
 import os
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated
 
 import deepspeed
@@ -25,14 +12,9 @@ import tyro
 from datasets import load_dataset
 from deepspeed.utils.zero_to_fp32 import get_fp32_state_dict_from_zero_checkpoint
 from torch.utils.data import Dataset
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
-
-
-@dataclass
-class ModelConfig:
-    name: str
 
 
 @dataclass
@@ -42,12 +24,6 @@ class DatasetConfig:
     split: str | None = None
     text_column: str = "text"
     num_samples: int | None = None
-
-
-@dataclass
-class DeepSpeedArgs:
-    deepspeed_config: str
-    local_rank: int | None = None
 
 
 def load_training_data(
@@ -85,53 +61,47 @@ def load_training_data(
     ).map(lambda x: {"labels": x["input_ids"]})
 
 
-def train(model: PreTrainedModel, train_dataset: Dataset, deepspeed_args: DeepSpeedArgs) -> str:
-    deepspeed_args.local_rank = int(os.environ["LOCAL_RANK"])
-
-    model_engine, _, loader, _ = deepspeed.initialize(
-        args=deepspeed_args,
+def train(
+    model: PreTrainedModel,
+    train_dataset: Dataset,
+    deepspeed_config: str | dict,
+    checkpoint_dir: str,
+) -> None:
+    model_engine, _, data_loader, _ = deepspeed.initialize(
         model=model,
         model_parameters=model.parameters(),
         training_data=train_dataset,
+        config=deepspeed_config,
     )
 
     model_engine.train()
-    for batch_idx, batch in enumerate(loader):
-        if batch_idx == 10:
-            break
-        device_batch = {k: torch.stack(v, dim=0).to(model_engine.device) for k, v in batch.items()}
-        model_engine.zero_grad()
 
-        loss = model_engine(**device_batch).loss
-        print(f"Step {batch_idx}, loss: {loss.item()}", flush=True, end="")
+    for step, batch in enumerate(data_loader):
+        input_batch = {k: torch.stack(v).T.to(model_engine.device) for k, v in batch.items()}
+        loss = model_engine(**input_batch).loss
         model_engine.backward(loss)
-
         model_engine.step()
+        print(f"Step {step}, loss: {loss.item()}", flush=True, end="")
 
-    checkpoint_dir = "output"
     model_engine.save_checkpoint(checkpoint_dir)
-
-    return checkpoint_dir
 
 
 def main(
-    launcher: torchrunx.Launcher,
-    model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
+    model_name: str,
+    deepspeed_config: Path,
+    checkpoint_dir: Path,
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
-    deepspeed_args: Annotated[DeepSpeedArgs, tyro.conf.arg(name="deepspeed")],
+    launcher: torchrunx.Launcher,
 ):
-    model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(
-        tokenizer_name=model_config.name, dataset_config=dataset_config
-    )
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    train_dataset = load_training_data(tokenizer_name=model_name, dataset_config=dataset_config)
 
     # Launch training
-    results = launcher.run(train, (model, train_dataset, deepspeed_args))
+    launcher.run(train, (model, train_dataset, str(deepspeed_config), str(checkpoint_dir)))
 
     # Loading trained model from checkpoint
-    checkpoint_path = results.rank(0)
-    state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_path)
-    trained_model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(model_config.name))
+    state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_dir)
+    trained_model = AutoModelForCausalLM.from_pretrained(model_name)
     trained_model.load_state_dict(state_dict)
 
 

@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.9"
 # dependencies = [
 #    "datasets",
 #     "lightning",
@@ -21,25 +21,13 @@ from typing import Annotated
 import lightning as L
 import torch
 
-# from torchrunx.integrations.lightning import TorchrunxClusterEnvironment
 import tyro
 from datasets import load_dataset
-from lightning.fabric.plugins.environments.torchelastic import (
-    TorchElasticEnvironment,
-)
 from torch.utils.data import Dataset
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
-
-
-class TorchrunxClusterEnvironment(TorchElasticEnvironment):
-    """Compatible ClusterEnvironment for PyTorch Lightning."""
-
-    @staticmethod
-    def detect() -> bool:
-        """Force use of the TorchElasticEnvironment."""
-        return True
+from torchrunx.integrations.lightning import TorchrunxClusterEnvironment
 
 
 @dataclass
@@ -142,10 +130,10 @@ def main(
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)
-    dummy_model = AutoModelForCausalLM.from_config(AutoConfig.from_pretrained(model_config.name))
-    model = CausalLMLightningWrapper(dummy_model)
-    model.load_state_dict(torch.load(checkpoint_path)["state_dict"])
-    trained_model = model.model
+    dummy_model = AutoModelForCausalLM.from_pretrained(model_config.name)
+    trained_model = CausalLMLightningWrapper(dummy_model)
+    trained_model.load_state_dict(torch.load(checkpoint_path)["state_dict"])
+    trained_model = trained_model.model
 
 
 if __name__ == "__main__":

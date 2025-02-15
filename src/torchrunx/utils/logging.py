@@ -1,4 +1,4 @@
-"""Utilities for intercepting logs in worker processes and handling these in the Launcher."""  # noqa: A005
+"""Utilities for intercepting logs in worker processes and handling these in the Launcher."""
 
 from __future__ import annotations
 
