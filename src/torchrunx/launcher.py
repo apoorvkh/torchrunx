@@ -131,7 +131,7 @@ class Launcher:
         func: Callable[FunctionP, FunctionR],
         *args: FunctionP.args,
         **kwargs: FunctionP.kwargs,
-    ) -> LaunchResult[FunctionR | WorkerFailedError | ExceptionFromWorker]:
+    ) -> LaunchResult[FunctionR]:
         """Launch a function using class configuration."""
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
@@ -226,13 +226,16 @@ class Launcher:
 
                 # raises specific exception if any agent fails
                 for s in agent_statuses:
-                    for value in s.return_values:
-                        if isinstance(value, ExceptionFromWorker):
+                    for v in s.return_values:
+                        if isinstance(v, ExceptionFromWorker):
                             if self.propagate_exceptions:
-                                raise value.exception
-                            raise WorkerFailedError from value.exception
-                        if isinstance(value, WorkerFailedError):
-                            raise value
+                                raise v.exception
+                            raise WorkerFailedError from v.exception
+                        if isinstance(v, WorkerFailedError):
+                            raise v
+
+                # confirmed that no return values are exceptions
+                return_values: list[list[FunctionR]] = [s.return_values for s in agent_statuses]  # pyright: ignore [reportAssignmentType]
 
                 if all(s.state == "done" for s in agent_statuses):
                     break
@@ -255,7 +258,6 @@ class Launcher:
                     )
 
         # if launch is successful: return objects from workers
-        return_values = [s.return_values for s in agent_statuses]
         return LaunchResult(hostnames=hostnames, return_values=return_values)
 
 
