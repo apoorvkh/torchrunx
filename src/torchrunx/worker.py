@@ -7,12 +7,13 @@ import logging
 import os
 import sys
 import traceback
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Callable, Literal
 
 import cloudpickle
 import torch
 import torch.distributed as dist
+from typing_extensions import Self
 
 from .utils.errors import ExceptionFromWorker
 from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
@@ -38,29 +39,24 @@ class WorkerArgs:
     hostname: str
     timeout: int
 
-    def serialize(self) -> SerializedWorkerArgs:
+    def serialize(self) -> bytes:
         """Arguments must be serialized (to bytes) before passed to spawned workers."""
-        return SerializedWorkerArgs(worker_args=self)
+        return cloudpickle.dumps(asdict(self))
+
+    @classmethod
+    def from_bytes(cls, b: bytes) -> Self:
+        """Deserialize the bytes back into a WorkerArgs object."""
+        return cls(**cloudpickle.loads(b))
 
 
-class SerializedWorkerArgs:
-    """We use cloudpickle as a serialization backend (as it supports nearly all Python types)."""
-
-    def __init__(self, worker_args: WorkerArgs) -> None:
-        self.bytes = cloudpickle.dumps(worker_args)
-
-    def deserialize(self) -> WorkerArgs:
-        return cloudpickle.loads(self.bytes)
-
-
-def worker_entrypoint(serialized_worker_args: SerializedWorkerArgs) -> Any | ExceptionFromWorker:
+def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorker:
     """Function called by spawned worker processes.
 
     Workers first prepare a process group (for communicating with all other workers).
     They then invoke the user-provided function.
     Logs are transmitted to the launcher process.
     """
-    worker_args: WorkerArgs = serialized_worker_args.deserialize()
+    worker_args = WorkerArgs.from_bytes(serialized_worker_args)
 
     # Start logging to the logging server (i.e. the launcher)
 
