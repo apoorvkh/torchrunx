@@ -1,4 +1,4 @@
-"""Utilities for intercepting logs in worker processes and handling these in the Launcher."""
+"""Utilities for intercepting logs in worker processes and handling these in the Launcher."""  # noqa: A005
 
 from __future__ import annotations
 
@@ -75,6 +75,7 @@ def stream_handler(
             "%(asctime)s:%(levelname)s:%(hostname)s[%(local_rank)s]: %(message)s"
             if local_rank is not None
             else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         ),
     )
     return handler
@@ -89,8 +90,9 @@ def file_handler(
     """Handler builder function for writing logs from specified hostname/rank to a file."""
     handler = logging.FileHandler(file_path)
     add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
-    formatter = logging.Formatter("%(asctime)s:%(levelname)s: %(message)s")
-    handler.setFormatter(formatter)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s:%(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    )
     return handler
 
 
