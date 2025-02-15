@@ -16,6 +16,7 @@ __all__ = [
 
 import datetime
 import logging
+import os
 import pickle
 import signal
 import struct
@@ -33,7 +34,6 @@ import cloudpickle
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    import os
     from multiprocessing.synchronize import Event as EventClass
 
 ## Handler utilities
@@ -62,6 +62,26 @@ def add_filter_to_handler(
         )
 
     handler.addFilter(_filter)  # pyright: ignore [reportArgumentType]
+
+
+def default_handlers(
+    hostnames: list[str],
+    workers_per_host: list[int],
+    log_level: int = logging.INFO,
+) -> list[Handler]:
+    """Default :mod:`logging.Handler`s for ``log_handlers="auto"`` in :mod:`torchrunx.launch`.
+
+    Logs for ``host[0]`` and its ``local_rank[0]`` worker are written to launcher process stdout.
+    Logs for all agents/workers are written to files in ``log_dir`` (named by timestamp, hostname,
+    local_rank).
+    """
+    log_dir = Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs"))
+    log_level = logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")]  # noqa: SLF001
+    return [
+        stream_handler(hostname=hostnames[0], local_rank=None, log_level=log_level),
+        stream_handler(hostname=hostnames[0], local_rank=0, log_level=log_level),
+        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level),
+    ]
 
 
 def stream_handler(
@@ -121,25 +141,6 @@ def file_handlers(
     return handlers
 
 
-def default_handlers(
-    hostnames: list[str],
-    workers_per_host: list[int],
-    log_dir: str | os.PathLike = Path("torchrunx_logs"),
-    log_level: int = logging.INFO,
-) -> list[Handler]:
-    """Default :mod:`logging.Handler`s for ``log_handlers="auto"`` in :mod:`torchrunx.launch`.
-
-    Logs for ``host[0]`` and its ``local_rank[0]`` worker are written to launcher process stdout.
-    Logs for all agents/workers are written to files in ``log_dir`` (named by timestamp, hostname,
-    local_rank).
-    """
-    return [
-        stream_handler(hostname=hostnames[0], local_rank=None, log_level=log_level),
-        stream_handler(hostname=hostnames[0], local_rank=0, log_level=log_level),
-        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level),
-    ]
-
-
 ## Launcher utilities
 
 
@@ -193,8 +194,6 @@ class LoggingServerArgs:
     logging_port: int
     hostnames: list[str]
     workers_per_host: list[int]
-    log_dir: str | os.PathLike
-    log_level: int
 
     def serialize(self) -> bytes:
         """Serialize :class:`LoggingServerArgs` for passing to a new process."""
@@ -220,8 +219,6 @@ def start_logging_server(
         log_handlers = default_handlers(
             hostnames=args.hostnames,
             workers_per_host=args.workers_per_host,
-            log_dir=args.log_dir,
-            log_level=args.log_level,
         )
     elif isinstance(args.handler_factory, Callable):
         log_handlers = args.handler_factory()

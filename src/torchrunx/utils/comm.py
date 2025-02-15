@@ -15,7 +15,7 @@ import datetime
 import socket
 from contextlib import closing
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, TypeVar
 
 import cloudpickle
 import torch.distributed as dist
@@ -34,8 +34,12 @@ def get_open_port() -> int:
         return s.getsockname()[1]
 
 
+ObjectT = TypeVar("ObjectT", bound=Any)
+FunctionR = TypeVar("FunctionR")
+
+
 @dataclass
-class LauncherAgentGroup:
+class LauncherAgentGroup(Generic[FunctionR]):
     """Initializes a GLOO distributed process group between launcher and all agents."""
 
     launcher_hostname: str
@@ -62,25 +66,24 @@ class LauncherAgentGroup:
             timeout=datetime.timedelta(seconds=30),
         )
 
-    def _serialize(self, obj: Any) -> bytes:
-        return cloudpickle.dumps(obj)
-
-    def _deserialize(self, serialized: bytes) -> Any:
-        return cloudpickle.loads(serialized)
-
-    def _all_gather(self, obj: Any) -> list:
+    def _all_gather(self, obj: ObjectT) -> list[ObjectT]:
         """Gather object from each rank to list (in rank-order).
 
         Raises:
             AgentFailedError: if any agent fails (observed by this communication).
         """
         try:
-            rank_obj = self._serialize((self.rank, obj))
-            rank_obj_list = [b""] * self.world_size
-            # raises RuntimeError if timeout
-            dist.all_gather_object(object_list=rank_obj_list, obj=rank_obj, group=self.group)
-            rank_obj_list = sorted([self._deserialize(o) for o in rank_obj_list])
-            return [obj for _, obj in sorted(rank_obj_list)]
+            rank_obj = cloudpickle.dumps((self.rank, obj))
+            all_gather_list = [b""] * self.world_size
+
+            dist.all_gather_object(
+                object_list=all_gather_list, obj=rank_obj, group=self.group
+            )  # raises RuntimeError if timeout
+
+            rank_obj_list: list[tuple[int, ObjectT]] = sorted(
+                [cloudpickle.loads(o) for o in all_gather_list]
+            )
+            return [obj for _, obj in rank_obj_list]
         except RuntimeError as e:
             # occurs if launcher or any agent dies and communication times out
             raise AgentFailedError from e
@@ -91,13 +94,17 @@ class LauncherAgentGroup:
     ) -> tuple[LauncherPayload, list[AgentPayload]]:
         """All-gather payloads across launcher and all agents."""
         payloads = self._all_gather(payload)
-        launcher_payload = payloads[0]
-        agent_payloads = payloads[1:]
+        launcher_payload: LauncherPayload = payloads[0]  # pyright: ignore [reportAssignmentType]
+        agent_payloads: list[AgentPayload] = payloads[1:]  # pyright: ignore [reportAssignmentType]
         return launcher_payload, agent_payloads
 
-    def sync_agent_statuses(self, status: AgentStatus | None) -> list[AgentStatus]:
+    def sync_agent_statuses(
+        self, status: AgentStatus[FunctionR] | None
+    ) -> list[AgentStatus[FunctionR]]:
         """All-gather agent statuses across launcher and all agents."""
-        return self._all_gather(status)[1:]  # [0] is launcher (status=None)
+        # only launcher has status = None
+        agent_statuses: list[AgentStatus[FunctionR]] = self._all_gather(status)[1:]  # pyright: ignore [reportAssignmentType]
+        return agent_statuses
 
     def shutdown(self) -> None:
         """Terminate process group."""
@@ -126,7 +133,7 @@ class AgentPayload:
 
 
 @dataclass
-class AgentStatus:
+class AgentStatus(Generic[FunctionR]):
     """Status of each agent (to be synchronized in LauncherAgentGroup).
 
     Attributes:
@@ -135,7 +142,7 @@ class AgentStatus:
     """
 
     state: Literal["running", "failed", "done"]
-    return_values: list[Any | WorkerFailedError | ExceptionFromWorker] = field(
+    return_values: list[FunctionR | WorkerFailedError | ExceptionFromWorker] = field(
         default_factory=list
     )  # indexed by local rank
 
