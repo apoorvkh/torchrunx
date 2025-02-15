@@ -14,7 +14,9 @@ Here's an example script that uses `torchrunx` with [PyTorch Lightning](https://
 
 ## Training GPT-2 on WikiText in One Line
 
-The following command runs our script end-to-end: installing all dependencies, downloading model and data, training, etc. Pre-requisite: [uv](https://docs.astral.sh/uv)
+The following command runs our script end-to-end: installing all dependencies, downloading model and data, training, etc.
+
+Pre-requisite: [uv](https://docs.astral.sh/uv)
 
 ```bash
 uv run --python "3.12" https://torchrun.xyz/lightning_train.py \

@@ -16,11 +16,9 @@ Here's an example script that uses `torchrunx` with [DeepSpeed](https://www.deep
 
 Deepspeed requires additional (non-Python) dependencies. Use the following commands to set up a project. Source: [Apoorv's Blog — Managing Project Dependencies](https://blog.apoorvkh.com/posts/project-dependencies.html)
 
-```bash
-# Install pixi
-curl -fsSL https://pixi.sh/install.sh | bash
+Pre-requisite: [pixi](https://pixi.sh)
 
-# Create a project
+```bash
 pixi init my-project --format pyproject
 cd my-project
 

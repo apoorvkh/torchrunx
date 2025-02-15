@@ -14,7 +14,9 @@ Here's an example script that uses `torchrunx` with [Accelerate](https://hugging
 
 ## Training GPT-2 on WikiText in One Line
 
-The following command installs dependencies and runs our script (for example, with `GPT-2` on `WikiText`). For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`. Pre-requisite: [uv](https://docs.astral.sh/uv)
+The following command installs dependencies and runs our script (for example, with `GPT-2` on `WikiText`). For multi-node training (+ if not using SLURM), you should also pass e.g. `--launcher.hostnames node1 node2`.
+
+Pre-requisite: [uv](https://docs.astral.sh/uv)
 
 ```bash
 uv run --python "3.12" https://torchrun.xyz/accelerate_train.py \
