@@ -8,7 +8,7 @@ Here's an example script that uses `torchrunx` with [Accelerate](https://hugging
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python accelerate_train.py --help</span></code></p> (expand)</summary>
 
   ```{eval-rst}
-  .. literalinclude:: ./artifacts/accelerate_help.txt
+  .. literalinclude:: ../artifacts/accelerate_help.txt
   ```
 </details>
 

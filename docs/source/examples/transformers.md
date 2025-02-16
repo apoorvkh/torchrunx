@@ -8,7 +8,7 @@ Here's an example script that uses `torchrunx` with [`transformers.Trainer`](htt
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python transformers_train.py --help</span></code></p> (expand)</summary>
 
   ```{eval-rst}
-  .. literalinclude:: ./artifacts/transformers_help.txt
+  .. literalinclude:: ../artifacts/transformers_help.txt
   ```
 </details>
 

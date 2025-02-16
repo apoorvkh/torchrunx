@@ -8,7 +8,7 @@ Here's an example script that uses `torchrunx` with [PyTorch Lightning](https://
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python lightning_train.py --help</span></code></p> (expand)</summary>
 
   ```{eval-rst}
-  .. literalinclude:: ./artifacts/lightning_help.txt
+  .. literalinclude:: ../artifacts/lightning_help.txt
   ```
 </details>
 
