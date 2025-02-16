@@ -74,10 +74,10 @@ torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
 **See examples where we fine-tune LLMs (e.g. GPT-2 on WikiText) using:**
-  - [Accelerate](https://torchrun.xyz/examples/accelerate.html)
-  - [HF Transformers](https://torchrun.xyz/examples/transformers.html)
+  - [Transformers](https://torchrun.xyz/examples/transformers.html)
   - [DeepSpeed](https://torchrun.xyz/examples/deepspeed.html)
   - [PyTorch Lightning](https://torchrun.xyz/examples/lightning.html)
+  - [Accelerate](https://torchrun.xyz/examples/accelerate.html)
 
 **Refer to our [API](https://torchrun.xyz/api.html) and [Advanced Usage Guide](https://torchrun.xyz/advanced.html) for many more capabilities!**
 
