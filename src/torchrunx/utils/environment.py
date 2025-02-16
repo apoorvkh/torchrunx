@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Literal, Union
+
+from typing_extensions import TypeAlias
+
 __all__ = [
     "auto_hosts",
     "build_launch_command",
     "execute_command",
+    "get_gpus_per_host",
     "in_slurm_job",
-    "resolve_hostnames",
-    "resolve_workers_per_host",
     "slurm_hosts",
 ]
 
@@ -20,18 +23,42 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import Literal
 
 import fabric
 
+Hostnames: TypeAlias = list[str]
+WorkersPerHost: TypeAlias = list[int]
+Backend: TypeAlias = Union[Literal["nccl", "gloo", "mpi", "ucc"], None]
 
-def resolve_hostnames(hostnames: list[str] | Literal["auto", "slurm"]) -> list[str]:
-    """Resolve hosts from environment."""
+
+def resolve_environment(
+    hostnames: list[str] | Literal["auto", "slurm"],
+    workers_per_host: int | list[int] | Literal["auto"],
+    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None,
+    ssh_config_file: str | os.PathLike | None,
+) -> tuple[Hostnames, WorkersPerHost, Backend]:
     if hostnames == "auto":
-        return auto_hosts()
-    if hostnames == "slurm":
-        return slurm_hosts()
-    return hostnames
+        hostnames = auto_hosts()
+    elif hostnames == "slurm":
+        hostnames = slurm_hosts()
+
+    if isinstance(workers_per_host, int):
+        workers_per_host = [workers_per_host] * len(hostnames)
+
+    if workers_per_host == "auto" or backend == "auto":
+        gpus_per_host: list[int] = get_gpus_per_host(hostnames, ssh_config_file)
+        gpus_on_every_host: bool = all(g > 0 for g in gpus_per_host)
+
+        if workers_per_host == "auto":
+            if not gpus_on_every_host:
+                msg = 'workers_per_host="auto", but no GPUs detected on at least one host.'
+                raise RuntimeError(msg)
+            workers_per_host = gpus_per_host
+
+        if backend == "auto":
+            backend = "nccl" if gpus_per_host else "gloo"
+
+    return hostnames, workers_per_host, backend
 
 
 def auto_hosts() -> list[str]:
@@ -55,28 +82,18 @@ def slurm_hosts() -> list[str]:
     return subprocess.check_output(["scontrol", "show", "hostnames"]).decode().strip().split("\n")
 
 
-def resolve_workers_per_host(
-    hostnames: list[str],
-    workers_per_host: int | list[int] | Literal["auto"],
-) -> list[int]:
-    """Resolve number of workers per host. If "auto", set to number of GPUs on each host."""
-    if isinstance(workers_per_host, int):
-        return [workers_per_host] * len(hostnames)
-
-    if workers_per_host == "auto":
-        # Execute command to count GPUs on each host
-        python = shlex.quote(sys.executable)
-        command = f"{python} -c \"import torch; print(torch.cuda.device_count(), end='')\""
-        gpus_per_host = [
-            int(execute_command(command, hostname, return_stdout_stderr=True)[0])
-            for hostname in hostnames
-        ]
-        if any(g == 0 for g in gpus_per_host):
-            msg = 'workers_per_host="auto", but no GPUs detected on at least one host.'
-            raise RuntimeError(msg)
-        return gpus_per_host
-
-    return workers_per_host
+def get_gpus_per_host(hostnames: list[str], ssh_config_file: str | os.PathLike | None) -> list[int]:
+    """Count the number of GPUs on each host."""
+    python = shlex.quote(sys.executable)
+    command = f"{python} -c \"import torch; print(torch.cuda.device_count(), end='')\""
+    return [
+        int(
+            execute_command(
+                command, hostname, ssh_config_file=ssh_config_file, return_stdout_stderr=True
+            )[0]
+        )
+        for hostname in hostnames
+    ]
 
 
 def build_launch_command(

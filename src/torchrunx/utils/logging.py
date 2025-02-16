@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 def add_filter_to_handler(
-    handler: Handler,
+    handler: logging.Handler,
     hostname: str,
     local_rank: int | None,  # None indicates agent
     log_level: int = logging.NOTSET,
@@ -68,7 +68,7 @@ def default_handlers(
     hostnames: list[str],
     workers_per_host: list[int],
     log_level: int = logging.INFO,
-) -> list[Handler]:
+) -> list[logging.Handler]:
     """Default :mod:`logging.Handler`s for ``log_handlers="auto"`` in :mod:`torchrunx.launch`.
 
     Logs for ``host[0]`` and its ``local_rank[0]`` worker are written to launcher process stdout.
@@ -86,7 +86,7 @@ def default_handlers(
 
 def stream_handler(
     hostname: str, local_rank: int | None, log_level: int = logging.NOTSET
-) -> Handler:
+) -> logging.Handler:
     """Handler builder function for writing logs from specified hostname/rank to stdout."""
     handler = logging.StreamHandler(stream=sys.stdout)
     add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
@@ -106,7 +106,7 @@ def file_handler(
     local_rank: int | None,
     file_path: str | os.PathLike,
     log_level: int = logging.NOTSET,
-) -> Handler:
+) -> logging.Handler:
     """Handler builder function for writing logs from specified hostname/rank to a file."""
     handler = logging.FileHandler(file_path)
     add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
@@ -121,7 +121,7 @@ def file_handlers(
     workers_per_host: list[int],
     log_dir: str | os.PathLike = Path("torchrunx_logs"),
     log_level: int = logging.NOTSET,
-) -> list[Handler]:
+) -> list[logging.Handler]:
     """Handler builder function for writing logs for all workers/agents to a directory.
 
     Files are named with hostname and the local_rank (for workers).
@@ -199,8 +199,8 @@ class LoggingServerArgs:
         """Serialize :class:`LoggingServerArgs` for passing to a new process."""
         return cloudpickle.dumps(self)
 
-    @staticmethod
-    def deserialize(serialized: bytes) -> LoggingServerArgs:
+    @classmethod
+    def from_bytes(cls, serialized: bytes) -> Self:
         """Deserialize bytes to :class:`LoggingServerArgs`."""
         return cloudpickle.loads(serialized)
 
@@ -210,7 +210,7 @@ def start_logging_server(
     stop_event: EventClass,
 ) -> None:
     """Serve :class:`_LogRecordSocketReceiver` until stop event triggered."""
-    args = LoggingServerArgs.deserialize(serialized_args)
+    args = LoggingServerArgs.from_bytes(serialized_args)
 
     log_handlers = []
     if args.handler_factory is None:

@@ -1,11 +1,9 @@
-"""API for our torchrunx library."""
-
 from .launcher import Launcher, LaunchResult
 from .utils.errors import AgentFailedError, WorkerFailedError
 
-__all__ = [
-    "AgentFailedError",
-    "LaunchResult",
+__all__ = [  # noqa: RUF022
     "Launcher",
+    "LaunchResult",
+    "AgentFailedError",
     "WorkerFailedError",
 ]

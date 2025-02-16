@@ -6,10 +6,10 @@ __all__ = ["LaunchResult", "Launcher"]
 
 import itertools
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from multiprocessing import Event, Process
-from typing import TYPE_CHECKING, Callable, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import torch.distributed as dist
 from typing_extensions import ParamSpec, Self
@@ -22,55 +22,15 @@ from .utils.comm import (
 from .utils.environment import (
     build_launch_command,
     execute_command,
-    resolve_hostnames,
-    resolve_workers_per_host,
+    resolve_environment,
 )
 from .utils.errors import ExceptionFromWorker, WorkerFailedError
 from .utils.logging import LoggingServerArgs, start_logging_server
 
 if TYPE_CHECKING:
+    import logging
     import os
-    from logging import Handler
-
-
-"""Distribute and parallelize a function onto specified nodes and workers.
-
-Arguments:
-    func: Function to replicate on each node/worker.
-    args: Positional arguments for ``func``. Default: :py:obj:`None`.
-    kwargs: Keyword arguments for ``func``. Default: :py:obj:`None`.
-    hostnames: Nodes on which to launch the function.
-        Default: ``"auto"`` (infer from localhost or SLURM).
-    workers_per_host: Number of processes to run (e.g. # of GPUs) per node.
-        Default: ``"auto"`` (number of GPUs per host).
-    ssh_config_file: Path to an SSH configuration file for connecting to nodes.
-        Default: ``"~/.ssh/config"`` or ``"/etc/ssh/ssh_config"``.
-    backend: `Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
-        for worker process group. Set `None` to disable.
-        Default: ``"auto"`` (NCCL if GPU or GLOO if CPU).
-    timeout: Worker process group timeout (seconds).
-        Default: ``600``.
-    default_env_vars: Environment variables to copy from the launcher process to workers.
-        Supports bash pattern matching syntax.
-        Default: ``("PATH", "LD_LIBRARY", "LIBRARY_PATH", "PYTHON*", "CUDA*", "TORCH*",
-        "PYTORCH*", "NCCL*")``.
-    extra_env_vars: Additional user-specified environment variables to copy.
-        Default: ``()``.
-    env_file: Path to a file (e.g., ``.env``) with additional environment variables to copy.
-        Default: :py:obj:`None`.
-    propagate_exceptions: Raise exceptions from worker processes in the launcher.
-        If false, raises :exc:`WorkerFailedError` instead.
-        Default: :py:obj:`True`.
-    handler_factory: Function to customize processing of agent and worker logs with handlers.
-        Default: ``"auto"`` (see `custom logging <https://torchrun.xyz/features/customization.html#logging>`_).
-
-Raises:
-    RuntimeError: If there are configuration issues.
-    Exception: Any exception raised in a worker process is propagated.
-    WorkerFailedError: If a worker fails (e.g. from a segmentation fault)
-        or raises an exception and ``propagate_exceptions=False``.
-    AgentFailedError: If an agent fails, e.g. from an OS signal.
-"""
+    import typing
 
 
 FunctionP = ParamSpec("FunctionP")
@@ -79,22 +39,19 @@ FunctionR = TypeVar("FunctionR")
 
 @dataclass
 class Launcher:
-    """Alias class for :func:`launch`. Refer to that function for documentation."""
+    """For configuring the function launch environment."""
 
-    hostnames: list[str] | Literal["auto", "slurm"] = "auto"
-    """Node hostnames to use in distributed execution. "auto" and "slurm" attempt to detect this
-    for you based on your environmental variables."""
-    workers_per_host: int | list[int] | Literal["auto"] = "auto"
-    """Number of worker processes per node. You can specify a constant number of workers for all
-    nodes (int), a different number of workers for each node (list[int]), or automatically determine
-    it per-node ("auto")."""
+    hostnames: list[str] | typing.Literal["auto", "slurm"] = "auto"
+    """Nodes on which to launch the function. By default, infer from localhost or SLURM."""
+    workers_per_host: int | list[int] | typing.Literal["auto"] = "auto"
+    """Number of processes to run per node. By default, number of GPUs per host."""
     ssh_config_file: str | os.PathLike | None = None
-    """Path to custom SSH Config for passwordless SSH into each node."""
-    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
-    """A torch.distributed backend to use for inter-process communication. "auto" will use NCCL if
-    GPUs are detected, otherwise GLOO."""
+    """For connecting to nodes. By default, ``"~/.ssh/config"`` or ``"/etc/ssh/ssh_config"``."""
+    backend: typing.Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
+    """`Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
+        for worker process group or ``None``. By default, NCCL if GPUs detected, else GLOO."""
     timeout: int = 600
-    """The torch.distributed communication timeout of the worker process group, in seconds."""
+    """Worker process group timeout (seconds)."""
     default_env_vars: tuple[str, ...] = (
         "PATH",
         "LD_LIBRARY",
@@ -105,40 +62,55 @@ class Launcher:
         "PYTORCH*",
         "NCCL*",
     )
-    """Environmental variables to clone from the launcher process to worker processes,
-    supporting unix pattern matching."""
+    """Environment variables to copy from the launcher process to workers.
+       Supports bash pattern matching syntax."""
     extra_env_vars: tuple[str, ...] = ()
-    """Additional environmental variables to set in the worker process environments,
-    formatted identically to the defaul_env_vars field."""
+    """Additional user-specified environment variables to copy."""
     env_file: str | os.PathLike | None = None
-    """A bash style .env file that will be sourced by worker processes."""
+    """Path to (e.g. ``.env``) with additional environment variables to load onto workers."""
     propagate_exceptions: bool = True
-    """Whether worker exceptions should be raised by the launcher."""
+    """Whether to raise specific worker exceptions or :exc:`torchrunx.WorkerFailedError`."""
 
-    def __post_init__(self) -> None:
-        """Initializing ``handler_factory``. Inclusion in ``__init__`` inhibits CLI generation."""
-        self.handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None = "auto"
+    handler_factory: typing.Callable[[], list[logging.Handler]] | typing.Literal["auto"] | None = (
+        field(default="auto", init=False)
+    )
 
     def set_handler_factory(
-        self, factory: Callable[[], list[Handler]] | Literal["auto"] | None
+        self, factory: typing.Callable[[], list[logging.Handler]] | typing.Literal["auto"] | None
     ) -> Self:
-        """Setter for log handler factory."""
+        """Provide a ``factory`` to set custom handling of agent and worker logs.
+
+        Parameters:
+          factory: Factory function to generate :obj:`logging.Handler` objects.
+
+        See `custom logging <https://torchrun.xyz/features/customization.html#logging>`_.
+        """
         self.handler_factory = factory
         return self
 
     def run(  # noqa: C901, PLR0912
         self,
-        func: Callable[FunctionP, FunctionR],
+        func: typing.Callable[FunctionP, FunctionR],
         *args: FunctionP.args,
         **kwargs: FunctionP.kwargs,
     ) -> LaunchResult[FunctionR]:
-        """Launch a function using class configuration."""
+        """Distribute a function onto specified nodes and parallelize across workers.
+
+        Raises:
+            RuntimeError: Configuration issues.
+            Exception: Exceptions raised in worker processes are propagated
+                (if ``propagate_exceptions=True``).
+            WorkerFailedError: If a worker fails (e.g. from a segmentation fault)
+                or raises an exception with ``propagate_exceptions=False``.
+            AgentFailedError: If an agent fails, e.g. from an OS signal.
+        """
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
 
-        hostnames: list[str] = resolve_hostnames(self.hostnames)
-        workers_per_host: list[int] = resolve_workers_per_host(hostnames, self.workers_per_host)
+        hostnames, workers_per_host, backend = resolve_environment(
+            self.hostnames, self.workers_per_host, self.backend, self.ssh_config_file
+        )
 
         launcher_hostname = socket.getfqdn()
         launcher_port = get_open_port()
@@ -148,6 +120,20 @@ class Launcher:
         stop_logging_event = None
         log_process = None
         launcher_agent_group = None
+
+        _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
+        worker_global_ranks = [
+            list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
+            for n in range(len(hostnames))
+        ]
+        payload = LauncherPayload(
+            fn=partial(func, *(args or ()), **(kwargs or {})),
+            hostnames=hostnames,
+            worker_global_ranks=worker_global_ranks,
+            worker_world_size=sum(workers_per_host),
+            backend=backend,
+            timeout=self.timeout,
+        )
         agent_payloads = None
 
         try:
@@ -200,22 +186,6 @@ class Launcher:
 
             # Sync initial payloads between launcher and agents
 
-            _cumulative_workers = [0, *itertools.accumulate(workers_per_host)]
-
-            worker_global_ranks = [
-                list(range(_cumulative_workers[n], _cumulative_workers[n + 1]))
-                for n in range(len(hostnames))
-            ]
-
-            payload = LauncherPayload(
-                fn=partial(func, *(args or ()), **(kwargs or {})),
-                hostnames=hostnames,
-                worker_global_ranks=worker_global_ranks,
-                worker_world_size=sum(workers_per_host),
-                backend=self.backend,
-                timeout=self.timeout,
-            )
-
             launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
 
             # Monitor agent statuses (until failed or done)
@@ -234,11 +204,9 @@ class Launcher:
                         if isinstance(v, WorkerFailedError):
                             raise v
 
-                # confirmed that no return values are exceptions
-                return_values: list[list[FunctionR]] = [s.return_values for s in agent_statuses]  # pyright: ignore [reportAssignmentType]
-
                 if all(s.state == "done" for s in agent_statuses):
-                    break
+                    return_values: list[list[FunctionR]] = [s.return_values for s in agent_statuses]  # pyright: ignore [reportAssignmentType]
+                    return LaunchResult.from_returns(hostnames, return_values)
         finally:
             if stop_logging_event is not None:
                 stop_logging_event.set()
@@ -257,18 +225,16 @@ class Launcher:
                         ssh_config_file=self.ssh_config_file,
                     )
 
-        # if launch is successful: return objects from workers
-        return LaunchResult(hostnames=hostnames, return_values=return_values)
 
-
+@dataclass
 class LaunchResult(Generic[FunctionR]):
     """Container for objects returned from workers after successful launches."""
 
-    results: dict[str, list[FunctionR]]
+    results: dict[str, list[FunctionR]]  # [hostname][local_rank] -> FunctionR
 
-    def __init__(self, hostnames: list[str], return_values: list[list[FunctionR]]) -> None:
-        """Initialize from corresponding lists of hostnames and worker return values."""
-        self.results: dict[str, list[FunctionR]] = dict(zip(hostnames, return_values))
+    @classmethod
+    def from_returns(cls, hostnames: list[str], return_values: list[list[FunctionR]]) -> Self:  # noqa: D102
+        return cls(results=dict(zip(hostnames, return_values)))
 
     def index(self, hostname: str, locak_rank: int) -> FunctionR:
         """Get return value from worker by host and local rank."""

@@ -21,6 +21,7 @@ dependencies = [
   # torch.distributed depends on numpy
   # torch<=2.2 needs numpy<2
   "numpy>=1.20",
+  "typing-extensions>=4.9.0",
 ]
 [dependency-groups]
 dev = ["ruff==0.9.5", "pyright[nodejs]==1.1.393", "pytest==8.3.4"]
@@ -36,6 +37,7 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+  "D104",    # package docstrings
   "ANN401",  # self / cls / Any annotations
   "BLE001",  # blind exceptions
   "TD",      # todo syntax

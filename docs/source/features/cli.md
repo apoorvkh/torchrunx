@@ -1,16 +1,16 @@
 # CLI Integration
 
-We can use {mod}`torchrunx.Launcher` to populate arguments from the CLI (e.g. with [tyro](https://brentyi.github.io/tyro/)):
+We can automatically populate {mod}`torchrunx.Launcher` arguments using most CLI tools (those that generate interfaces from Data Classes, e.g. [tyro](https://brentyi.github.io/tyro/)):
 
 ```python
-import torchrunx as trx
+import torchrunx
 import tyro
 
 def distributed_function():
-    pass
+    ...
 
 if __name__ == "__main__":
-    launcher = tyro.cli(trx.Launcher)
+    launcher = tyro.cli(torchrunx.Launcher)
     launcher.run(distributed_function)
 ```
 
