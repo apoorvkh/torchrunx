@@ -28,6 +28,7 @@ Requires: Linux (+ SSH & shared filesystem if using multiple machines)
 Dummy distributed training function:
 
 ```python
+from __future__ import annotations
 import os
 import torch
 import torch.nn as nn
@@ -59,15 +60,13 @@ Launching training with `torchrunx`:
 ```python
 import torchrunx
 
-results = torchrunx.launch(
-    func = train,
-    kwargs = dict(
-        model = nn.Linear(10, 10),
-        num_steps = 10
-    ),
-    #
+results = torchrunx.Launcher(
     hostnames = ["localhost", "second_machine"],
     workers_per_host = 2
+).run(
+    train,
+    model = nn.Linear(10, 10),
+    num_steps = 10
 )
 
 trained_model: nn.Module = results.rank(0)
@@ -118,4 +117,4 @@ torch.save(trained_model.state_dict(), "output/model.pth")
 > - Automatic detection of SLURM environments.
 > - Start multi-node training from Python notebooks!
 
-**On our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, fuller typing, and more!**
+**On our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, and more!**
