@@ -8,7 +8,7 @@ Here's an example script that uses `torchrunx` with [DeepSpeed](https://www.deep
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python deepspeed_train.py --help</span></code></p> (expand)</summary>
 
   ```{eval-rst}
-  .. literalinclude:: ./scripts/deepspeed_help.txt
+  .. literalinclude:: ./artifacts/deepspeed_help.txt
   ```
 </details>
 
