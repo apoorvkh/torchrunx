@@ -15,7 +15,6 @@ __all__ = [
     "slurm_hosts",
 ]
 
-import fnmatch
 import ipaddress
 import os
 import shlex
@@ -102,7 +101,7 @@ def build_launch_command(
     logger_port: int,
     world_size: int,
     rank: int,
-    env_vars: tuple[str, ...],
+    env_vars: dict[str, str],
     env_file: str | os.PathLike | None,
 ) -> str:
     """Generator for command to launch torchrunx on an agent."""
@@ -110,14 +109,9 @@ def build_launch_command(
 
     commands = []
 
-    current_dir = shlex.quote(str(Path.cwd()))
-    commands.append("cd " + current_dir)
+    commands.append(f"cd {shlex.quote(str(Path.cwd()))}")
 
-    env_exports = []
-    for k, v in os.environ.items():
-        if any(fnmatch.fnmatch(k, e) for e in env_vars):
-            env_exports.append(shlex.quote(f"{k}={v}"))
-
+    env_exports = [shlex.quote(f"{k}={v}") for k, v in env_vars.items()]
     if len(env_exports) > 0:
         commands.append("export " + " ".join(env_exports))
 

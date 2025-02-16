@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-__all__ = ["LaunchResult", "Launcher"]
+__all__ = ["DEFAULT_ENV_VARS_FOR_COPY", "LaunchResult", "Launcher"]
 
+import fnmatch
 import itertools
+import logging
+import os
 import socket
+import typing
 from dataclasses import dataclass, field
 from functools import partial
 from multiprocessing import Event, Process
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import Generic, TypeVar
 
 import torch.distributed as dist
 from typing_extensions import ParamSpec, Self
@@ -27,11 +31,16 @@ from .utils.environment import (
 from .utils.errors import ExceptionFromWorker, WorkerFailedError
 from .utils.logging import LoggingServerArgs, start_logging_server
 
-if TYPE_CHECKING:
-    import logging
-    import os
-    import typing
-
+DEFAULT_ENV_VARS_FOR_COPY = (
+    "PATH",
+    "LD_LIBRARY",
+    "LIBRARY_PATH",
+    "PYTHON*",
+    "CUDA*",
+    "TORCH*",
+    "PYTORCH*",
+    "NCCL*",
+)
 
 FunctionP = ParamSpec("FunctionP")
 FunctionR = TypeVar("FunctionR")
@@ -52,22 +61,13 @@ class Launcher:
         for worker process group or ``None``. By default, NCCL if GPUs detected, else GLOO."""
     timeout: int = 600
     """Worker process group timeout (seconds)."""
-    default_env_vars: tuple[str, ...] = (
-        "PATH",
-        "LD_LIBRARY",
-        "LIBRARY_PATH",
-        "PYTHON*",
-        "CUDA*",
-        "TORCH*",
-        "PYTORCH*",
-        "NCCL*",
-    )
+    copy_env_vars: tuple[str, ...] = DEFAULT_ENV_VARS_FOR_COPY
     """Environment variables to copy from the launcher process to workers.
-       Supports bash pattern matching syntax."""
-    extra_env_vars: tuple[str, ...] = ()
-    """Additional user-specified environment variables to copy."""
+       Supports Unix pattern matching syntax."""
+    extra_env_vars: dict[str, str] | None = None
+    """Additional environment variables to load onto workers."""
     env_file: str | os.PathLike | None = None
-    """Path to (e.g. ``.env``) with additional environment variables to load onto workers."""
+    """Path to a ``.env`` file, containing environment variables to load onto workers."""
     propagate_exceptions: bool = True
     """Whether to raise specific worker exceptions or :exc:`torchrunx.WorkerFailedError`."""
 
@@ -88,7 +88,7 @@ class Launcher:
         self.handler_factory = factory
         return self
 
-    def run(  # noqa: C901, PLR0912
+    def run(  # noqa: C901, PLR0912, PLR0915
         self,
         func: typing.Callable[FunctionP, FunctionR],
         *args: FunctionP.args,
@@ -108,9 +108,27 @@ class Launcher:
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
 
+        ###
+
         hostnames, workers_per_host, backend = resolve_environment(
             self.hostnames, self.workers_per_host, self.backend, self.ssh_config_file
         )
+        ssh_config_file = self.ssh_config_file
+        timeout = self.timeout
+
+        env_vars = {
+            k: v
+            for k, v in os.environ.items()
+            if any(fnmatch.fnmatch(k, e) for e in self.copy_env_vars)
+        }
+        if self.extra_env_vars is not None:
+            env_vars.update(self.extra_env_vars)
+        env_file = self.env_file
+
+        propagate_exceptions = self.propagate_exceptions
+        handler_factory = self.handler_factory
+
+        ###
 
         launcher_hostname = socket.getfqdn()
         launcher_port = get_open_port()
@@ -132,7 +150,7 @@ class Launcher:
             worker_global_ranks=worker_global_ranks,
             worker_world_size=sum(workers_per_host),
             backend=backend,
-            timeout=self.timeout,
+            timeout=timeout,
         )
         agent_payloads = None
 
@@ -140,7 +158,7 @@ class Launcher:
             # Start logging server (recieves LogRecords from agents/workers)
 
             logging_server_args = LoggingServerArgs(
-                handler_factory=self.handler_factory,
+                handler_factory=handler_factory,
                 logging_hostname=launcher_hostname,
                 logging_port=logging_port,
                 hostnames=hostnames,
@@ -167,11 +185,11 @@ class Launcher:
                         logger_port=logging_port,
                         world_size=world_size,
                         rank=i + 1,
-                        env_vars=(self.default_env_vars + self.extra_env_vars),
-                        env_file=self.env_file,
+                        env_vars=env_vars,
+                        env_file=env_file,
                     ),
                     hostname=hostname,
-                    ssh_config_file=self.ssh_config_file,
+                    ssh_config_file=ssh_config_file,
                 )
 
             # Initialize launcher-agent process group
@@ -198,7 +216,7 @@ class Launcher:
                 for s in agent_statuses:
                     for v in s.return_values:
                         if isinstance(v, ExceptionFromWorker):
-                            if self.propagate_exceptions:
+                            if propagate_exceptions:
                                 raise v.exception
                             raise WorkerFailedError from v.exception
                         if isinstance(v, WorkerFailedError):
@@ -222,7 +240,7 @@ class Launcher:
                     execute_command(
                         command=f"kill {agent_payload.process_id}",
                         hostname=agent_hostname,
-                        ssh_config_file=self.ssh_config_file,
+                        ssh_config_file=ssh_config_file,
                     )
 
 

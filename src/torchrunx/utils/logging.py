@@ -26,15 +26,13 @@ from dataclasses import dataclass
 from io import StringIO
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
+from multiprocessing.synchronize import Event as EventClass
 from pathlib import Path
 from socketserver import StreamRequestHandler, ThreadingTCPServer
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import Callable, Literal
 
 import cloudpickle
 from typing_extensions import Self
-
-if TYPE_CHECKING:
-    from multiprocessing.synchronize import Event as EventClass
 
 ## Handler utilities
 
