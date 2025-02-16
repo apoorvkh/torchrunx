@@ -32,11 +32,10 @@ def test_simple_localhost() -> None:
     tmp = tempfile.mkdtemp()
     os.environ["TORCHRUNX_DIR"] = tmp
 
-    r = trx.launch(
-        dist_func,
+    r = trx.Launcher(
         workers_per_host=2,
-        backend="gloo",  # log_dir="./test_logs"
-    )
+        backend="gloo",
+    ).run(dist_func)
 
     assert torch.all(r.rank(0) == r.rank(1))
 
@@ -55,10 +54,11 @@ def test_logging() -> None:
 
     time.sleep(1)
 
-    trx.launch(
-        dist_func,
+    trx.Launcher(
         workers_per_host=num_workers,
         backend="gloo",
+    ).run(
+        dist_func,
     )
 
     after_timestamp = datetime.datetime.now()
@@ -95,10 +95,11 @@ def test_error() -> None:
     os.environ["TORCHRUNX_DIR"] = tmp
 
     with pytest.raises(ValueError) as excinfo:  # noqa: PT011
-        trx.launch(
-            error_func,
+        trx.Launcher(
             workers_per_host=1,
             backend="gloo",
+        ).run(
+            error_func,
         )
 
     assert "abcdefg" in str(excinfo.value)

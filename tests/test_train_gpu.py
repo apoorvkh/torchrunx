@@ -32,10 +32,9 @@ def worker() -> None:
 
 
 def test_distributed_train() -> None:
-    trx.launch(
-        worker,
+    trx.Launcher(
         backend="nccl",
-    )
+    ).run(worker)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ authors = [
 ]
 description = "Automatically initialize distributed PyTorch environments"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 urls = { Repository = "https://github.com/apoorvkh/torchrunx.git", Documentation = "https://torchrun.xyz" }
 requires-python = ">=3.9"
 dependencies = [
@@ -21,12 +21,17 @@ dependencies = [
   # torch.distributed depends on numpy
   # torch<=2.2 needs numpy<2
   "numpy>=1.20",
+  "typing-extensions>=4.9.0",
 ]
 [dependency-groups]
 dev = ["ruff==0.9.5", "pyright[nodejs]==1.1.393", "pytest==8.3.4"]
 test-extras = ["submitit", "transformers"]
-docs = ["sphinx==7.4.7", "furo==2024.8.6", "myst-parser==3.0.1", "sphinx-toolbox==3.8.2"]
-
+docs = [
+  "sphinx==7.4.7",
+  "furo==2024.8.6",
+  "myst-parser==3.0.1",
+  "sphinx-toolbox==3.8.2",
+]
 
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
@@ -36,6 +41,8 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+  "TC003",   # no type checking blocks for stdlib
+  "D104",    # package docstrings
   "ANN401",  # self / cls / Any annotations
   "BLE001",  # blind exceptions
   "TD",      # todo syntax

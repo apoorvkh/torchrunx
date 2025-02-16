@@ -9,10 +9,9 @@ import torchrunx as trx
 
 
 def test_launch() -> None:
-    result = trx.launch(
-        func=simple_matmul,
+    result = trx.Launcher(
         hostnames="slurm",
-    )
+    ).run(simple_matmul)
 
     result_values = reduce(add, result.results.values())
 

@@ -24,11 +24,12 @@ extensions = [
     "sphinx_toolbox.github",
 ]
 
+maximum_signature_line_length = 90
 autodoc_member_order = "bysource"
-autodoc_typehints = "description"
-autodoc_typehints_description_target = "documented"
 
-intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3.9', None),
+}
 
 from docs.linkcode_github import generate_linkcode_resolve_fn
 linkcode_resolve = generate_linkcode_resolve_fn(project, github_username, github_repository)
