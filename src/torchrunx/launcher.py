@@ -127,7 +127,7 @@ class Launcher:
             for n in range(len(hostnames))
         ]
         payload = LauncherPayload(
-            fn=partial(func, *(args or ()), **(kwargs or {})),
+            fn=partial(func, *args, **kwargs),
             hostnames=hostnames,
             worker_global_ranks=worker_global_ranks,
             worker_world_size=sum(workers_per_host),
