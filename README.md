@@ -112,8 +112,9 @@ torch.save(trained_model.state_dict(), "output/model.pth")
 
 5. **Bonus features** 🎁
 
-> - Fine-grained, custom handling of logging, environment variables, and exception propagation. We have nice defaults too: no more interleaved logs and irrelevant exceptions!
-> - No need to manually set up a [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group)
+> - Typing for function arguments and return values.
+> - Custom, fine-grained handling of logging, environment variables, and exception propagation. We have nice defaults too: no more interleaved logs and irrelevant exceptions!
+> - No need to manually set up [`dist.init_process_group`](https://pytorch.org/docs/stable/distributed.html#torch.distributed.init_process_group)
 > - Automatic detection of SLURM environments.
 > - Start multi-node training from Python notebooks!
 
