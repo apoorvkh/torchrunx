@@ -29,7 +29,7 @@ from .utils.environment import (
     resolve_environment,
 )
 from .utils.errors import ExceptionFromWorker, WorkerFailedError
-from .utils.logging import LoggingServerArgs, start_logging_server
+from .utils.logging import LoggingServerArgs, default_handlers, start_logging_server
 
 DEFAULT_ENV_VARS_FOR_COPY = (
     "PATH",
@@ -87,7 +87,7 @@ class Launcher:
         self.handler_factory = factory
         return self
 
-    def run(  # noqa: C901, PLR0912
+    def run(  # noqa: C901, PLR0912, PLR0915
         self,
         func: typing.Callable[FunctionP, FunctionR],
         *args: FunctionP.args,
@@ -123,7 +123,14 @@ class Launcher:
             env_vars.update(self.extra_env_vars)
         env_file = self.env_file
 
-        handler_factory = self.handler_factory
+        if self.handler_factory is None:
+
+            def handler_factory() -> list[logging.Handler]:
+                return []
+        elif self.handler_factory == "auto":
+            handler_factory = partial(default_handlers, hostnames, workers_per_host)
+        else:
+            handler_factory = self.handler_factory
 
         ###
 
@@ -158,8 +165,6 @@ class Launcher:
                 handler_factory=handler_factory,
                 logging_hostname=launcher_hostname,
                 logging_port=logging_port,
-                hostnames=hostnames,
-                workers_per_host=workers_per_host,
             )
 
             stop_logging_event = Event()

@@ -29,7 +29,7 @@ from logging.handlers import SocketHandler
 from multiprocessing.synchronize import Event as EventClass
 from pathlib import Path
 from socketserver import StreamRequestHandler, ThreadingTCPServer
-from typing import Callable, Literal
+from typing import Callable
 
 import cloudpickle
 from typing_extensions import Self
@@ -187,11 +187,9 @@ class _LogRecordSocketReceiver(ThreadingTCPServer):
 class LoggingServerArgs:
     """Arguments for starting a :class:`_LogRecordSocketReceiver`."""
 
-    handler_factory: Callable[[], list[Handler]] | Literal["auto"] | None
+    handler_factory: Callable[[], list[Handler]]
     logging_hostname: str
     logging_port: int
-    hostnames: list[str]
-    workers_per_host: list[int]
 
     def serialize(self) -> bytes:
         """Serialize :class:`LoggingServerArgs` for passing to a new process."""
@@ -203,23 +201,11 @@ class LoggingServerArgs:
         return cloudpickle.loads(serialized)
 
 
-def start_logging_server(
-    serialized_args: bytes,
-    stop_event: EventClass,
-) -> None:
+def start_logging_server(serialized_args: bytes, stop_event: EventClass) -> None:
     """Serve :class:`_LogRecordSocketReceiver` until stop event triggered."""
     args = LoggingServerArgs.from_bytes(serialized_args)
 
-    log_handlers = []
-    if args.handler_factory is None:
-        log_handlers = []
-    elif args.handler_factory == "auto":
-        log_handlers = default_handlers(
-            hostnames=args.hostnames,
-            workers_per_host=args.workers_per_host,
-        )
-    elif isinstance(args.handler_factory, Callable):
-        log_handlers = args.handler_factory()
+    log_handlers = args.handler_factory()
 
     log_receiver = _LogRecordSocketReceiver(
         host=args.logging_hostname,
