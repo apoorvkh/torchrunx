@@ -69,8 +69,6 @@ class Launcher:
     """Additional environment variables to load onto workers."""
     env_file: str | os.PathLike | None = None
     """Path to a ``.env`` file, containing environment variables to load onto workers."""
-    propagate_exceptions: bool = True
-    """Whether to raise specific worker exceptions or :exc:`torchrunx.WorkerFailedError`."""
 
     handler_factory: typing.Callable[[], list[logging.Handler]] | typing.Literal["auto"] | None = (
         field(default="auto", init=False)
@@ -89,7 +87,7 @@ class Launcher:
         self.handler_factory = factory
         return self
 
-    def run(  # noqa: C901, PLR0912, PLR0915
+    def run(  # noqa: C901, PLR0912
         self,
         func: typing.Callable[FunctionP, FunctionR],
         *args: FunctionP.args,
@@ -99,10 +97,8 @@ class Launcher:
 
         Raises:
             RuntimeError: Configuration issues.
-            Exception: Exceptions raised in worker processes are propagated
-                (if ``propagate_exceptions=True``).
-            WorkerFailedError: If a worker fails (e.g. from a segmentation fault)
-                or raises an exception with ``propagate_exceptions=False``.
+            Exception: Exceptions raised in worker processes are propagated.
+            WorkerFailedError: If a worker fails (e.g. from a segmentation fault).
             AgentFailedError: If an agent fails, e.g. from an OS signal.
         """
         if not dist.is_available():
@@ -127,7 +123,6 @@ class Launcher:
             env_vars.update(self.extra_env_vars)
         env_file = self.env_file
 
-        propagate_exceptions = self.propagate_exceptions
         handler_factory = self.handler_factory
 
         ###
@@ -218,9 +213,7 @@ class Launcher:
                 for s in agent_statuses:
                     for v in s.return_values:
                         if isinstance(v, ExceptionFromWorker):
-                            if propagate_exceptions:
-                                raise v.exception
-                            raise WorkerFailedError from v.exception
+                            raise v.exception
                         if isinstance(v, WorkerFailedError):
                             raise v
 
