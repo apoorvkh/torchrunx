@@ -12,9 +12,9 @@
    :caption: Features
    :hidden:
 
-   ./features/customization.md
-   ./features/workflows.md
+   ./features/general.md
    ./features/cli.md
+   ./features/logging.md
    ./features/slurm.md
 
 .. toctree::

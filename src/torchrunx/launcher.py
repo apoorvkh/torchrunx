@@ -51,14 +51,15 @@ class Launcher:
     """For configuring the function launch environment."""
 
     hostnames: list[str] | typing.Literal["auto", "slurm"] = "auto"
-    """Nodes on which to launch the function. By default, infer from localhost or SLURM."""
-    workers_per_host: int | list[int] | typing.Literal["auto"] = "auto"
+    """Nodes to launch the function on. By default, infer from SLURM, else ``["localhost"]``."""
+    workers_per_host: int | list[int] | typing.Literal["cpu", "gpu"] = "gpu"
     """Number of processes to run per node. By default, number of GPUs per host."""
     ssh_config_file: str | os.PathLike | None = None
     """For connecting to nodes. By default, ``"~/.ssh/config"`` or ``"/etc/ssh/ssh_config"``."""
-    backend: typing.Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None = "auto"
+    backend: typing.Literal["nccl", "gloo", "mpi", "ucc"] | None = "nccl"
     """`Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
-        for worker process group or ``None``. By default, NCCL if GPUs detected, else GLOO."""
+        for worker process group. By default, NCCL (GPU backend).
+        Use GLOO for CPU backend. ``None`` for no process group."""
     timeout: int = 600
     """Worker process group timeout (seconds)."""
     copy_env_vars: tuple[str, ...] = DEFAULT_ENV_VARS_FOR_COPY
@@ -80,10 +81,10 @@ class Launcher:
     ) -> Self:
         """Provide a ``factory`` to set custom handling of agent and worker logs.
 
-        Parameters:
-          factory: Factory function to generate :obj:`logging.Handler` objects.
+        See `Custom Logging <https://torchrun.xyz/features/logging.html>`_.
 
-        See `custom logging <https://torchrun.xyz/features/customization.html#logging>`_.
+        Parameters:
+          factory: Factory function used to generate :obj:`logging.Handler` objects.
         """
         self.handler_factory = factory
         return self
@@ -110,10 +111,11 @@ class Launcher:
 
         ###
 
-        hostnames, workers_per_host, backend = resolve_environment(
-            self.hostnames, self.workers_per_host, self.backend, self.ssh_config_file
+        hostnames, workers_per_host = resolve_environment(
+            self.hostnames, self.workers_per_host, ssh_config_file=self.ssh_config_file
         )
         ssh_config_file = self.ssh_config_file
+        backend = self.backend
         timeout = self.timeout
 
         env_vars = {
