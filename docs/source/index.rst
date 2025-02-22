@@ -9,13 +9,13 @@
    contributing
 
 .. toctree::
-   :caption: Features
+   :caption: Usage
    :hidden:
 
-   ./features/general.md
-   ./features/cli.md
-   ./features/logging.md
-   ./features/slurm.md
+   ./usage/general.md
+   ./usage/cli.md
+   ./usage/logging.md
+   ./usage/slurm.md
 
 .. toctree::
    :caption: Examples

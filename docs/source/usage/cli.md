@@ -1,4 +1,4 @@
-# From CLI Arguments
+# From the CLI
 
 We can automatically populate {mod}`torchrunx.Launcher` arguments using most CLI tools, e.g. [`tyro`](https://brentyi.github.io/tyro/) or any that [generate interfaces from dataclasses](https://brentyi.github.io/tyro/goals_and_alternatives).
 
