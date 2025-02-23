@@ -1,41 +1,56 @@
 usage: accelerate_train.py [-h] [OPTIONS]
 
 ╭─ options ──────────────────────────────────────────────────────────────────╮
-│ -h, --help              show this help message and exit                    │
-│ --batch-size INT        (required)                                         │
-│ --output-dir PATH       (required)                                         │
+│ -h, --help                                                                 │
+│     show this help message and exit                                        │
+│ --batch-size INT                                                           │
+│     (required)                                                             │
+│ --output-dir PATH                                                          │
+│     (required)                                                             │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ launcher options ─────────────────────────────────────────────────────────╮
-│ Useful for sequential invocations or for specifying arguments via CLI.     │
+│ For configuring the function launch environment.                           │
 │ ────────────────────────────────────────────────────────────────────────── │
 │ --launcher.hostnames {[STR [STR ...]]}|{auto,slurm}                        │
-│                         (default: auto)                                    │
-│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{auto,slurm}             │
-│                         (default: auto)                                    │
+│     Nodes to launch the function on. By default, infer from SLURM, else    │
+│     ``["localhost"]``. (default: auto)                                     │
+│ --launcher.workers-per-host INT|{[INT [INT ...]]}|{cpu,gpu}                │
+│     Number of processes to run per node. By default, number of GPUs per    │
+│     host. (default: gpu)                                                   │
 │ --launcher.ssh-config-file {None}|STR|PATHLIKE                             │
-│                         (default: None)                                    │
-│ --launcher.backend {None,nccl,gloo,mpi,ucc,auto}                           │
-│                         (default: auto)                                    │
-│ --launcher.timeout INT  (default: 600)                                     │
-│ --launcher.default-env-vars [STR [STR ...]]                                │
-│                         (default: PATH LD_LIBRARY LIBRARY_PATH 'PYTHON*'   │
-│                         'CUDA*' 'TORCH*' 'PYTORCH*' 'NCCL*')               │
-│ --launcher.extra-env-vars [STR [STR ...]]                                  │
-│                         (default: )                                        │
+│     For connecting to nodes. By default, ``"~/.ssh/config"`` or            │
+│     ``"/etc/ssh/ssh_config"``. (default: None)                             │
+│ --launcher.backend {None,nccl,gloo,mpi,ucc}                                │
+│     `Backend                                                               │
+│     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.B… │
+│             for worker process group. By default, NCCL (GPU backend).      │
+│             Use GLOO for CPU backend. ``None`` for no process group.       │
+│     (default: nccl)                                                        │
+│ --launcher.timeout INT                                                     │
+│     Worker process group timeout (seconds). (default: 600)                 │
+│ --launcher.copy-env-vars [STR [STR ...]]                                   │
+│     Environment variables to copy from the launcher process to workers.    │
+│     Supports Unix pattern matching syntax. (default: PATH LD_LIBRARY       │
+│     LIBRARY_PATH 'PYTHON*' 'CUDA*' 'TORCH*' 'PYTORCH*' 'NCCL*')            │
+│ --launcher.extra-env-vars {None}|{[STR STR [STR STR ...]]}                 │
+│     Additional environment variables to load onto workers. (default: None) │
 │ --launcher.env-file {None}|STR|PATHLIKE                                    │
-│                         (default: None)                                    │
+│     Path to a ``.env`` file, containing environment variables to load onto │
+│     workers. (default: None)                                               │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ model options ────────────────────────────────────────────────────────────╮
-│ --model.name STR        (required)                                         │
+│ --model.name STR                                                           │
+│     (required)                                                             │
 ╰────────────────────────────────────────────────────────────────────────────╯
 ╭─ dataset options ──────────────────────────────────────────────────────────╮
-│ --dataset.path STR      (required)                                         │
+│ --dataset.path STR                                                         │
+│     (required)                                                             │
 │ --dataset.name {None}|STR                                                  │
-│                         (default: None)                                    │
+│     (default: None)                                                        │
 │ --dataset.split {None}|STR                                                 │
-│                         (default: None)                                    │
+│     (default: None)                                                        │
 │ --dataset.text-column STR                                                  │
-│                         (default: text)                                    │
+│     (default: text)                                                        │
 │ --dataset.num-samples {None}|INT                                           │
-│                         (default: None)                                    │
+│     (default: None)                                                        │
 ╰────────────────────────────────────────────────────────────────────────────╯

@@ -1,0 +1,30 @@
+usage: -c [-h] [--hostnames HOSTNAMES [HOSTNAMES ...]]
+          [--workers-per-host WORKERS_PER_HOST [WORKERS_PER_HOST ...]]
+          [--ssh-config-file SSH_CONFIG_FILE]
+          [--backend {nccl,gloo,mpi,ucc,None}] [--timeout TIMEOUT]
+          [--copy-env-vars COPY_ENV_VARS [COPY_ENV_VARS ...]]
+          [--extra-env-vars [EXTRA_ENV_VARS ...]] [--env-file ENV_FILE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+torchrunx:
+  --hostnames HOSTNAMES [HOSTNAMES ...]
+                        Nodes to launch the function on. Default: 'auto'. Use
+                        'slurm' to infer from SLURM.
+  --workers-per-host WORKERS_PER_HOST [WORKERS_PER_HOST ...]
+                        Processes to run per node. Can be 'cpu', 'gpu', or
+                        list[int]. Default: 'gpu'.
+  --ssh-config-file SSH_CONFIG_FILE
+                        Path to SSH config file. Default: '~/.ssh/config' or
+                        '/etc/ssh/ssh_config'.
+  --backend {nccl,gloo,mpi,ucc,None}
+                        For worker process group. Default: 'nccl'. Use 'gloo'
+                        for CPU. 'None' to disable.
+  --timeout TIMEOUT     Worker process group timeout in seconds. Default: 600.
+  --copy-env-vars COPY_ENV_VARS [COPY_ENV_VARS ...]
+                        Environment variables to copy to workers. Supports
+                        Unix pattern matching.
+  --extra-env-vars [EXTRA_ENV_VARS ...]
+                        Additional environment variables as key=value pairs.
+  --env-file ENV_FILE   Path to a .env file with environment variables.

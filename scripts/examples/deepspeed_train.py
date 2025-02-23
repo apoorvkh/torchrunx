@@ -1,3 +1,17 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "datasets",
+#     "deepspeed",
+#     "tensorboard",
+#     "torch",
+#     "torchrunx",
+#     "transformers",
+#     "tyro",
+# ]
+# ///
+
+# [docs:start-after]
 from __future__ import annotations
 
 import functools

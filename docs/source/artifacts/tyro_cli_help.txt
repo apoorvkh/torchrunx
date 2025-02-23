@@ -6,19 +6,20 @@ For configuring the function launch environment.
 │ -h, --help                                                                 │
 │     show this help message and exit                                        │
 │ --hostnames {[STR [STR ...]]}|{auto,slurm}                                 │
-│     Nodes on which to launch the function. By default, infer from          │
-│     localhost or SLURM. (default: auto)                                    │
-│ --workers-per-host INT|{[INT [INT ...]]}|{auto}                            │
+│     Nodes to launch the function on. By default, infer from SLURM, else    │
+│     ``["localhost"]``. (default: auto)                                     │
+│ --workers-per-host INT|{[INT [INT ...]]}|{cpu,gpu}                         │
 │     Number of processes to run per node. By default, number of GPUs per    │
-│     host. (default: auto)                                                  │
+│     host. (default: gpu)                                                   │
 │ --ssh-config-file {None}|STR|PATHLIKE                                      │
 │     For connecting to nodes. By default, ``"~/.ssh/config"`` or            │
 │     ``"/etc/ssh/ssh_config"``. (default: None)                             │
-│ --backend {None,nccl,gloo,mpi,ucc,auto}                                    │
+│ --backend {None,nccl,gloo,mpi,ucc}                                         │
 │     `Backend                                                               │
 │     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.B… │
-│             for worker process group or ``None``. By default, NCCL if GPUs │
-│     detected, else GLOO. (default: auto)                                   │
+│             for worker process group. By default, NCCL (GPU backend).      │
+│             Use GLOO for CPU backend. ``None`` for no process group.       │
+│     (default: nccl)                                                        │
 │ --timeout INT                                                              │
 │     Worker process group timeout (seconds). (default: 600)                 │
 │ --copy-env-vars [STR [STR ...]]                                            │
@@ -30,7 +31,4 @@ For configuring the function launch environment.
 │ --env-file {None}|STR|PATHLIKE                                             │
 │     Path to a ``.env`` file, containing environment variables to load onto │
 │     workers. (default: None)                                               │
-│ --propagate-exceptions, --no-propagate-exceptions                          │
-│     Whether to raise specific worker exceptions or                         │
-│     :exc:`torchrunx.WorkerFailedError`. (default: True)                    │
 ╰────────────────────────────────────────────────────────────────────────────╯
