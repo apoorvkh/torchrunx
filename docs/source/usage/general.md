@@ -54,7 +54,7 @@ for retry in range(3):
 
 ## Environment variables
 
-Environment variables in the launcher process that (Unix pattern) match the [``copy_env_vars``](../api.md#torchrunx.Launcher.copy_env_vars) argument are automatically copied to agents and workers. We set useful defaults for Python and PyTorch. You could replace these. Or extend these like:
+Environment variables in the launcher process that pattern match the [``copy_env_vars``](../api.md#torchrunx.Launcher.copy_env_vars) argument are automatically copied to agents and workers. We set useful defaults for Python and PyTorch. You could replace these. Or extend these like:
 
 ```python
 torchrunx.Launcher(copy_env_vars=(

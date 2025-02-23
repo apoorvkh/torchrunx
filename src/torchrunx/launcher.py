@@ -74,17 +74,18 @@ class Launcher:
         field(default="auto", init=False)
     )
 
-    def set_handler_factory(
-        self, factory: typing.Callable[[], list[logging.Handler]] | typing.Literal["auto"] | None
+    def set_logging_handlers(
+        self,
+        handler_factory: typing.Callable[[], list[logging.Handler]] | typing.Literal["auto"] | None,
     ) -> Self:
-        """Provide a ``factory`` to set custom handling of agent and worker logs.
+        """Provide a ``handler_factory`` function to customize processing of agent/worker logs.
 
         See `Custom Logging <https://torchrun.xyz/features/logging.html>`_.
 
         Parameters:
-          factory: Factory function used to generate :obj:`logging.Handler` objects.
+          handler_factory: Function that constructs and returns :obj:`logging.Handler` objects.
         """
-        self.handler_factory = factory
+        self.handler_factory = handler_factory
         return self
 
     def run(  # noqa: C901, PLR0912, PLR0915

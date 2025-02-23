@@ -43,14 +43,7 @@ def add_filter_to_handler(
     local_rank: int | None,  # None indicates agent
     log_level: int = logging.NOTSET,
 ) -> None:
-    """Apply a filter to :mod:`logging.Handler` so only specific worker logs are handled.
-
-    Args:
-        handler: Handler to be modified.
-        hostname: Name of specified host.
-        local_rank: Rank of specified worker on host (or ``None`` for agent itself).
-        log_level: Minimum log level to capture.
-    """
+    """Apply an agent- or worker- specific filter to :obj:`logging.Handler`."""
 
     def _filter(record: WorkerLogRecord) -> bool:
         return (
@@ -67,11 +60,11 @@ def default_handlers(
     workers_per_host: list[int],
     log_level: int = logging.INFO,
 ) -> list[logging.Handler]:
-    """Default :mod:`logging.Handler`s for ``log_handlers="auto"`` in :mod:`torchrunx.launch`.
+    """Constructs default :obj:`logging.Handler` objects.
 
-    Logs for ``host[0]`` and its ``local_rank[0]`` worker are written to launcher process stdout.
-    Logs for all agents/workers are written to files in ``log_dir`` (named by timestamp, hostname,
-    local_rank).
+    Logs for the rank 0 agent and worker are written to launcher process stdout.
+    Logs for all hosts/workers are written to files in ``$TORCHRUNX_LOG_DIR`` (named by timestamp,
+    hostname, local_rank).
     """
     log_dir = Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs"))
     log_level = logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")]  # noqa: SLF001
