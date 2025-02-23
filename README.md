@@ -38,7 +38,7 @@ def distributed_training(model: nn.Module, num_steps: int) -> nn.Module:
 ```
 
 <details>
-<summary><b>Implementation of <p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">distributed_training</span></code></p> (click to expand)</b></summary>
+<summary><b>Implementation of <code>distributed_training</code> (click to expand)</b></summary>
 
 ```python
 from __future__ import annotations

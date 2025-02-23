@@ -1,9 +1,15 @@
 """Configuration file for the Sphinx documentation builder."""
 from glob import glob
 import os
+import re
 import shutil
 
 shutil.copyfile("../README.md", "source/README.md")
+readme_f_str = open("source/README.md", "r").read()
+readme_f_str = readme_f_str.replace("<code>", '<p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">').replace("</code>", "</span></code></p>")
+readme_f_str = re.sub(r"https://torchrun\.xyz/(.+?)\.html", r"./\1.md", readme_f_str)
+open("source/README.md", "w").write(readme_f_str)
+
 shutil.copyfile("../CONTRIBUTING.md", "source/contributing.md")
 
 os.makedirs("source/examples/scripts", exist_ok=True)
