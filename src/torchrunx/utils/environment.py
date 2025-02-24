@@ -102,7 +102,10 @@ def get_gpus_per_host(
     return [
         int(
             execute_command(
-                command, hostname, ssh_config_file=ssh_config_file, return_stdout_stderr=True
+                command,
+                hostname,
+                ssh_config_file=ssh_config_file,
+                return_stdout_stderr=True,
             )[0]
         )
         for hostname in hostnames
@@ -117,6 +120,7 @@ def build_launch_command(
     rank: int,
     env_vars: dict[str, str],
     env_file: str | os.PathLike | None,
+    hostname: str,
 ) -> str:
     """Generator for command to launch torchrunx on an agent."""
     # shlex.quote prevents shell injection here (resolves S602 in execute_command)
@@ -134,6 +138,7 @@ def build_launch_command(
 
     python = shlex.quote(sys.executable)
     launcher_hostname = shlex.quote(launcher_hostname)
+    hostname = shlex.quote(hostname)
 
     commands.append(
         f"{python} -u -m torchrunx "
@@ -141,7 +146,8 @@ def build_launch_command(
         f"--launcher-port {launcher_port} "
         f"--logger-port {logger_port} "
         f"--world-size {world_size} "
-        f"--rank {rank}",
+        f"--rank {rank} "
+        f"--hostname {hostname}",
     )
 
     return " && ".join(commands)
@@ -171,7 +177,11 @@ def execute_command(
         # S602: subprocess.Popen is called with shell=True (https://docs.python.org/3.9/library/subprocess.html#security-considerations)
         # Made sure to shlex.quote arguments in build_command to prevent shell injection
         process = subprocess.Popen(  # noqa: S602
-            command, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            command,
+            shell=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
         if return_stdout_stderr:

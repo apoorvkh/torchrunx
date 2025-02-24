@@ -14,6 +14,7 @@ import torch
 import torch.distributed.elastic.multiprocessing as dist_mp
 
 from .utils.comm import (
+    AgentCliArgs,
     AgentPayload,
     AgentStatus,
     LauncherAgentGroup,
@@ -23,7 +24,9 @@ from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
 from .worker import WorkerArgs, worker_entrypoint
 
 
-def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int) -> None:
+def main(
+    agent_args: AgentCliArgs,
+) -> None:
     """Main function for agent processes (started on each node).
 
     This function spawns local worker processes (which run the target function). All agents monitor
@@ -31,13 +34,39 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     with each other (and launcher). All agents terminate if failure occurs in any agent.
 
     Arguments:
-        launcher_agent_group: The communication group between launcher and all agents.
-        logger_hostname: The hostname of the launcher (for logging).
-        logger_port: The port of the launcher (for logging).
+        agent_args: Command line arugments provided to the agent at launch.
     """
+    # Stream logs to logging server
+
+    logger = logging.getLogger()
+    redirect_stdio_to_logger(logger)
+
+    log_records_to_socket(
+        logger=logger,
+        hostname=agent_args.hostname,
+        local_rank=None,
+        logger_hostname=agent_args.logger_hostname,
+        logger_port=agent_args.logger_port,
+    )
+
+    logging.debug("Agent logging setup.")
+
+    # Set up launcher-agent group
+
+    logging.debug("Initializing launcher-agent group.")
+
+    launcher_agent_group = LauncherAgentGroup(
+        launcher_hostname=agent_args.launcher_hostname,
+        launcher_port=agent_args.launcher_port,
+        world_size=agent_args.world_size,
+        rank=agent_args.rank,
+    )
+
     agent_rank = launcher_agent_group.rank - 1
 
     # Communicate initial payloads between launcher/agents
+
+    logging.debug("Sending agent details to launcher.")
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -53,21 +82,9 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    # Stream logs to logging server
-
-    logger = logging.getLogger()
-
-    log_records_to_socket(
-        logger=logger,
-        hostname=hostname,
-        local_rank=None,
-        logger_hostname=logger_hostname,
-        logger_port=logger_port,
-    )
-
-    redirect_stdio_to_logger(logger)
-
     # Spawn worker processes
+
+    logging.debug("Launching worker processes.")
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
@@ -76,8 +93,8 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             i: (
                 WorkerArgs(
                     function=launcher_payload.fn,
-                    logger_hostname=logger_hostname,
-                    logger_port=logger_port,
+                    logger_hostname=agent_args.logger_hostname,
+                    logger_port=agent_args.logger_port,
                     main_agent_hostname=main_agent_payload.hostname,
                     main_agent_port=main_agent_payload.port,
                     backend=launcher_payload.backend,
@@ -118,8 +135,12 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             all_done = all(s.state == "done" for s in agent_statuses)
             any_failed = any(s.state == "failed" for s in agent_statuses)
             if all_done or any_failed:
+                logging.debug("Workers exiting %s.", "cleanly" if not any_failed else "with errors")
                 break
     finally:
         ctx.close()
         sys.stdout.flush()
         sys.stderr.flush()
+        launcher_agent_group.shutdown()
+
+    logging.debug("Agent exiting.")

@@ -45,6 +45,8 @@ DEFAULT_ENV_VARS_FOR_COPY = (
 FunctionP = ParamSpec("FunctionP")
 FunctionR = TypeVar("FunctionR")
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class Launcher:
@@ -107,6 +109,7 @@ class Launcher:
             raise RuntimeError(msg)
 
         ###
+        logger.debug("Resolving environment.")
 
         hostnames, workers_per_host = resolve_environment(
             self.hostnames, self.workers_per_host, ssh_config_file=self.ssh_config_file
@@ -160,6 +163,8 @@ class Launcher:
         agent_payloads = None
 
         try:
+            logger.debug("Starting logging server.")
+
             # Start logging server (recieves LogRecords from agents/workers)
 
             logging_server_args = LoggingServerArgs(
@@ -178,6 +183,8 @@ class Launcher:
 
             log_process.start()
 
+            logger.debug("Launching agents.")
+
             # Start agents on each node
 
             for i, hostname in enumerate(hostnames):
@@ -190,10 +197,13 @@ class Launcher:
                         rank=i + 1,
                         env_vars=env_vars,
                         env_file=env_file,
+                        hostname=hostname,
                     ),
                     hostname=hostname,
                     ssh_config_file=ssh_config_file,
                 )
+
+            logger.debug("Initializing launcher-agent group.")
 
             # Initialize launcher-agent process group
             # ranks = (launcher, agent_{hostnames[0]}, ..., agent[-1])
@@ -205,9 +215,13 @@ class Launcher:
                 rank=0,
             )
 
+            logger.debug("Receiving agent details.")
+
             # Sync initial payloads between launcher and agents
 
             launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
+
+            logger.debug("Entering agent monitoring loop.")
 
             # Monitor agent statuses (until failed or done)
 
@@ -224,13 +238,18 @@ class Launcher:
                             raise v
 
                 if all(s.state == "done" for s in agent_statuses):
+                    logger.debug("All workers exited cleanly.")
                     return_values: list[list[FunctionR]] = [s.return_values for s in agent_statuses]  # pyright: ignore [reportAssignmentType]
                     return LaunchResult.from_returns(hostnames, return_values)
         finally:
+            logger.debug("Stopping logging server.")
+
             if stop_logging_event is not None:
                 stop_logging_event.set()
             if log_process is not None:
                 log_process.kill()
+
+            logger.debug("Killing launcher-agent group.")
 
             if launcher_agent_group is not None:
                 launcher_agent_group.shutdown()
@@ -238,6 +257,8 @@ class Launcher:
             # cleanup: SIGTERM all agents
             if agent_payloads is not None:
                 for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
+                    logger.debug("Killing PID %s on %s.", agent_payload.process_id, agent_hostname)
+
                     execute_command(
                         command=f"kill {agent_payload.process_id}",
                         hostname=agent_hostname,
