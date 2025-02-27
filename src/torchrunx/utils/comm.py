@@ -39,19 +39,6 @@ FunctionR = TypeVar("FunctionR")
 
 
 @dataclass
-class AgentCliArgs:
-    """Briefly holds agent CLI arguments after torchrunx.__main__ is called."""
-
-    launcher_hostname: str
-    launcher_port: int
-    world_size: int
-    rank: int
-    logger_hostname: str
-    logger_port: int
-    hostname: str
-
-
-@dataclass
 class LauncherAgentGroup(Generic[FunctionR]):
     """Initializes a GLOO distributed process group between launcher and all agents."""
 
@@ -121,7 +108,6 @@ class LauncherAgentGroup(Generic[FunctionR]):
 
     def shutdown(self) -> None:
         """Terminate process group."""
-        dist.barrier(group=self.group)
         dist.destroy_process_group(group=self.group)
 
 

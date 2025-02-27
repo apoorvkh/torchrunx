@@ -3,7 +3,6 @@
 from argparse import ArgumentParser
 
 from .agent import main
-from .utils.comm import AgentCliArgs
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -15,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--hostname", type=str)
     args = parser.parse_args()
 
-    agent_args = AgentCliArgs(
+    main(
         launcher_hostname=args.launcher_hostname,
         launcher_port=args.launcher_port,
         world_size=args.world_size,
@@ -24,5 +23,3 @@ if __name__ == "__main__":
         logger_port=args.logger_port,
         hostname=args.hostname,
     )
-
-    main(agent_args)

@@ -14,7 +14,6 @@ import torch
 import torch.distributed.elastic.multiprocessing as dist_mp
 
 from .utils.comm import (
-    AgentCliArgs,
     AgentPayload,
     AgentStatus,
     LauncherAgentGroup,
@@ -25,7 +24,13 @@ from .worker import WorkerArgs, worker_entrypoint
 
 
 def main(
-    agent_args: AgentCliArgs,
+    launcher_hostname: str,
+    launcher_port: int,
+    world_size: int,
+    rank: int,
+    logger_hostname: str,
+    logger_port: int,
+    hostname: str,
 ) -> None:
     """Main function for agent processes (started on each node).
 
@@ -34,7 +39,13 @@ def main(
     with each other (and launcher). All agents terminate if failure occurs in any agent.
 
     Arguments:
-        agent_args: Command line arugments provided to the agent at launch.
+        launcher_hostname: Hostname of the launcher process.
+        launcher_port: Port for the process group on the launcher.
+        world_size: Number of agents + 1 (launcher).
+        rank: Rank of this agent.
+        logger_hostname: Hostname of the logging server.
+        logger_port: Port for the logging server.
+        hostname: Hostname of this agent.
     """
     # Stream logs to logging server
 
@@ -43,10 +54,10 @@ def main(
 
     log_records_to_socket(
         logger=logger,
-        hostname=agent_args.hostname,
+        hostname=hostname,
         local_rank=None,
-        logger_hostname=agent_args.logger_hostname,
-        logger_port=agent_args.logger_port,
+        logger_hostname=logger_hostname,
+        logger_port=logger_port,
     )
 
     logging.debug("Agent logging setup.")
@@ -56,10 +67,10 @@ def main(
     logging.debug("Initializing launcher-agent group.")
 
     launcher_agent_group = LauncherAgentGroup(
-        launcher_hostname=agent_args.launcher_hostname,
-        launcher_port=agent_args.launcher_port,
-        world_size=agent_args.world_size,
-        rank=agent_args.rank,
+        launcher_hostname=launcher_hostname,
+        launcher_port=launcher_port,
+        world_size=world_size,
+        rank=rank,
     )
 
     agent_rank = launcher_agent_group.rank - 1
@@ -93,8 +104,8 @@ def main(
             i: (
                 WorkerArgs(
                     function=launcher_payload.fn,
-                    logger_hostname=agent_args.logger_hostname,
-                    logger_port=agent_args.logger_port,
+                    logger_hostname=logger_hostname,
+                    logger_port=logger_port,
                     main_agent_hostname=main_agent_payload.hostname,
                     main_agent_port=main_agent_payload.port,
                     backend=launcher_payload.backend,
