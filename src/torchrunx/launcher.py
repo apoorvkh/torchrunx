@@ -29,7 +29,7 @@ from .utils.environment import (
     resolve_environment,
 )
 from .utils.errors import ExceptionFromWorker, WorkerFailedError
-from .utils.logging import LoggingServerArgs, default_handlers, start_logging_server
+from .utils.logs import LoggingServerArgs, default_handlers, start_logging_server
 
 DEFAULT_ENV_VARS_FOR_COPY = (
     "PATH",
@@ -44,8 +44,6 @@ DEFAULT_ENV_VARS_FOR_COPY = (
 
 FunctionP = ParamSpec("FunctionP")
 FunctionR = TypeVar("FunctionR")
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -104,6 +102,8 @@ class Launcher:
             WorkerFailedError: If a worker fails (e.g. from a segmentation fault).
             AgentFailedError: If an agent fails, e.g. from an OS signal.
         """
+        logger = logging.getLogger(__package__)
+
         if not dist.is_available():
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
@@ -249,11 +249,6 @@ class Launcher:
             if log_process is not None:
                 log_process.kill()
 
-            logger.debug("Killing launcher-agent group.")
-
-            if launcher_agent_group is not None:
-                launcher_agent_group.shutdown()
-
             # cleanup: SIGTERM all agents
             if agent_payloads is not None:
                 for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
@@ -264,6 +259,10 @@ class Launcher:
                         hostname=agent_hostname,
                         ssh_config_file=ssh_config_file,
                     )
+
+            if launcher_agent_group is not None:
+                logger.debug("Killing launcher-agent group.")
+                launcher_agent_group.shutdown()
 
 
 @dataclass

@@ -19,7 +19,7 @@ from .utils.comm import (
     LauncherAgentGroup,
     get_open_port,
 )
-from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
+from .utils.logs import log_records_to_socket, redirect_stdio_to_logger
 from .worker import WorkerArgs, worker_entrypoint
 
 
@@ -48,23 +48,19 @@ def main(
         hostname: Hostname of this agent.
     """
     # Stream logs to logging server
-
-    logger = logging.getLogger()
-    redirect_stdio_to_logger(logger)
+    logger = logging.getLogger(f"{__package__}.{hostname}")
 
     log_records_to_socket(
-        logger=logger,
-        hostname=hostname,
-        local_rank=None,
-        logger_hostname=logger_hostname,
-        logger_port=logger_port,
+        hostname=hostname, local_rank=None, logger_hostname=logger_hostname, logger_port=logger_port
     )
 
-    logging.debug("Agent logging setup.")
+    redirect_stdio_to_logger(logger)
+
+    logger.debug("Agent logging setup.")
 
     # Set up launcher-agent group
 
-    logging.debug("Initializing launcher-agent group.")
+    logger.debug("Initializing launcher-agent group.")
 
     launcher_agent_group = LauncherAgentGroup(
         launcher_hostname=launcher_hostname,
@@ -77,7 +73,7 @@ def main(
 
     # Communicate initial payloads between launcher/agents
 
-    logging.debug("Sending agent details to launcher.")
+    logger.debug("Sending agent details to launcher.")
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -86,7 +82,6 @@ def main(
     )
 
     launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
-    main_agent_payload = agent_payloads[0]
 
     hostname = launcher_payload.hostnames[agent_rank]
     worker_world_size = launcher_payload.worker_world_size
@@ -95,7 +90,7 @@ def main(
 
     # Spawn worker processes
 
-    logging.debug("Launching worker processes.")
+    logger.debug("Launching worker processes.")
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
@@ -106,8 +101,8 @@ def main(
                     function=launcher_payload.fn,
                     logger_hostname=logger_hostname,
                     logger_port=logger_port,
-                    main_agent_hostname=main_agent_payload.hostname,
-                    main_agent_port=main_agent_payload.port,
+                    master_hostname=agent_payloads[0].hostname,
+                    master_port=agent_payloads[0].port,
                     backend=launcher_payload.backend,
                     rank=worker_global_ranks[i],
                     local_rank=i,
@@ -146,7 +141,7 @@ def main(
             all_done = all(s.state == "done" for s in agent_statuses)
             any_failed = any(s.state == "failed" for s in agent_statuses)
             if all_done or any_failed:
-                logging.debug("Workers exiting %s.", "cleanly" if not any_failed else "with errors")
+                logger.debug("Workers exiting %s.", "cleanly" if not any_failed else "with errors")
                 break
     finally:
         ctx.close()
@@ -154,4 +149,4 @@ def main(
         sys.stderr.flush()
         launcher_agent_group.shutdown()
 
-    logging.debug("Agent exiting.")
+    logger.debug("Agent exiting.")

@@ -1,4 +1,4 @@
-"""Utilities for intercepting logs in worker processes and handling these in the Launcher."""  # noqa: A005
+"""Utilities for intercepting logs in worker processes and handling these in the Launcher."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from io import StringIO
-from logging import Handler, Logger
+from logging import Handler, Logger, LogRecord
 from logging.handlers import SocketHandler
 from multiprocessing.synchronize import Event as EventClass
 from pathlib import Path
@@ -55,11 +55,7 @@ def add_filter_to_handler(
     handler.addFilter(_filter)  # pyright: ignore [reportArgumentType]
 
 
-def default_handlers(
-    hostnames: list[str],
-    workers_per_host: list[int],
-    log_level: int = logging.INFO,
-) -> list[logging.Handler]:
+def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[logging.Handler]:
     """Constructs default :obj:`logging.Handler` objects.
 
     Logs for the rank 0 agent and worker are written to launcher process stdout.
@@ -67,12 +63,24 @@ def default_handlers(
     hostname, local_rank).
     """
     log_dir = Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs"))
-    log_level = logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")]  # noqa: SLF001
+    file_log_level = logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")]  # noqa: SLF001
+
     return [
-        stream_handler(hostname=hostnames[0], local_rank=None, log_level=log_level),
-        stream_handler(hostname=hostnames[0], local_rank=0, log_level=log_level),
-        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=log_level),
+        RedirectHandler(hostname=hostnames[0], local_rank=None),
+        RedirectHandler(hostname=hostnames[0], local_rank=0),
+        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=file_log_level),
     ]
+
+
+class RedirectHandler(logging.Handler):
+    def __init__(self, hostname: str, local_rank: int | None) -> None:
+        super().__init__()
+        add_filter_to_handler(self, hostname=hostname, local_rank=local_rank)
+
+    def emit(self, record: LogRecord) -> None:
+        logger = logging.getLogger(record.name)
+        if logger.isEnabledFor(record.levelno):
+            logger.handle(record)
 
 
 def stream_handler(
@@ -81,14 +89,6 @@ def stream_handler(
     """Handler builder function for writing logs from specified hostname/rank to stdout."""
     handler = logging.StreamHandler(stream=sys.stdout)
     add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
-    handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s:%(levelname)s:%(hostname)s[%(local_rank)s]: %(message)s"
-            if local_rank is not None
-            else "%(asctime)s:%(levelname)s:%(hostname)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        ),
-    )
     return handler
 
 
@@ -259,14 +259,13 @@ class WorkerLogRecord(logging.LogRecord):
 
 
 def log_records_to_socket(
-    logger: Logger,
     hostname: str,
     local_rank: int | None,  # None indicates agent
     logger_hostname: str,
     logger_port: int,
 ) -> None:
     """Encode LogRecords with hostname/local_rank. Send to TCP socket on Launcher."""
-    logger.setLevel(logging.NOTSET)
+    logging.root.setLevel(logging.NOTSET)
 
     old_factory = logging.getLogRecordFactory()
 
@@ -276,4 +275,4 @@ def log_records_to_socket(
 
     logging.setLogRecordFactory(record_factory)
 
-    logger.addHandler(SocketHandler(host=logger_hostname, port=logger_port))
+    logging.root.addHandler(SocketHandler(host=logger_hostname, port=logger_port))

@@ -11,12 +11,11 @@ from dataclasses import asdict, dataclass
 from typing import Any, Callable, Literal
 
 import cloudpickle
-import torch
 import torch.distributed as dist
 from typing_extensions import Self
 
 from .utils.errors import ExceptionFromWorker
-from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
+from .utils.logs import log_records_to_socket, redirect_stdio_to_logger
 
 __all__ = ["WorkerArgs", "worker_entrypoint"]
 
@@ -28,9 +27,9 @@ class WorkerArgs:
     function: Callable
     logger_hostname: str
     logger_port: int
-    main_agent_hostname: str
-    main_agent_port: int
-    backend: Literal["nccl", "gloo", "mpi", "ucc", "auto"] | None
+    master_hostname: str
+    master_port: int
+    backend: Literal["nccl", "gloo", "mpi", "ucc"] | None
     rank: int
     local_rank: int
     node_rank: int
@@ -60,10 +59,9 @@ def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorke
 
     # Start logging to the logging server (i.e. the launcher)
 
-    logger = logging.getLogger()
+    logger = logging.getLogger(f"{__package__}.{worker_args.hostname}.{worker_args.local_rank}")
 
     log_records_to_socket(
-        logger=logger,
         hostname=worker_args.hostname,
         local_rank=worker_args.local_rank,
         logger_hostname=worker_args.logger_hostname,
@@ -79,23 +77,21 @@ def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorke
     os.environ["GROUP_RANK"] = str(worker_args.node_rank)
     os.environ["LOCAL_WORLD_SIZE"] = str(worker_args.local_world_size)
     os.environ["WORLD_SIZE"] = str(worker_args.world_size)
-    os.environ["MASTER_ADDR"] = worker_args.main_agent_hostname
-    os.environ["MASTER_PORT"] = str(worker_args.main_agent_port)
+    os.environ["MASTER_ADDR"] = worker_args.master_hostname
+    os.environ["MASTER_PORT"] = str(worker_args.master_port)
 
     # Prepare the process group (e.g. for communication within the user's function)
 
     if worker_args.backend is not None:
         backend = worker_args.backend
-        if backend == "auto":
-            backend = "nccl" if torch.cuda.is_available() else "gloo"
 
         dist.init_process_group(
             backend=backend,
             world_size=worker_args.world_size,
             rank=worker_args.rank,
             store=dist.TCPStore(  # pyright: ignore [reportPrivateImportUsage]
-                host_name=worker_args.main_agent_hostname,
-                port=worker_args.main_agent_port,
+                host_name=worker_args.master_hostname,
+                port=worker_args.master_port,
                 world_size=worker_args.world_size,
                 is_master=(worker_args.rank == 0),
             ),
