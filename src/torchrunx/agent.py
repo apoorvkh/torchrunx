@@ -47,7 +47,8 @@ def main(
         logger_port: Port for the logging server.
         hostname: Hostname of this agent.
     """
-    # Stream logs to logging server
+    # Setup logging & stream logs to server
+
     logger = logging.getLogger(f"{__package__}.{hostname}")
 
     log_records_to_socket(
@@ -55,10 +56,6 @@ def main(
     )
 
     redirect_stdio_to_logger(logger)
-
-    logger.debug("Agent logging setup.")
-
-    # Set up launcher-agent group
 
     logger.debug("Initializing launcher-agent group.")
 
@@ -71,9 +68,7 @@ def main(
 
     agent_rank = launcher_agent_group.rank - 1
 
-    # Communicate initial payloads between launcher/agents
-
-    logger.debug("Sending agent details to launcher.")
+    logger.debug("Synchronizing launcher and agents.")
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -88,9 +83,7 @@ def main(
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    # Spawn worker processes
-
-    logger.debug("Launching worker processes.")
+    logger.info(f"Starting {num_workers} worker processes.")
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
@@ -128,6 +121,8 @@ def main(
     # Monitor and communicate agent statuses
     # Terminate gracefully upon failure
 
+    logger.debug("Entering worker monitoring and agent communication loop.")
+
     try:
         status = None
         while True:
@@ -141,7 +136,7 @@ def main(
             all_done = all(s.state == "done" for s in agent_statuses)
             any_failed = any(s.state == "failed" for s in agent_statuses)
             if all_done or any_failed:
-                logger.debug("Workers exiting %s.", "cleanly" if not any_failed else "with errors")
+                logger.info(f"Workers exited {'with' if any_failed else 'without'} errors.")
                 break
     finally:
         ctx.close()
@@ -149,4 +144,4 @@ def main(
         sys.stderr.flush()
         launcher_agent_group.shutdown()
 
-    logger.debug("Agent exiting.")
+    logger.debug("Terminating agent process.")

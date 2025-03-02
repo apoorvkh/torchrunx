@@ -54,6 +54,7 @@ ignore = [
   "S607",    # bandit: subprocess
   "COM812",
   "ISC001",  # conflict with formatter
+  "G004"  # f-string in logging
 ]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [

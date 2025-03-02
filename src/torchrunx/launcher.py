@@ -108,8 +108,9 @@ class Launcher:
             msg = "The torch.distributed package is not available."
             raise RuntimeError(msg)
 
+        logger.debug("Preparing launch environment.")
+
         ###
-        logger.debug("Resolving environment.")
 
         hostnames, workers_per_host = resolve_environment(
             self.hostnames, self.workers_per_host, ssh_config_file=self.ssh_config_file
@@ -183,11 +184,11 @@ class Launcher:
 
             log_process.start()
 
-            logger.debug("Launching agents.")
-
             # Start agents on each node
 
             for i, hostname in enumerate(hostnames):
+                logger.info(f'Launching "{func.__name__}" on {hostname}.')
+
                 execute_command(
                     command=build_launch_command(
                         launcher_hostname=launcher_hostname,
@@ -215,15 +216,14 @@ class Launcher:
                 rank=0,
             )
 
-            logger.debug("Receiving agent details.")
-
             # Sync initial payloads between launcher and agents
 
+            logger.debug("Synchronizing launcher and agents.")
             launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
 
-            logger.debug("Entering agent monitoring loop.")
-
             # Monitor agent statuses (until failed or done)
+
+            logger.debug("Entering agent monitoring loop.")
 
             while True:
                 # could raise AgentFailedError
@@ -238,17 +238,10 @@ class Launcher:
                             raise v
 
                 if all(s.state == "done" for s in agent_statuses):
-                    logger.debug("All workers exited cleanly.")
+                    logger.info("All workers completed successfully.")
                     return_values: list[list[FunctionR]] = [s.return_values for s in agent_statuses]  # pyright: ignore [reportAssignmentType]
                     return LaunchResult.from_returns(hostnames, return_values)
         finally:
-            logger.debug("Stopping logging server.")
-
-            if stop_logging_event is not None:
-                stop_logging_event.set()
-            if log_process is not None:
-                log_process.kill()
-
             # cleanup: SIGTERM all agents
             if agent_payloads is not None:
                 for agent_payload, agent_hostname in zip(agent_payloads, hostnames):
@@ -263,6 +256,13 @@ class Launcher:
             if launcher_agent_group is not None:
                 logger.debug("Killing launcher-agent group.")
                 launcher_agent_group.shutdown()
+
+            logger.debug("Stopping logging server.")
+
+            if stop_logging_event is not None:
+                stop_logging_event.set()
+            if log_process is not None:
+                log_process.kill()
 
 
 @dataclass
