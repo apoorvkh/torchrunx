@@ -63,7 +63,18 @@ def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[
     hostname, local_rank).
     """
     log_dir = Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs"))
-    file_log_level = logging._nameToLevel[os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")]  # noqa: SLF001
+
+    file_log_level = os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")
+    if file_log_level.isdigit():
+        file_log_level = int(file_log_level)
+    elif file_log_level in logging._nameToLevel:  # noqa: SLF001
+        file_log_level = logging._nameToLevel[file_log_level]  # noqa: SLF001
+    else:
+        msg = (
+            f"Invalid value for $TORCHRUNX_LOG_LEVEL: {file_log_level}. "
+            f"Should be a positive integer or any of: {', '.join(logging._nameToLevel.keys())}."  # noqa: SLF001
+        )
+        raise ValueError(msg)
 
     return [
         RedirectHandler(hostname=hostnames[0], local_rank=None),
