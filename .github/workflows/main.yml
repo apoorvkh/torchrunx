@@ -1,4 +1,4 @@
-name: Run checks on push or PR to main
+name: main
 
 on:
   push:
