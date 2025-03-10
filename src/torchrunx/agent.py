@@ -49,12 +49,11 @@ def main(
     """
     # Setup logging & stream logs to server
 
-    logger = logging.getLogger(f"{__package__}.{hostname}")
-
     log_records_to_socket(
         hostname=hostname, local_rank=None, logger_hostname=logger_hostname, logger_port=logger_port
     )
 
+    logger = logging.getLogger()
     redirect_stdio_to_logger(logger)
 
     logger.debug("Initializing launcher-agent group.")

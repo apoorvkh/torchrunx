@@ -59,8 +59,6 @@ def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorke
 
     # Start logging to the logging server (i.e. the launcher)
 
-    logger = logging.getLogger(f"{__package__}.{worker_args.hostname}.{worker_args.local_rank}")
-
     log_records_to_socket(
         hostname=worker_args.hostname,
         local_rank=worker_args.local_rank,
@@ -68,6 +66,7 @@ def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorke
         logger_port=worker_args.logger_port,
     )
 
+    logger = logging.getLogger()
     redirect_stdio_to_logger(logger)
 
     # Set rank/world environment variables

@@ -169,7 +169,19 @@ class _LogRecordSocketReceiver(ThreadingTCPServer):
                     while len(chunk) < slen:
                         chunk = chunk + self.connection.recv(slen - len(chunk))
                     obj = pickle.loads(chunk)
-                    record = logging.makeLogRecord(obj)
+
+                    ## Transform log record
+
+                    record: WorkerLogRecord = logging.makeLogRecord(obj)  # pyright: ignore [reportAssignmentType]
+
+                    if record.name != "root":
+                        record.msg = f"{record.name}:{record.msg}"
+
+                    record.name = f"torchrunx.{record.hostname}"
+                    if record.local_rank is not None:
+                        record.name += f".{record.local_rank}"
+
+                    ## Handle log record
 
                     for handler in handlers:
                         handler.handle(record)
