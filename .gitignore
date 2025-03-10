@@ -1,5 +1,8 @@
+docs/source/README.md
+docs/source/contributing.md
+docs/source/examples/scripts/
+
 torchrunx_logs/
-.pixi/
 .ruff_cache/
 .vscode/
 

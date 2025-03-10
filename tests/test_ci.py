@@ -1,5 +1,7 @@
+import datetime
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import NoReturn
 
@@ -30,12 +32,10 @@ def test_simple_localhost() -> None:
     tmp = tempfile.mkdtemp()
     os.environ["TORCHRUNX_DIR"] = tmp
 
-    r = trx.launch(
-        func=dist_func,
-        func_kwargs={},
+    r = trx.Launcher(
         workers_per_host=2,
-        backend="gloo",  # log_dir="./test_logs"
-    )
+        backend="gloo",
+    ).run(dist_func)
 
     assert torch.all(r.rank(0) == r.rank(1))
 
@@ -50,19 +50,34 @@ def test_logging() -> None:
 
     num_workers = 2
 
-    trx.launch(
-        func=dist_func,
-        func_kwargs={},
+    before_timestamp = datetime.datetime.now()
+
+    time.sleep(1)
+
+    trx.Launcher(
         workers_per_host=num_workers,
         backend="gloo",
+    ).run(
+        dist_func,
     )
 
-    log_files = next(os.walk(tmp), (None, None, []))[2]
+    after_timestamp = datetime.datetime.now()
+
+    log_dirs = next(os.walk(tmp), (None, [], None))[1]
+
+    assert len(log_dirs) == 1
+
+    # this should error if mis-formatted
+    log_timestamp = datetime.datetime.fromisoformat(log_dirs[0])
+
+    assert before_timestamp <= log_timestamp <= after_timestamp
+
+    log_files = next(os.walk(f"{tmp}/{log_dirs[0]}"), (None, None, []))[2]
 
     assert len(log_files) == num_workers + 1
 
     for file in log_files:
-        with Path(f"{tmp}/{file}").open() as f:
+        with Path(f"{tmp}/{log_dirs[0]}/{file}").open() as f:
             contents = f.read()
             print(contents)
             if file.endswith("[0].log"):
@@ -80,11 +95,11 @@ def test_error() -> None:
     os.environ["TORCHRUNX_DIR"] = tmp
 
     with pytest.raises(ValueError) as excinfo:  # noqa: PT011
-        trx.launch(
-            func=error_func,
-            func_kwargs={},
+        trx.Launcher(
             workers_per_host=1,
             backend="gloo",
+        ).run(
+            error_func,
         )
 
     assert "abcdefg" in str(excinfo.value)

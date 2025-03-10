@@ -1,15 +1,31 @@
-.. include:: ../../README.md
+.. include:: ./README.md
    :parser: myst_parser.sphinx_
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
 
    api
-   advanced
    how_it_works
    contributing
 
+.. toctree::
+   :caption: Usage
+   :hidden:
+
+   ./usage/general.md
+   ./usage/cli.md
+   ./usage/logging.md
+   ./usage/slurm.md
+
+.. toctree::
+   :caption: Examples
+   :hidden:
+
+   ./examples/transformers.md
+   ./examples/deepspeed.md
+   ./examples/lightning.md
+   ./examples/accelerate.md
+
 .. sidebar-links::
-   :github: 
+   :github:
    :pypi: torchrunx

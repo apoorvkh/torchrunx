@@ -4,39 +4,34 @@ build-backend = "hatchling.build"
 
 [project]
 name = "torchrunx"
-version = "0.2.4"
+version = "0.3.0"
 authors = [
   { name = "Apoorv Khandelwal", email = "mail@apoorvkh.com" },
   { name = "Peter Curtin", email = "peter_curtin@brown.edu" },
 ]
 description = "Automatically initialize distributed PyTorch environments"
 readme = "README.md"
-urls = { Repository = "https://github.com/apoorvkh/torchrunx.git", Documentation = "https://torchrunx.readthedocs.io" }
-classifiers = [
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-]
+license = { file = "LICENSE" }
+urls = { Repository = "https://github.com/apoorvkh/torchrunx.git", Documentation = "https://torchrun.xyz" }
 requires-python = ">=3.9"
 dependencies = [
   "cloudpickle>=3.0",
   "fabric>=3.2",
   "torch>=2.0",
   # torch.distributed depends on numpy
+  # torch<=2.2 needs numpy<2
   "numpy>=1.20",
+  "typing-extensions>=4.9.0",
 ]
 [dependency-groups]
-dev = ["ruff", "pyright", "pytest", "build", "twine"]
-dev-extras = ["submitit", "transformers"]
-
-[tool.uv]
-managed = true
-python-preference = "only-managed"
-
-## Development tools
+dev = ["ruff==0.9.5", "pyright[nodejs]==1.1.393", "pytest==8.3.4"]
+test-extras = ["submitit", "transformers"]
+docs = [
+  "sphinx==7.4.7",
+  "furo==2024.8.6",
+  "myst-parser==3.0.1",
+  "sphinx-toolbox==3.8.2",
+]
 
 [tool.ruff]
 include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py"]
@@ -46,8 +41,8 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "ANN101",
-  "ANN102",
+  "TC003",   # no type checking blocks for stdlib
+  "D104",    # package docstrings
   "ANN401",  # self / cls / Any annotations
   "BLE001",  # blind exceptions
   "TD",      # todo syntax
@@ -59,6 +54,7 @@ ignore = [
   "S607",    # bandit: subprocess
   "COM812",
   "ISC001",  # conflict with formatter
+  "G004"  # f-string in logging
 ]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [

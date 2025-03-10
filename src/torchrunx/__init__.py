@@ -1,16 +1,14 @@
-"""API for our torchrunx library."""
+import importlib.metadata
 
-from .launcher import Launcher, LaunchResult, launch
+from .launcher import DEFAULT_ENV_VARS_FOR_COPY, Launcher, LaunchResult
 from .utils.errors import AgentFailedError, WorkerFailedError
-from .utils.logging import add_filter_to_handler, file_handler, stream_handler
 
-__all__ = [
+__version__ = importlib.metadata.version(__package__ or __name__)
+
+__all__ = [  # noqa: RUF022
+    "DEFAULT_ENV_VARS_FOR_COPY",
+    "Launcher",
+    "LaunchResult",
     "AgentFailedError",
     "WorkerFailedError",
-    "Launcher",
-    "launch",
-    "LaunchResult",
-    "add_filter_to_handler",
-    "file_handler",
-    "stream_handler",
 ]

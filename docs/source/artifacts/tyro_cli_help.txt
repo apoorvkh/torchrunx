@@ -1,0 +1,34 @@
+usage: -c [-h] [OPTIONS]
+
+For configuring the function launch environment.
+
+╭─ options ──────────────────────────────────────────────────────────────────╮
+│ -h, --help                                                                 │
+│     show this help message and exit                                        │
+│ --hostnames {[STR [STR ...]]}|{auto,slurm}                                 │
+│     Nodes to launch the function on. By default, infer from SLURM, else    │
+│     ``["localhost"]``. (default: auto)                                     │
+│ --workers-per-host INT|{[INT [INT ...]]}|{cpu,gpu}                         │
+│     Number of processes to run per node. By default, number of GPUs per    │
+│     host. (default: gpu)                                                   │
+│ --ssh-config-file {None}|STR|PATHLIKE                                      │
+│     For connecting to nodes. By default, ``"~/.ssh/config"`` or            │
+│     ``"/etc/ssh/ssh_config"``. (default: None)                             │
+│ --backend {None,nccl,gloo,mpi,ucc}                                         │
+│     `Backend                                                               │
+│     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.B… │
+│             for worker process group. By default, NCCL (GPU backend).      │
+│             Use GLOO for CPU backend. ``None`` for no process group.       │
+│     (default: nccl)                                                        │
+│ --timeout INT                                                              │
+│     Worker process group timeout (seconds). (default: 600)                 │
+│ --copy-env-vars [STR [STR ...]]                                            │
+│     Environment variables to copy from the launcher process to workers.    │
+│     Supports Unix pattern matching syntax. (default: PATH LD_LIBRARY       │
+│     LIBRARY_PATH 'PYTHON*' 'CUDA*' 'TORCH*' 'PYTORCH*' 'NCCL*')            │
+│ --extra-env-vars {None}|{[STR STR [STR STR ...]]}                          │
+│     Additional environment variables to load onto workers. (default: None) │
+│ --env-file {None}|STR|PATHLIKE                                             │
+│     Path to a ``.env`` file, containing environment variables to load onto │
+│     workers. (default: None)                                               │
+╰────────────────────────────────────────────────────────────────────────────╯

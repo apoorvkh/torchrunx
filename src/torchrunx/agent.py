@@ -19,11 +19,19 @@ from .utils.comm import (
     LauncherAgentGroup,
     get_open_port,
 )
-from .utils.logging import log_records_to_socket, redirect_stdio_to_logger
+from .utils.log_streaming import log_records_to_socket, redirect_stdio_to_logger
 from .worker import WorkerArgs, worker_entrypoint
 
 
-def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_port: int) -> None:
+def main(
+    launcher_hostname: str,
+    launcher_port: int,
+    world_size: int,
+    rank: int,
+    logger_hostname: str,
+    logger_port: int,
+    hostname: str,
+) -> None:
     """Main function for agent processes (started on each node).
 
     This function spawns local worker processes (which run the target function). All agents monitor
@@ -31,13 +39,35 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     with each other (and launcher). All agents terminate if failure occurs in any agent.
 
     Arguments:
-        launcher_agent_group: The communication group between launcher and all agents.
-        logger_hostname: The hostname of the launcher (for logging).
-        logger_port: The port of the launcher (for logging).
+        launcher_hostname: Hostname of the launcher process.
+        launcher_port: Port for the process group on the launcher.
+        world_size: Number of agents + 1 (launcher).
+        rank: Rank of this agent.
+        logger_hostname: Hostname of the logging server.
+        logger_port: Port for the logging server.
+        hostname: Hostname of this agent.
     """
+    # Setup logging & stream logs to server
+
+    log_records_to_socket(
+        hostname=hostname, local_rank=None, logger_hostname=logger_hostname, logger_port=logger_port
+    )
+
+    logger = logging.getLogger()
+    redirect_stdio_to_logger(logger)
+
+    logger.debug("Initializing launcher-agent group.")
+
+    launcher_agent_group = LauncherAgentGroup(
+        launcher_hostname=launcher_hostname,
+        launcher_port=launcher_port,
+        world_size=world_size,
+        rank=rank,
+    )
+
     agent_rank = launcher_agent_group.rank - 1
 
-    # Communicate initial payloads between launcher/agents
+    logger.debug("Synchronizing launcher and agents.")
 
     payload = AgentPayload(
         hostname=socket.getfqdn(),
@@ -46,28 +76,13 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     )
 
     launcher_payload, agent_payloads = launcher_agent_group.sync_payloads(payload=payload)
-    main_agent_payload = agent_payloads[0]
 
     hostname = launcher_payload.hostnames[agent_rank]
     worker_world_size = launcher_payload.worker_world_size
     worker_global_ranks = launcher_payload.worker_global_ranks[agent_rank]
     num_workers = len(worker_global_ranks)
 
-    # Stream logs to logging server
-
-    logger = logging.getLogger()
-
-    log_records_to_socket(
-        logger=logger,
-        hostname=hostname,
-        local_rank=None,
-        logger_hostname=logger_hostname,
-        logger_port=logger_port,
-    )
-
-    redirect_stdio_to_logger(logger)
-
-    # Spawn worker processes
+    logger.info(f"Starting {num_workers} worker processes.")
 
     ctx = dist_mp.start_processes(
         name=f"{hostname}_",
@@ -78,11 +93,12 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
                     function=launcher_payload.fn,
                     logger_hostname=logger_hostname,
                     logger_port=logger_port,
-                    main_agent_hostname=main_agent_payload.hostname,
-                    main_agent_port=main_agent_payload.port,
+                    master_hostname=agent_payloads[0].hostname,
+                    master_port=agent_payloads[0].port,
                     backend=launcher_payload.backend,
                     rank=worker_global_ranks[i],
                     local_rank=i,
+                    node_rank=agent_rank,
                     local_world_size=num_workers,
                     world_size=worker_world_size,
                     hostname=launcher_payload.hostnames[agent_rank],
@@ -104,6 +120,8 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
     # Monitor and communicate agent statuses
     # Terminate gracefully upon failure
 
+    logger.debug("Entering worker monitoring and agent communication loop.")
+
     try:
         status = None
         while True:
@@ -117,8 +135,12 @@ def main(launcher_agent_group: LauncherAgentGroup, logger_hostname: str, logger_
             all_done = all(s.state == "done" for s in agent_statuses)
             any_failed = any(s.state == "failed" for s in agent_statuses)
             if all_done or any_failed:
+                logger.info(f"Workers exited {'with' if any_failed else 'without'} errors.")
                 break
     finally:
         ctx.close()
         sys.stdout.flush()
         sys.stderr.flush()
+        launcher_agent_group.shutdown()
+
+    logger.debug("Terminating agent process.")

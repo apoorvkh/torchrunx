@@ -1,4 +1,6 @@
 import os
+from functools import reduce
+from operator import add
 
 import torch
 import torch.distributed as dist
@@ -7,13 +9,9 @@ import torchrunx as trx
 
 
 def test_launch() -> None:
-    result = trx.launch(
-        func=simple_matmul,
-        hostnames="slurm",
-        workers_per_host="slurm",
-    )
+    result = trx.Launcher(hostnames="slurm").run(simple_matmul)
 
-    result_values = result.by_ranks()
+    result_values = reduce(add, result.results.values())
 
     t = True
     for i in range(len(result_values)):

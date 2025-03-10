@@ -3,7 +3,6 @@
 from argparse import ArgumentParser
 
 from .agent import main
-from .utils.comm import LauncherAgentGroup
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -12,17 +11,15 @@ if __name__ == "__main__":
     parser.add_argument("--logger-port", type=int)
     parser.add_argument("--world-size", type=int)
     parser.add_argument("--rank", type=int)
+    parser.add_argument("--hostname", type=str)
     args = parser.parse_args()
 
-    launcher_agent_group = LauncherAgentGroup(
+    main(
         launcher_hostname=args.launcher_hostname,
         launcher_port=args.launcher_port,
         world_size=args.world_size,
         rank=args.rank,
-    )
-
-    main(
-        launcher_agent_group,
         logger_hostname=args.launcher_hostname,
         logger_port=args.logger_port,
+        hostname=args.hostname,
     )

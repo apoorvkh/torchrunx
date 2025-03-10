@@ -53,7 +53,7 @@ def main() -> None:
 
 
 def launch() -> None:
-    trx.launch(func=main, func_kwargs={}, hostnames="slurm", workers_per_host="slurm")
+    trx.Launcher(hostnames="slurm").run(main)
 
 
 def test_submitit() -> None:
