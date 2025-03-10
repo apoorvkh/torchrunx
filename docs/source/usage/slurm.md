@@ -14,9 +14,8 @@ def distributed_training():
 
 if __name__ == "__main__":
     torchrunx.Launcher(
-        # optionally specify:
-        # hostnames = "slurm",
-        # workers_per_host = "gpu"
+        hostnames = "slurm",
+        workers_per_host = "gpu"
     ).run(distributed_training)
 ```
 
@@ -46,9 +45,8 @@ def distributed_training():
 
 def launch_training():
     torchrunx.Launcher(
-        # optionally specify:
-        # hostnames = "slurm",
-        # workers_per_host = "gpu"
+        hostnames = "slurm",
+        workers_per_host = "gpu"
     ).run(distributed_training)
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ We use `ruff check` for linting, `ruff format` for formatting, `pyright` for sta
 
 ## Pull Requests
 
-Make a pull request with your changes on Github and we'll try to look at it soon! If addressing a specific issue, mention it in the PR, and offer a short explanation of your fix. If adding a new feature, explain why it's meaningful and belongs in __torchrunx__.
+Make a pull request with your changes on Github and we'll try to look at it soon! If addressing a specific issue, mention it in the PR, and offer a short explanation of your fix. If adding a new feature, explain why it's meaningful and belongs in **torchrunx**.
 
 ## Testing
 
@@ -16,4 +16,4 @@ At the moment, we run `pytest tests/test_ci.py` (i.e. simple single-node CPU-onl
 
 ## Documentation
 
-Our documentation is hosted on Github Pages and is updated with every package release. We build our documentation with `sphinx` using the command: `uv run --group docs python -m sphinx --builder html --doctree-dir docs/_build/.doctrees --conf-dir docs --show-traceback docs/source docs/_build/html`. The documentation will then be generated at `docs/_build/html`.
+Our documentation is hosted on Github Pages and is updated with every package release. We build our documentation with [Sphinx](https://www.sphinx-doc.org): `source scripts/build_docs.sh`. The documentation will then be generated at `docs/_build/html` (and can be rendered with `python -m http.server --directory docs/_build/html`).

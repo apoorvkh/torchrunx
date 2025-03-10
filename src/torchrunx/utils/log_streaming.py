@@ -4,19 +4,12 @@ from __future__ import annotations
 
 __all__ = [
     "LoggingServerArgs",
-    "add_filter_to_handler",
-    "default_handlers",
-    "file_handler",
-    "file_handlers",
     "log_records_to_socket",
     "redirect_stdio_to_logger",
     "start_logging_server",
-    "stream_handler",
 ]
 
-import datetime
 import logging
-import os
 import pickle
 import signal
 import struct
@@ -24,124 +17,14 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from io import StringIO
-from logging import Handler, Logger, LogRecord
+from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from multiprocessing.synchronize import Event as EventClass
-from pathlib import Path
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from typing import Callable
 
 import cloudpickle
 from typing_extensions import Self
-
-## Handler utilities
-
-
-def add_filter_to_handler(
-    handler: logging.Handler,
-    hostname: str,
-    local_rank: int | None,  # None indicates agent
-    log_level: int = logging.NOTSET,
-) -> None:
-    """Apply an agent- or worker- specific filter to :obj:`logging.Handler`."""
-
-    def _filter(record: WorkerLogRecord) -> bool:
-        return (
-            record.hostname == hostname
-            and record.local_rank == local_rank
-            and record.levelno >= log_level
-        )
-
-    handler.addFilter(_filter)  # pyright: ignore [reportArgumentType]
-
-
-def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[logging.Handler]:
-    """Constructs default :obj:`logging.Handler` objects.
-
-    Logs for the rank 0 agent and worker are written to launcher process stdout.
-    Logs for all hosts/workers are written to files in ``$TORCHRUNX_LOG_DIR`` (named by timestamp,
-    hostname, local_rank).
-    """
-    log_dir = Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs"))
-
-    file_log_level = os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")
-    if file_log_level.isdigit():
-        file_log_level = int(file_log_level)
-    elif file_log_level in logging._nameToLevel:  # noqa: SLF001
-        file_log_level = logging._nameToLevel[file_log_level]  # noqa: SLF001
-    else:
-        msg = (
-            f"Invalid value for $TORCHRUNX_LOG_LEVEL: {file_log_level}. "
-            f"Should be a positive integer or any of: {', '.join(logging._nameToLevel.keys())}."  # noqa: SLF001
-        )
-        raise ValueError(msg)
-
-    return [
-        RedirectHandler(hostname=hostnames[0], local_rank=None),
-        RedirectHandler(hostname=hostnames[0], local_rank=0),
-        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=file_log_level),
-    ]
-
-
-class RedirectHandler(logging.Handler):
-    def __init__(self, hostname: str, local_rank: int | None) -> None:
-        super().__init__()
-        add_filter_to_handler(self, hostname=hostname, local_rank=local_rank)
-
-    def emit(self, record: LogRecord) -> None:
-        logger = logging.getLogger(record.name)
-        if logger.isEnabledFor(record.levelno):
-            logger.handle(record)
-
-
-def stream_handler(
-    hostname: str, local_rank: int | None, log_level: int = logging.NOTSET
-) -> logging.Handler:
-    """Handler builder function for writing logs from specified hostname/rank to stdout."""
-    handler = logging.StreamHandler(stream=sys.stdout)
-    add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
-    return handler
-
-
-def file_handler(
-    hostname: str,
-    local_rank: int | None,
-    file_path: str | os.PathLike,
-    log_level: int = logging.NOTSET,
-) -> logging.Handler:
-    """Handler builder function for writing logs from specified hostname/rank to a file."""
-    handler = logging.FileHandler(file_path)
-    add_filter_to_handler(handler, hostname, local_rank, log_level=log_level)
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s:%(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    )
-    return handler
-
-
-def file_handlers(
-    hostnames: list[str],
-    workers_per_host: list[int],
-    log_dir: str | os.PathLike = Path("torchrunx_logs"),
-    log_level: int = logging.NOTSET,
-) -> list[logging.Handler]:
-    """Handler builder function for writing logs for all workers/agents to a directory.
-
-    Files are named with hostname and the local_rank (for workers).
-    """
-    handlers = []
-
-    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-    log_dir = Path(log_dir) / timestamp
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    for hostname, num_workers in zip(hostnames, workers_per_host):
-        for local_rank in [None, *range(num_workers)]:
-            local_rank_str = f"[{local_rank}]" if local_rank is not None else ""
-            file_path = log_dir / f"{hostname}{local_rank_str}.log"
-            handlers.append(file_handler(hostname, local_rank, file_path, log_level=log_level))
-
-    return handlers
-
 
 ## Launcher utilities
 

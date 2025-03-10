@@ -19,7 +19,7 @@ from .utils.comm import (
     LauncherAgentGroup,
     get_open_port,
 )
-from .utils.logs import log_records_to_socket, redirect_stdio_to_logger
+from .utils.log_streaming import log_records_to_socket, redirect_stdio_to_logger
 from .worker import WorkerArgs, worker_entrypoint
 
 

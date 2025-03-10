@@ -34,7 +34,7 @@ You can catch these errors and handle them as you wish!
 ```python
 for config in configs:  # e.g. hyper-parameter sweep
     try:
-        Launcher().run(train, config)
+        torchrunx.Launcher().run(train, config)
     except torch.cuda.OutOfMemoryError:
         print(f"{config} results in OOM... continuing...")
 ```
@@ -44,12 +44,12 @@ If you are expecting intermittent failures, you can catch errors and invoke retr
 ```python
 for retry in range(3):
     try:
-        Launcher().run(train, resume_from_checkpoint=True)
+        torchrunx.Launcher().run(train, resume_from_checkpoint=True)
     except torchrunx.WorkerFailedError as e:
         print(f"Error occurred: {e}")
         print(f"Retrying ({retry}) ...")
-    else:
-        break    
+    else:  # if run() is successful
+        break
 ```
 
 ## Environment variables

@@ -1,37 +1,62 @@
 # Custom Logging
 
-We forward all worker and agent logs (i.e. from {mod}`logging`, {obj}`sys.stdout`, and {obj}`sys.stderr`) to the launcher for processing.
+We forward all agent and worker logs (i.e. from {mod}`logging`, {obj}`sys.stdout`, and {obj}`sys.stderr`) to the launcher process.
 
-By default, the logs from the rank 0 agent and worker are printed into the launcher's `stdout` stream. Logs from all agents and workers are written to a directory (by the current timestamp) in `$TORCHRUNX_LOG_DIR` (default: `./torchrunx_logs`).
+## Defaults
 
-You can fully customize how logs are processed using {func}`torchrunx.Launcher.set_logging_handlers`. You should provide it a function that constructs and returns a list of {obj}`logging.Handler` objects. Each {obj}`logging.Handler` controls where logs should be written.
-
-We provide some handler utilities that direct a specified worker or agent's logs to a file or stream.
-
-```{eval-rst}
-.. autofunction:: torchrunx.utils.file_handler
-```
-
-```{eval-rst}
-.. autofunction:: torchrunx.utils.stream_handler
-```
-
-For example, we could construct and pass a handler factory that streams the rank 0 agent and worker logs to the launcher's `stdout`.
+By default, the logs from the rank 0 agent and rank 0 worker are handled by loggers on the launcher process (and so they should be printed to `stdout`/`stderr`). You may control these logs like:
 
 ```python
-def rank_0_handlers() -> list[logging.Handler]:
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("torchrunx").setLevel(logging.DEBUG)
+logging.getLogger("torchrunx.node1").setLevel(logging.INFO)
+logging.getLogger("torchrunx.node1.1").setLevel(logging.INFO)  # worker 1 (local rank) on node 1
+```
+
+Also, logs from all agents and workers are written to a directory (by the current timestamp) in `$TORCHRUNX_LOG_DIR` (default: `./torchrunx_logs`). These can be controlled using `$TORCHRUNX_LOG_LEVEL` (default: `INFO`).
+
+## Customization
+
+You can fully customize how logs are processed using {func}`torchrunx.Launcher.set_logging_handlers`. You should provide it a factory function that constructs and returns a list of {obj}`logging.Handler` objects. Each {obj}`logging.Handler` controls where logs should be written. You can also add a filter to restrict the handler to the logs of a specific agent or worker.
+
+Here's an example:
+
+```python
+from torchrunx.utils.log_handling import RedirectHandler, get_handler_filter
+
+def custom_handlers() -> list[logging.Handler]:
+
+    # Handler: redirect logs from (host 0, agent) to logger on launcher process
+    redirect_handler = RedirectHandler()
+    redirect_handler.addFilter(get_handler_filter(
+        hostname=hostnames[0], local_rank=None, log_level=logging.DEBUG
+    ))
+
+    # Handler: output logs from (host 0, worker 0) to "output.txt"
+    file_handler = logging.FileHandler("output.txt")
+    file_handler.addFilter(get_handler_filter(
+        hostname=hostnames[0], local_rank=0, log_level=logging.DEBUG
+    ))
+
     return [
-        stream_handler(hostname=hostnames[0], local_rank=None),  # agent 0
-        stream_handler(hostname=hostnames[0], local_rank=0),  # worker 0
+        redirect_handler,
+        file_handler,
     ]
 ```
 
 ```python
-torchrunx.Launcher(...).set_logging_handlers(rank_0_handlers).run(...)
+torchrunx.Launcher(...).set_logging_handlers(custom_handlers).run(...)
 ```
 
-You can also [provide your own ``logging.Handler``](https://docs.python.org/3.9/library/logging.handlers.html#module-logging.handlers) and apply {func}`torchrunx.utils.add_filter_to_handler` to constrain which worker or agent's logs it should process.
+Finally, you can control library-specific logging (within the worker processes) by modifying the distributed function:
 
-```{eval-rst}
-.. autofunction:: torchrunx.utils.add_filter_to_handler
+```python
+def distributed_function():
+    logging.getLogger("transformers").setLevel(logging.DEBUG)
+
+    logger = logging.getLogger("my_app")
+    logger.info("Hello world!")
+    ...
+
+torchrunx.Launcher(...).run(distributed_function)
 ```

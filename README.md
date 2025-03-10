@@ -21,20 +21,16 @@ It enables complex workflows within a single script and has useful features even
 pip install torchrunx
 ```
 
-Requires:
-- Linux
-- If using multiple machines: SSH & shared filesystem
+Requires: Linux. If using multiple machines: SSH & shared filesystem.
 
 ---
 
-**Dummy example: parallelizing training with `torchrunx`**
+<h4>Example: simple training loop</h4>
+
+Suppose we have some distributed training function (which needs to run on every GPU):
 
 ```python
-def distributed_training(model: nn.Module, num_steps: int) -> nn.Module:
-    # Environment variables: RANK, LOCAL_RANK, ...
-    # ddp_model = DistributedDataParallel(model, device_ids=[local_rank])
-    ...
-    retun trained_model
+def distributed_training(model: nn.Module, num_steps: int) -> nn.Module: ...
 ```
 
 <details>
@@ -70,14 +66,14 @@ def distributed_training(model: nn.Module, num_steps: int = 10) -> nn.Module | N
 
 </details>
 
+We can distribute and run this function (e.g. on 2 machines x 2 GPUs) using **`torchrunx`**!
+
 ```python
 import torchrunx
 
-# Launch training on 2 machines x 2 GPUs
-
 launcher = torchrunx.Launcher(
-    hostnames = ["localhost", "second_machine"],
-    workers_per_host = 2
+    hostnames = ["localhost", "second_machine"],  # or IP addresses
+    workers_per_host = 2  # e.g. number of GPUs per host
 )
 
 results = launcher.run(
@@ -87,16 +83,17 @@ results = launcher.run(
 )
 ```
 
-```python
-# get the results
-trained_model: nn.Module = results.rank(0)
-# or: results.index(hostname="localhost", local_rank=0)
+Once completed, you can retrieve the results and process them as you wish.
 
-# and continue your script — e.g. save model to checkpoint
+```python
+trained_model: nn.Module = results.rank(0)
+                     # or: results.index(hostname="localhost", local_rank=0)
+
+# and continue your script
 torch.save(trained_model.state_dict(), "output/model.pth")
 ```
 
-**See examples where we fine-tune LLMs using:**
+**See more examples where we fine-tune LLMs using:**
   - [Transformers](https://torchrun.xyz/examples/transformers.html)
   - [DeepSpeed](https://torchrun.xyz/examples/deepspeed.html)
   - [PyTorch Lightning](https://torchrun.xyz/examples/lightning.html)

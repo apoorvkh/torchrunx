@@ -29,7 +29,8 @@ from .utils.environment import (
     resolve_environment,
 )
 from .utils.errors import ExceptionFromWorker, WorkerFailedError
-from .utils.logs import LoggingServerArgs, default_handlers, start_logging_server
+from .utils.log_handling import default_handlers
+from .utils.log_streaming import LoggingServerArgs, start_logging_server
 
 DEFAULT_ENV_VARS_FOR_COPY = (
     "PATH",
@@ -80,10 +81,9 @@ class Launcher:
     ) -> Self:
         """Provide a ``handler_factory`` function to customize processing of agent/worker logs.
 
-        See `Custom Logging <https://torchrun.xyz/features/logging.html>`_.
-
         Parameters:
           handler_factory: Function that constructs and returns :obj:`logging.Handler` objects.
+              See `Custom Logging <https://torchrun.xyz/usage/logging.html>`_ for more details.
         """
         self.handler_factory = handler_factory
         return self

@@ -14,7 +14,7 @@ Here's an example script that uses `torchrunx` with [DeepSpeed](https://www.deep
 
 ## Training GPT-2 on WikiText
 
-Deepspeed requires additional (non-Python) dependencies. Use the following commands to set up a project. Source: [Apoorv's Blog — Managing Project Dependencies](https://blog.apoorvkh.com/posts/project-dependencies.html)
+Deepspeed requires additional (non-Python) dependencies. Use the following commands to set up a project. [source: [Apoorv's Blog — Managing Project Dependencies](https://blog.apoorvkh.com/posts/project-dependencies.html)]
 
 Pre-requisite: [pixi](https://pixi.sh)
 
