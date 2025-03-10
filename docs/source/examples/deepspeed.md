@@ -2,7 +2,7 @@
 
 Here's an example script that uses `torchrunx` with [DeepSpeed](https://www.deepspeed.ai) to fine-tune any causal language model (from `transformers`) on any text dataset (from `datasets`) with any number of GPUs or nodes.
 
-[https://torchrun.xyz/deepspeed_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/docs/source/examples/scripts/deepspeed_train.py)
+[https://torchrun.xyz/deepspeed_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/scripts/examples/deepspeed_train.py)
 
 <details>
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python deepspeed_train.py --help</span></code></p> (expand)</summary>

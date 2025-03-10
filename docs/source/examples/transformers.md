@@ -2,7 +2,7 @@
 
 Here's an example script that uses `torchrunx` with [`transformers.Trainer`](https://huggingface.co/docs/transformers/en/main_classes/trainer) to fine-tune any causal language model (from `transformers`) on any text dataset (from `datasets`) with any number of GPUs or nodes.
 
-[https://torchrun.xyz/transformers_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/docs/source/examples/scripts/transformers_train.py)
+[https://torchrun.xyz/transformers_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/scripts/examples/transformers_train.py)
 
 <details>
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python transformers_train.py --help</span></code></p> (expand)</summary>

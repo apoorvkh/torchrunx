@@ -2,7 +2,7 @@
 
 Here's an example script that uses `torchrunx` with [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) to fine-tune any causal language model (from `transformers`) on any text dataset (from `datasets`) with any number of GPUs or nodes.
 
-[https://torchrun.xyz/lightning_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/docs/source/examples/scripts/lightning_train.py)
+[https://torchrun.xyz/lightning_train.py](https://raw.githubusercontent.com/apoorvkh/torchrunx/refs/heads/main/scripts/examples/lightning_train.py)
 
 <details>
   <summary><p style="display: inline-block;"><code class="docutils literal notranslate"><span class="pre">python lightning_train.py --help</span></code></p> (expand)</summary>
