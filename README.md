@@ -136,6 +136,6 @@ torch.save(trained_model.state_dict(), "output/model.pth")
 > - [Automatic detection of SLURM environments.](https://torchrun.xyz/usage/slurm.html)
 > - Start multi-node training from Python notebooks!
 > - Our library is fully typed!
-> - Custom, fine-grained handling of logging, environment variables, and exception propagation. We have nice defaults too: no more interleaved logs and irrelevant exceptions!
+> - Custom, fine-grained handling of [logging](https://torchrun.xyz/usage/logging.html), [environment variables](https://torchrun.xyz/usage/general.html#environment-variables), and [exception propagation](https://torchrun.xyz/usage/general.html#exceptions). We have nice defaults too: no more interleaved logs and irrelevant exceptions!
 
 **On our [roadmap](https://github.com/apoorvkh/torchrunx/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement): higher-order parallelism, support for debuggers, and more!**
