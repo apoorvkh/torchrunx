@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,8 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
+
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass

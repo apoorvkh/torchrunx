@@ -14,13 +14,13 @@
 from __future__ import annotations
 
 import functools
+import logging
 import os
 from dataclasses import dataclass
 from typing import Annotated
 
 import lightning as L
 import torch
-
 import tyro
 from datasets import load_dataset
 from torch.utils.data import Dataset
@@ -28,6 +28,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
 from torchrunx.integrations.lightning import TorchrunxClusterEnvironment
+
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass

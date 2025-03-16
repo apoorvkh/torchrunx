@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,8 @@ from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
 
 import torchrunx
+
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass
@@ -114,14 +117,18 @@ def main(
     output_dir: Path,
 ):
     model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
 
     # Launch training
     results = launcher.run(train, model, train_dataset, batch_size, output_dir)
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)
-    trained_model = AutoModelForCausalLM.from_pretrained(model_config.name, state_dict=torch.load(checkpoint_path))
+    trained_model = AutoModelForCausalLM.from_pretrained(
+        model_config.name, state_dict=torch.load(checkpoint_path)
+    )
 
 
 if __name__ == "__main__":
