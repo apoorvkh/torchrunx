@@ -117,7 +117,7 @@ def main(
     train_dataset = load_training_data(tokenizer_name=model_config.name, dataset_config=dataset_config)
 
     # Launch training
-    results = launcher.run(train, (model, train_dataset, batch_size, output_dir))
+    results = launcher.run(train, model, train_dataset, batch_size, output_dir)
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)

@@ -102,7 +102,7 @@ def main(
     )
 
     # Launch training
-    results = launcher.run(train, (model, train_dataset, training_args))
+    results = launcher.run(train, model, train_dataset, training_args)
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)

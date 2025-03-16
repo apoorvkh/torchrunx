@@ -111,7 +111,7 @@ def main(
     train_dataset = load_training_data(tokenizer_name=model_name, dataset_config=dataset_config)
 
     # Launch training
-    launcher.run(train, (model, train_dataset, str(deepspeed_config), str(checkpoint_dir)))
+    launcher.run(train, model, train_dataset, str(deepspeed_config), str(checkpoint_dir))
 
     # Loading trained model from checkpoint
     state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_dir)
