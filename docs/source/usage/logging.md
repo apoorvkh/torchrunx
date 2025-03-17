@@ -1,6 +1,6 @@
 # Custom Logging
 
-We forward all agent and worker logs (i.e. from {mod}`logging`, {obj}`sys.stdout`, and {obj}`sys.stderr`) to the launcher process.
+We forward all agent and worker logs (i.e. from {mod}`logging`, `stdout`, and `stderr`) to the launcher process.
 
 ## Defaults
 
