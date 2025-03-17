@@ -70,9 +70,9 @@ We can distribute and run this function (e.g. on 2 machines x 2 GPUs) using **`t
 
 ```python
 import logging
-logging.basicConfig(level=logging.INFO)
-
 import torchrunx
+
+logging.basicConfig(level=logging.INFO)
 
 launcher = torchrunx.Launcher(
     hostnames = ["localhost", "second_machine"],  # or IP addresses
@@ -93,7 +93,7 @@ trained_model: nn.Module = results.rank(0)
                      # or: results.index(hostname="localhost", local_rank=0)
 
 # and continue your script
-torch.save(trained_model.state_dict(), "output/model.pth")
+torch.save(trained_model.state_dict(), "outputs/model.pth")
 ```
 
 **See more examples where we fine-tune LLMs using:**
