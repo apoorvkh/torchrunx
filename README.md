@@ -76,7 +76,7 @@ logging.basicConfig(level=logging.INFO)
 
 launcher = torchrunx.Launcher(
     hostnames = ["localhost", "second_machine"],  # or IP addresses
-    workers_per_host = 2  # e.g. number of GPUs per host
+    workers_per_host = "gpu"  # default, or just: 2
 )
 
 results = launcher.run(
