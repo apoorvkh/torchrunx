@@ -69,6 +69,9 @@ def distributed_training(model: nn.Module, num_steps: int = 10) -> nn.Module | N
 We can distribute and run this function (e.g. on 2 machines x 2 GPUs) using **`torchrunx`**!
 
 ```python
+import logging
+logging.basicConfig(level=logging.INFO)
+
 import torchrunx
 
 launcher = torchrunx.Launcher(
