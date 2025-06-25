@@ -63,7 +63,7 @@ class Launcher:
         Use GLOO for CPU backend. ``None`` for no process group."""
     worker_timeout: int = 600
     """Worker process group timeout (seconds)."""
-    agent_timeout: int = 180
+    agent_timeout: int = 60
     """Agent communication timeout (seconds)."""
     copy_env_vars: tuple[str, ...] = DEFAULT_ENV_VARS_FOR_COPY
     """Environment variables to copy from the launcher process to workers.
