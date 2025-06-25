@@ -55,8 +55,8 @@ def add_torchrunx_argument_group(parser: ArgumentParser) -> None:
     group.add_argument(
         "--agent-timeout",
         type=int,
-        default=180,
-        help="Agent communication timeout in seconds. Default: 180.",
+        default=60,
+        help="Agent communication timeout in seconds. Default: 60.",
     )
 
     group.add_argument(
