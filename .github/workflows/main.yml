@@ -70,7 +70,7 @@ jobs:
 
             python_versions=$(
               curl -s "https://pypi.org/pypi/torch/$pytorch_version/json" |
-              jq -r '.urls[].filename | select(test("manylinux1_x86_64")) | capture("(?<cp>cp[0-9]+)-") | .cp |
+              jq -r '.urls[].filename | select(test("manylinux.*_x86_64")) | capture("(?<cp>cp[0-9]+)-") | .cp |
               sub("cp(?<major>[0-9])(?<minor>[0-9]+)"; "\(.major).\(.minor)")'
             )
 
