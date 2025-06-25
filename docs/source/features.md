@@ -1,4 +1,6 @@
-## `torchrunx` uniquely offers
+# Features
+
+### `torchrunx` uniquely offers
 
 1. **An automatic launcher that "just works" for everyone** 🚀
 
