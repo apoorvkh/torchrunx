@@ -61,7 +61,7 @@ class Launcher:
     """`Backend <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Backend>`_
         for worker process group. By default, NCCL (GPU backend).
         Use GLOO for CPU backend. ``None`` for no process group."""
-    timeout: int = 600
+    worker_timeout: int = 600
     """Worker process group timeout (seconds)."""
     agent_timeout: int = 30
     """Agent communication timeout (seconds)."""
@@ -119,7 +119,8 @@ class Launcher:
         )
         ssh_config_file = self.ssh_config_file
         backend = self.backend
-        timeout = self.timeout
+        worker_timeout = self.worker_timeout
+        agent_timeout = self.agent_timeout
 
         env_vars = {
             k: v
@@ -161,7 +162,7 @@ class Launcher:
             worker_global_ranks=worker_global_ranks,
             worker_world_size=sum(workers_per_host),
             backend=backend,
-            timeout=timeout,
+            worker_timeout=worker_timeout,
         )
         agent_payloads = None
 
@@ -201,7 +202,7 @@ class Launcher:
                         env_vars=env_vars,
                         env_file=env_file,
                         hostname=hostname,
-                        agent_timeout=self.agent_timeout,
+                        agent_timeout=agent_timeout,
                     ),
                     hostname=hostname,
                     ssh_config_file=ssh_config_file,
@@ -217,7 +218,7 @@ class Launcher:
                 launcher_port=launcher_port,
                 world_size=world_size,
                 rank=0,
-                agent_timeout=self.agent_timeout,
+                agent_timeout=agent_timeout,
             )
 
             # Sync initial payloads between launcher and agents

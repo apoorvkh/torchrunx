@@ -105,7 +105,7 @@ def main(
                     local_world_size=num_workers,
                     world_size=worker_world_size,
                     hostname=launcher_payload.hostnames[agent_rank],
-                    timeout=launcher_payload.timeout,
+                    timeout=launcher_payload.worker_timeout,
                 ).serialize(),
             )
             for i in range(num_workers)

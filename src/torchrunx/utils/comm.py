@@ -121,7 +121,7 @@ class LauncherPayload:
     worker_global_ranks: list[list[int]]
     worker_world_size: int
     backend: Literal["nccl", "gloo", "mpi", "ucc"] | None
-    timeout: int
+    worker_timeout: int
 
 
 @dataclass
