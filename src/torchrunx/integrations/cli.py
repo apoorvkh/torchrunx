@@ -46,10 +46,17 @@ def add_torchrunx_argument_group(parser: ArgumentParser) -> None:
     )
 
     group.add_argument(
-        "--timeout",
+        "--worker-timeout",
         type=int,
         default=600,
         help="Worker process group timeout in seconds. Default: 600.",
+    )
+
+    group.add_argument(
+        "--agent-timeout",
+        type=int,
+        default=180,
+        help="Agent communication timeout in seconds. Default: 180.",
     )
 
     group.add_argument(
@@ -105,7 +112,8 @@ def launcher_from_args(args: Namespace) -> Launcher:
     else:
         backend = _backend  # pyright: ignore [reportAssignmentType]
 
-    timeout: int = args.timeout
+    worker_timeout: int = args.worker_timeout
+    agent_timeout: int = args.agent_timeout
 
     copy_env_vars: tuple[str, ...] = tuple(args.copy_env_vars)
 
@@ -123,7 +131,8 @@ def launcher_from_args(args: Namespace) -> Launcher:
         workers_per_host=workers_per_host,
         ssh_config_file=ssh_config_file,
         backend=backend,
-        timeout=timeout,
+        worker_timeout=worker_timeout,
+        agent_timeout=agent_timeout,
         copy_env_vars=copy_env_vars,
         extra_env_vars=extra_env_vars,
         env_file=env_file,

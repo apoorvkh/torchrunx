@@ -121,6 +121,7 @@ def build_launch_command(
     env_vars: dict[str, str],
     env_file: str | os.PathLike | None,
     hostname: str,
+    agent_timeout: int,
 ) -> str:
     """Generator for command to launch torchrunx on an agent."""
     # shlex.quote prevents shell injection here (resolves S602 in execute_command)
@@ -147,7 +148,8 @@ def build_launch_command(
         f"--logger-port {logger_port} "
         f"--world-size {world_size} "
         f"--rank {rank} "
-        f"--hostname {hostname}",
+        f"--hostname {hostname} "
+        f"--agent-timeout {agent_timeout}",
     )
 
     return " && ".join(commands)
