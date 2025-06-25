@@ -46,6 +46,7 @@ class LauncherAgentGroup(Generic[FunctionR]):
     launcher_port: int
     world_size: int
     rank: int
+    agent_timeout: int = 30
 
     def __post_init__(self) -> None:
         """Initialize process group.
@@ -63,7 +64,7 @@ class LauncherAgentGroup(Generic[FunctionR]):
                 world_size=self.world_size,
                 is_master=(self.rank == 0),
             ),
-            timeout=datetime.timedelta(seconds=30),
+            timeout=datetime.timedelta(seconds=self.agent_timeout),
         )
 
     def _all_gather(self, obj: ObjectT) -> list[ObjectT]:

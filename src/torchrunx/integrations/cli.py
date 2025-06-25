@@ -53,6 +53,13 @@ def add_torchrunx_argument_group(parser: ArgumentParser) -> None:
     )
 
     group.add_argument(
+        "--agent-timeout",
+        type=int,
+        default=30,
+        help="Agent communication timeout in seconds. Default: 30.",
+    )
+
+    group.add_argument(
         "--copy-env-vars",
         type=str,
         nargs="+",
@@ -106,6 +113,7 @@ def launcher_from_args(args: Namespace) -> Launcher:
         backend = _backend  # pyright: ignore [reportAssignmentType]
 
     timeout: int = args.timeout
+    agent_timeout: int = args.agent_timeout
 
     copy_env_vars: tuple[str, ...] = tuple(args.copy_env_vars)
 
@@ -124,6 +132,7 @@ def launcher_from_args(args: Namespace) -> Launcher:
         ssh_config_file=ssh_config_file,
         backend=backend,
         timeout=timeout,
+        agent_timeout=agent_timeout,
         copy_env_vars=copy_env_vars,
         extra_env_vars=extra_env_vars,
         env_file=env_file,

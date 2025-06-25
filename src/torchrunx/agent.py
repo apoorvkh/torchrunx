@@ -31,6 +31,7 @@ def main(
     logger_hostname: str,
     logger_port: int,
     hostname: str,
+    agent_timeout: int = 30,
 ) -> None:
     """Main function for agent processes (started on each node).
 
@@ -46,6 +47,7 @@ def main(
         logger_hostname: Hostname of the logging server.
         logger_port: Port for the logging server.
         hostname: Hostname of this agent.
+        agent_timeout: Agent communication timeout (seconds).
     """
     # Setup logging & stream logs to server
 
@@ -63,6 +65,7 @@ def main(
         launcher_port=launcher_port,
         world_size=world_size,
         rank=rank,
+        agent_timeout=agent_timeout,
     )
 
     agent_rank = launcher_agent_group.rank - 1

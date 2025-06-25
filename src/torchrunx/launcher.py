@@ -63,6 +63,8 @@ class Launcher:
         Use GLOO for CPU backend. ``None`` for no process group."""
     timeout: int = 600
     """Worker process group timeout (seconds)."""
+    agent_timeout: int = 30
+    """Agent communication timeout (seconds)."""
     copy_env_vars: tuple[str, ...] = DEFAULT_ENV_VARS_FOR_COPY
     """Environment variables to copy from the launcher process to workers.
        Supports Unix pattern matching syntax."""
@@ -199,6 +201,7 @@ class Launcher:
                         env_vars=env_vars,
                         env_file=env_file,
                         hostname=hostname,
+                        agent_timeout=self.agent_timeout,
                     ),
                     hostname=hostname,
                     ssh_config_file=ssh_config_file,
@@ -214,6 +217,7 @@ class Launcher:
                 launcher_port=launcher_port,
                 world_size=world_size,
                 rank=0,
+                agent_timeout=self.agent_timeout,
             )
 
             # Sync initial payloads between launcher and agents

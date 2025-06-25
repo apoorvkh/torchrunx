@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("--world-size", type=int)
     parser.add_argument("--rank", type=int)
     parser.add_argument("--hostname", type=str)
+    parser.add_argument("--agent-timeout", type=int, default=30)
     args = parser.parse_args()
 
     main(
@@ -22,4 +23,5 @@ if __name__ == "__main__":
         logger_hostname=args.launcher_hostname,
         logger_port=args.logger_port,
         hostname=args.hostname,
+        agent_timeout=args.agent_timeout,
     )
