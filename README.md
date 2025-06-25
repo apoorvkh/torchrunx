@@ -42,10 +42,11 @@ import os
 import torch
 import torch.nn as nn
 
-def distributed_training(model: nn.Module, num_steps: int = 10) -> nn.Module | None:
+def distributed_training(num_steps: int = 10) -> nn.Module | None:
     rank = int(os.environ['RANK'])
     local_rank = int(os.environ['LOCAL_RANK'])
 
+    model = nn.Linear(10, 10)
     model.to(local_rank)
     ddp_model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
     optimizer = torch.optim.AdamW(ddp_model.parameters())
@@ -81,7 +82,6 @@ launcher = torchrunx.Launcher(
 
 results = launcher.run(
     distributed_training,
-    model = nn.Linear(10, 10),
     num_steps = 10
 )
 ```
