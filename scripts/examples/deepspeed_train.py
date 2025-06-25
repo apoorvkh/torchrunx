@@ -79,11 +79,14 @@ def load_training_data(
 
 
 def train(
-    model: PreTrainedModel,
-    train_dataset: Dataset,
+    model_name: str,
+    dataset_config: DatasetConfig,
     deepspeed_config: str | dict,
     checkpoint_dir: str,
 ) -> None:
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    train_dataset = load_training_data(tokenizer_name=model_name, dataset_config=dataset_config)
+
     model_engine, _, data_loader, _ = deepspeed.initialize(
         model=model,
         model_parameters=model.parameters(),
@@ -110,11 +113,7 @@ def main(
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
     launcher: torchrunx.Launcher,
 ):
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    train_dataset = load_training_data(tokenizer_name=model_name, dataset_config=dataset_config)
-
-    # Launch training
-    launcher.run(train, model, train_dataset, str(deepspeed_config), str(checkpoint_dir))
+    launcher.run(train, model_name, dataset_config, str(deepspeed_config), str(checkpoint_dir))
 
     # Loading trained model from checkpoint
     state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_dir)

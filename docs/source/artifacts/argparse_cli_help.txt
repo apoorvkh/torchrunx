@@ -1,7 +1,8 @@
 usage: -c [-h] [--hostnames HOSTNAMES [HOSTNAMES ...]]
           [--workers-per-host WORKERS_PER_HOST [WORKERS_PER_HOST ...]]
           [--ssh-config-file SSH_CONFIG_FILE]
-          [--backend {nccl,gloo,mpi,ucc,None}] [--timeout TIMEOUT]
+          [--backend {nccl,gloo,mpi,ucc,None}]
+          [--worker-timeout WORKER_TIMEOUT] [--agent-timeout AGENT_TIMEOUT]
           [--copy-env-vars COPY_ENV_VARS [COPY_ENV_VARS ...]]
           [--extra-env-vars [EXTRA_ENV_VARS ...]] [--env-file ENV_FILE]
 
@@ -21,7 +22,10 @@ torchrunx:
   --backend {nccl,gloo,mpi,ucc,None}
                         For worker process group. Default: 'nccl'. Use 'gloo'
                         for CPU. 'None' to disable.
-  --timeout TIMEOUT     Worker process group timeout in seconds. Default: 600.
+  --worker-timeout WORKER_TIMEOUT
+                        Worker process group timeout in seconds. Default: 600.
+  --agent-timeout AGENT_TIMEOUT
+                        Agent communication timeout in seconds. Default: 180.
   --copy-env-vars COPY_ENV_VARS [COPY_ENV_VARS ...]
                         Environment variables to copy to workers. Supports
                         Unix pattern matching.

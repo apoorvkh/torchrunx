@@ -5,6 +5,7 @@
    :hidden:
 
    api
+   features
    how_it_works
    contributing
 

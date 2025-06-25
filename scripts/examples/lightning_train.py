@@ -97,13 +97,24 @@ class CausalLMLightningWrapper(L.LightningModule):
         return optimizer
 
 
-def train(model: PreTrainedModel, train_dataset: Dataset) -> str:
+def train(
+    model_config: ModelConfig,
+    dataset_config: DatasetConfig,
+) -> str:
+    n_devices = int(os.environ["WORLD_SIZE"])
+    devices_per_node = int(os.environ["LOCAL_WORLD_SIZE"])
+
+    model = AutoModelForCausalLM.from_pretrained(model_config.name)
     lightning_model = CausalLMLightningWrapper(model)
 
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=8)
 
     trainer = L.Trainer(
         accelerator="gpu",
+        num_nodes=(n_devices // devices_per_node),
         max_epochs=1,
         strategy="ddp",
         plugins=[TorchrunxClusterEnvironment()],
@@ -122,13 +133,7 @@ def main(
     model_config: Annotated[ModelConfig, tyro.conf.arg(name="model")],
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
 ):
-    model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(
-        tokenizer_name=model_config.name, dataset_config=dataset_config
-    )
-
-    # Launch training
-    results = launcher.run(train, model, train_dataset)
+    results = launcher.run(train, model_config, dataset_config)
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)

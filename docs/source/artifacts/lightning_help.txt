@@ -18,12 +18,15 @@ usage: lightning_train.py [-h] [OPTIONS]
 │     ``"/etc/ssh/ssh_config"``. (default: None)                             │
 │ --launcher.backend {None,nccl,gloo,mpi,ucc}                                │
 │     `Backend                                                               │
-│     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.B… │
+│     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Ba │
+│     ckend>`_                                                               │
 │             for worker process group. By default, NCCL (GPU backend).      │
 │             Use GLOO for CPU backend. ``None`` for no process group.       │
 │     (default: nccl)                                                        │
-│ --launcher.timeout INT                                                     │
+│ --launcher.worker-timeout INT                                              │
 │     Worker process group timeout (seconds). (default: 600)                 │
+│ --launcher.agent-timeout INT                                               │
+│     Agent communication timeout (seconds). (default: 180)                  │
 │ --launcher.copy-env-vars [STR [STR ...]]                                   │
 │     Environment variables to copy from the launcher process to workers.    │
 │     Supports Unix pattern matching syntax. (default: PATH LD_LIBRARY       │
