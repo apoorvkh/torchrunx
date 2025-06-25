@@ -83,10 +83,15 @@ def load_training_data(
 
 
 def train(
-    model: PreTrainedModel,
-    train_dataset: Dataset,
+    model_config: ModelConfig,
+    dataset_config: DatasetConfig,
     training_args: TrainingArguments,
 ) -> str:
+    model = AutoModelForCausalLM.from_pretrained(model_config.name)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
+
     trainer = Trainer(model=model, train_dataset=train_dataset, args=training_args)
     trainer.train()
     return trainer_utils.get_last_checkpoint(training_args.output_dir)
@@ -98,13 +103,7 @@ def main(
     dataset_config: Annotated[DatasetConfig, tyro.conf.arg(name="dataset")],
     training_args: Annotated[TrainingArguments, tyro.conf.arg(name="trainer", help="")],
 ):
-    model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(
-        tokenizer_name=model_config.name, dataset_config=dataset_config
-    )
-
-    # Launch training
-    results = launcher.run(train, model, train_dataset, training_args)
+    results = launcher.run(train, model_config, dataset_config, training_args)
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)

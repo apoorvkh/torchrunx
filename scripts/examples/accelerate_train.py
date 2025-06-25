@@ -4,6 +4,7 @@
 #     "accelerate",
 #     "datasets",
 #     "torch",
+#     "torchrunx",
 #     "transformers",
 #     "tyro",
 # ]
@@ -81,11 +82,16 @@ def load_training_data(
 
 
 def train(
-    model: PreTrainedModel,
-    train_dataset: Dataset,
+    model_config: ModelConfig,
+    dataset_config: DatasetConfig,
     batch_size: int,
     output_dir: Path,
 ) -> Path:
+    model = AutoModelForCausalLM.from_pretrained(model_config.name)
+    train_dataset = load_training_data(
+        tokenizer_name=model_config.name, dataset_config=dataset_config
+    )
+
     accelerator = Accelerator()
 
     optimizer = torch.optim.Adam(model.parameters())
@@ -116,13 +122,7 @@ def main(
     batch_size: int,
     output_dir: Path,
 ):
-    model = AutoModelForCausalLM.from_pretrained(model_config.name)
-    train_dataset = load_training_data(
-        tokenizer_name=model_config.name, dataset_config=dataset_config
-    )
-
-    # Launch training
-    results = launcher.run(train, model, train_dataset, batch_size, output_dir)
+    results = launcher.run(train, model_config, dataset_config, batch_size, output_dir)
 
     # Loading trained model from checkpoint
     checkpoint_path = results.rank(0)

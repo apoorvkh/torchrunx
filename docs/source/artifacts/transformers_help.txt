@@ -18,12 +18,15 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     ``"/etc/ssh/ssh_config"``. (default: None)                             │
 │ --launcher.backend {None,nccl,gloo,mpi,ucc}                                │
 │     `Backend                                                               │
-│     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.B… │
+│     <https://pytorch.org/docs/stable/distributed.html#torch.distributed.Ba │
+│     ckend>`_                                                               │
 │             for worker process group. By default, NCCL (GPU backend).      │
 │             Use GLOO for CPU backend. ``None`` for no process group.       │
 │     (default: nccl)                                                        │
-│ --launcher.timeout INT                                                     │
+│ --launcher.worker-timeout INT                                              │
 │     Worker process group timeout (seconds). (default: 600)                 │
+│ --launcher.agent-timeout INT                                               │
+│     Agent communication timeout (seconds). (default: 180)                  │
 │ --launcher.copy-env-vars [STR [STR ...]]                                   │
 │     Environment variables to copy from the launcher process to workers.    │
 │     Supports Unix pattern matching syntax. (default: PATH LD_LIBRARY       │
@@ -71,9 +74,10 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     When performing evaluation and predictions, only returns the loss.     │
 │     (default: False)                                                       │
 │ --trainer.per-device-train-batch-size INT                                  │
-│     Batch size per GPU/TPU/MPS/NPU core/CPU for training. (default: 8)     │
+│     Batch size per device accelerator core/CPU for training. (default: 8)  │
 │ --trainer.per-device-eval-batch-size INT                                   │
-│     Batch size per GPU/TPU/MPS/NPU core/CPU for evaluation. (default: 8)   │
+│     Batch size per device accelerator core/CPU for evaluation. (default:   │
+│     8)                                                                     │
 │ --trainer.per-gpu-train-batch-size {None}|INT                              │
 │     Deprecated, the use of `--per_device_train_batch_size` is preferred.   │
 │     Batch size per GPU/TPU core/CPU for training. (default: None)          │
@@ -93,8 +97,9 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     Number of steps to wait before calling                                 │
 │     `torch.<device>.empty_cache()`.This can help avoid CUDA out-of-memory  │
 │     errors by lowering peak VRAM usage at a cost of about [10% slower      │
-│     performance](https://github.com/huggingface/transformers/issues/31372… │
-│     left unset or set to None, cache will not be emptied. (default: None)  │
+│     performance](https://github.com/huggingface/transformers/issues/31372) │
+│     .If left unset or set to None, cache will not be emptied. (default:    │
+│     None)                                                                  │
 │ --trainer.learning-rate FLOAT                                              │
 │     The initial learning rate for AdamW. (default: 5e-05)                  │
 │ --trainer.weight-decay FLOAT                                               │
@@ -113,7 +118,9 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     If > 0: set total number of training steps to perform. Override        │
 │     num_train_epochs. (default: -1)                                        │
 │ --trainer.lr-scheduler-type                                                │
-│ {LINEAR,COSINE,COSINE_WITH_RESTARTS,POLYNOMIAL,CONSTANT,CONSTANT_WITH_WAR… │
+│ {LINEAR,COSINE,COSINE_WITH_RESTARTS,POLYNOMIAL,CONSTANT,CONSTANT_WITH_WARM │
+│ UP,INVERSE_SQRT,REDUCE_ON_PLATEAU,COSINE_WITH_MIN_LR,WARMUP_STABLE_DECAY}| │
+│ STR                                                                        │
 │     The scheduler type to use. (default: linear)                           │
 │ --trainer.lr-scheduler-kwargs {None}|{[STR STR [STR STR ...]]}|STR         │
 │     Extra parameters for the lr_scheduler such as {'num_cycles': 1} for    │
@@ -185,8 +192,8 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     This argument is deprecated. It will be removed in version 5.0 of 🤗   │
 │     Transformers. (default: False)                                         │
 │ --trainer.use-cpu, --trainer.no-use-cpu                                    │
-│     Whether or not to use cpu. If set to False, we will use                │
-│     cuda/tpu/mps/npu device if available. (default: False)                 │
+│     Whether or not to use cpu. If left to False, we will use the available │
+│     torch device/backend (cuda/mps/xpu/hpu etc.) (default: False)          │
 │ --trainer.use-mps-device, --trainer.no-use-mps-device                      │
 │     This argument is deprecated. `mps` device will be used if available    │
 │     similar to `cuda` device. It will be removed in version 5.0 of 🤗      │
@@ -253,13 +260,13 @@ usage: transformers_train.py [-h] [OPTIONS]
 │ --trainer.dataloader-prefetch-factor {None}|INT                            │
 │     Number of batches loaded in advance by each worker. 2 means there will │
 │     be a total of 2 * num_workers batches prefetched across all workers.   │
-│     Default is 2 for PyTorch < 2.0.0 and otherwise None. (default: None)   │
+│     (default: None)                                                        │
 │ --trainer.past-index INT                                                   │
 │     If >=0, uses the corresponding part of the output as the past state    │
 │     for next step. (default: -1)                                           │
 │ --trainer.run-name {None}|STR                                              │
-│     An optional descriptor for the run. Notably used for wandb, mlflow and │
-│     comet logging. (default: None)                                         │
+│     An optional descriptor for the run. Notably used for wandb, mlflow     │
+│     comet and swanlab logging. (default: None)                             │
 │ --trainer.disable-tqdm {None,True,False}                                   │
 │     Whether or not to disable the tqdm progress bars. (default: None)      │
 │ --trainer.remove-unused-columns {None,True,False}                          │
@@ -281,8 +288,8 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     When resuming training, whether or not to skip the first epochs and    │
 │     batches to get to the same training data. (default: False)             │
 │ --trainer.fsdp                                                             │
-│ {None}|{[{FULL_SHARD,SHARD_GRAD_OP,NO_SHARD,HYBRID_SHARD,HYBRID_SHARD_ZER… │
-│ [...]]}|STR                                                                │
+│ {None}|{[{FULL_SHARD,SHARD_GRAD_OP,NO_SHARD,HYBRID_SHARD,HYBRID_SHARD_ZERO │
+│ 2,OFFLOAD,AUTO_WRAP} [...]]}|STR                                           │
 │     Whether or not to use PyTorch Fully Sharded Data Parallel (FSDP)       │
 │     training (in distributed training only). The base option should be     │
 │     `full_shard`, `shard_grad_op` or `no_shard` and you can add            │
@@ -303,7 +310,7 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     (case-sensitive) to wrap, e.g, `BertLayer`, `GPTJBlock`, `T5Block`     │
 │     .... (useful only when `fsdp` flag is passed). (default: None)         │
 │ --trainer.accelerator-config {None}|{[STR STR [STR STR ...]]}|STR          │
-│     Config to be used with the internal Accelerator object initializtion.  │
+│     Config to be used with the internal Accelerator object initialization. │
 │     The value is either a accelerator json config file (e.g.,              │
 │     `accelerator_config.json`) or an already loaded json file as `dict`.   │
 │     (default: None)                                                        │
@@ -315,7 +322,15 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     The label smoothing epsilon to apply (zero means no label smoothing).  │
 │     (default: 0.0)                                                         │
 │ --trainer.optim                                                            │
-│ {ADAMW_HF,ADAMW_TORCH,ADAMW_TORCH_FUSED,ADAMW_TORCH_XLA,ADAMW_TORCH_NPU_F… │
+│ {ADAMW_TORCH,ADAMW_TORCH_FUSED,ADAMW_TORCH_XLA,ADAMW_TORCH_NPU_FUSED,ADAMW │
+│ _APEX_FUSED,ADAFACTOR,ADAMW_ANYPRECISION,ADAMW_TORCH_4BIT,ADAMW_TORCH_8BIT │
+│ ,ADEMAMIX,SGD,ADAGRAD,ADAMW_BNB,ADAMW_8BIT,ADEMAMIX_8BIT,LION_8BIT,LION,PA │
+│ GED_ADAMW,PAGED_ADAMW_8BIT,PAGED_ADEMAMIX,PAGED_ADEMAMIX_8BIT,PAGED_LION,P │
+│ AGED_LION_8BIT,RMSPROP,RMSPROP_BNB,RMSPROP_8BIT,RMSPROP_32BIT,GALORE_ADAMW │
+│ ,GALORE_ADAMW_8BIT,GALORE_ADAFACTOR,GALORE_ADAMW_LAYERWISE,GALORE_ADAMW_8B │
+│ IT_LAYERWISE,GALORE_ADAFACTOR_LAYERWISE,LOMO,ADALOMO,GROKADAMW,SCHEDULE_FR │
+│ EE_RADAM,SCHEDULE_FREE_ADAMW,SCHEDULE_FREE_SGD,APOLLO_ADAMW,APOLLO_ADAMW_L │
+│ AYERWISE}|STR                                                              │
 │     The optimizer to use. (default: adamw_torch)                           │
 │ --trainer.optim-args {None}|STR                                            │
 │     Optional arguments to supply to optimizer. (default: None)             │
@@ -398,8 +413,6 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     kept separate. (default: True)                                         │
 │ --trainer.fp16-backend STR                                                 │
 │     Deprecated. Use half_precision_backend instead (default: auto)         │
-│ --trainer.evaluation-strategy {None,NO,STEPS,EPOCH}|STR                    │
-│     Deprecated. Use `eval_strategy` instead (default: None)                │
 │ --trainer.push-to-hub-model-id {None}|STR                                  │
 │     The name of the repository to which push the `Trainer`. (default:      │
 │     None)                                                                  │
@@ -428,8 +441,8 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     default, `"last"` will be used. Ray will then use the last checkpoint  │
 │     of all trials, compare those, and select the best one. However, other  │
 │     options are also available. See the Ray documentation                  │
-│     (https://docs.ray.io/en/latest/tune/api_docs/analysis.html#ray.tune.E… │
-│     for more options. (default: last)                                      │
+│     (https://docs.ray.io/en/latest/tune/api_docs/analysis.html#ray.tune.Ex │
+│     perimentAnalysis.get_best_trial) for more options. (default: last)     │
 │ --trainer.ddp-timeout {None}|INT                                           │
 │     Overrides the default timeout for distributed training (value should   │
 │     be given in seconds). (default: 1800)                                  │
@@ -442,12 +455,6 @@ usage: transformers_train.py [-h] [OPTIONS]
 │ --trainer.torch-compile-mode {None}|STR                                    │
 │     Which mode to use with `torch.compile`, passing one will trigger a     │
 │     model compilation. (default: None)                                     │
-│ --trainer.dispatch-batches {None,True,False}                               │
-│     Deprecated. Pass {'dispatch_batches':VALUE} to `accelerator_config`.   │
-│     (default: None)                                                        │
-│ --trainer.split-batches {None,True,False}                                  │
-│     Deprecated. Pass {'split_batches':True} to `accelerator_config`.       │
-│     (default: None)                                                        │
 │ --trainer.include-tokens-per-second {None,True,False}                      │
 │     If set to `True`, the speed metrics will include `tgs` (tokens per     │
 │     second per device). (default: False)                                   │
@@ -457,7 +464,7 @@ usage: transformers_train.py [-h] [OPTIONS]
 │     False)                                                                 │
 │ --trainer.neftune-noise-alpha {None}|FLOAT                                 │
 │     Activates neftune noise embeddings into the model. NEFTune has been    │
-│     proven to drastically improve model performances for instrcution       │
+│     proven to drastically improve model performances for instruction       │
 │     fine-tuning. Check out the original paper here:                        │
 │     https://arxiv.org/abs/2310.05914 and the original code here:           │
 │     https://github.com/neelsjain/NEFTune. Only supported for               │
