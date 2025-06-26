@@ -27,7 +27,15 @@ Requires: Linux. If using multiple machines: SSH & shared filesystem.
 
 <h4>Example: simple training loop</h4>
 
-Suppose we have some distributed training function (which needs to run on every GPU):
+Suppose we have some distributed training function (needs to run on every GPU):
+
+```python
+def distributed_training(output_dir: str, num_steps: int = 10) -> str:
+    # returns path to model checkpoint
+```
+
+<details>
+<summary><b>Click to expand (implementation)</b></summary>
 
 ```python
 from __future__ import annotations
@@ -62,6 +70,8 @@ def distributed_training(output_dir: str, num_steps: int = 10) -> str | None:
 
     return None
 ```
+
+</details>
 
 We can distribute and run this function (e.g. on 2 machines x 2 GPUs) using **`torchrunx`**!
 
