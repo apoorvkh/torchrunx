@@ -105,4 +105,4 @@ jobs:
           if [[ "$pytorch_version" =~ ^2\.(0|1|2)$ ]]; then
             echo "NUMPY_VERSION=--with \"numpy<2\"" >> $GITHUB_ENV
           fi
-      - run: uv run --python ${{ env.PYTHON_VERSION }} -P torch --with torch~=${{ env.PYTORCH_VERSION }} ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
+      - run: uv run --python ${{ env.PYTHON_VERSION }} -P torch --with "torch==${{ env.PYTORCH_VERSION }}.*" ${{ env.NUMPY_VERSION }} pytest --verbose tests/test_ci.py
