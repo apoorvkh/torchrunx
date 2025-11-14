@@ -12,7 +12,7 @@ import socket
 import typing
 from dataclasses import dataclass, field
 from functools import partial
-from multiprocessing import Event, Process
+from multiprocessing import Event, get_context
 from typing import Generic, TypeVar
 
 import torch.distributed as dist
@@ -179,7 +179,7 @@ class Launcher:
 
             stop_logging_event = Event()
 
-            log_process = Process(
+            log_process = get_context("fork").Process(
                 target=start_logging_server,
                 args=(logging_server_args.serialize(), stop_logging_event),
                 daemon=True,
