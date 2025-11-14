@@ -80,6 +80,8 @@ jobs:
             for python_version in $python_versions; do
               # Skip if Python version less than minium
               if [[ "$(printf '%s\n' "$python_version" "$MIN_PYTHON_VERSION" | sort -V | head -n 1)" != "$MIN_PYTHON_VERSION" ]]; then continue; fi
+              # Skip if Python version is 3.13t, since fabric depends on cffi which does not support Python 3.13t
+              if [[ "$python_version" == "3.13t" ]]; then continue; fi
 
               version_matrix+=($python_version,$pytorch_version)
             done
