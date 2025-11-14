@@ -179,7 +179,7 @@ class Launcher:
 
             stop_logging_event = Event()
 
-            log_process = get_context("spawn").Process(
+            log_process = get_context("fork").Process(
                 target=start_logging_server,
                 args=(logging_server_args.serialize(), stop_logging_event),
                 daemon=True,
