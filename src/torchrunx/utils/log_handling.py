@@ -79,30 +79,34 @@ def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[
 
     Logs for the rank 0 agent and rank 0 worker are redirected to loggers in the launcher process.
     Logs for all hosts/workers are written to files in ``$TORCHRUNX_LOG_DIR`` (named by timestamp,
-    hostname, local_rank).
+    hostname, local_rank). If ``$TORCHRUNX_LOG_DIR = ""`` logs will not be written to files.
     """
-    log_dir = Path(os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs"))
+    handlers = []
 
-    file_log_level = os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")
-    if file_log_level.isdigit():
-        file_log_level = int(file_log_level)
-    elif file_log_level in logging._nameToLevel:  # noqa: SLF001
-        file_log_level = logging._nameToLevel[file_log_level]  # noqa: SLF001
-    else:
-        msg = (
-            f"Invalid value for $TORCHRUNX_LOG_LEVEL: {file_log_level}. "
-            f"Should be a positive integer or any of: {', '.join(logging._nameToLevel.keys())}."  # noqa: SLF001
-        )
-        raise ValueError(msg)
+    # Agent 0 handler
+    handlers.append(RedirectHandler())
+    handlers[-1].addFilter(get_handler_filter(hostnames[0], None))
 
-    redirect_agent_0_handler = RedirectHandler()
-    redirect_agent_0_handler.addFilter(get_handler_filter(hostnames[0], None))
+    # Worker 0 handler
+    handlers.append(RedirectHandler())
+    handlers[-1].addFilter(get_handler_filter(hostnames[0], 0))
 
-    redirect_worker_0_handler = RedirectHandler()
-    redirect_worker_0_handler.addFilter(get_handler_filter(hostnames[0], 0))
+    # Log to directory
 
-    return [
-        redirect_agent_0_handler,
-        redirect_worker_0_handler,
-        *file_handlers(hostnames, workers_per_host, log_dir=log_dir, log_level=file_log_level),
-    ]
+    log_dir = os.environ.get("TORCHRUNX_LOG_DIR", "torchrunx_logs")
+    if log_dir != "":
+        file_log_level = os.environ.get("TORCHRUNX_LOG_LEVEL", "INFO")
+        if file_log_level.isdigit():
+            file_log_level = int(file_log_level)
+        elif file_log_level in logging._nameToLevel:  # noqa: SLF001
+            file_log_level = logging._nameToLevel[file_log_level]  # noqa: SLF001
+        else:
+            msg = (
+                f"Invalid value for $TORCHRUNX_LOG_LEVEL: {file_log_level}. "
+                f"Should be a positive integer or any of: {', '.join(logging._nameToLevel.keys())}."  # noqa: SLF001
+            )
+            raise ValueError(msg)
+
+        handlers += file_handlers(hostnames, workers_per_host, log_dir=Path(log_dir), log_level=file_log_level)
+
+    return handlers
