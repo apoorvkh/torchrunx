@@ -13,7 +13,7 @@ logging.getLogger("torchrunx.node1").setLevel(logging.INFO)
 logging.getLogger("torchrunx.node1.1").setLevel(logging.INFO)  # worker 1 (local rank) on node 1
 ```
 
-Also, logs from all agents and workers are written to a directory (by the current timestamp) in `$TORCHRUNX_LOG_DIR` (default: `./torchrunx_logs`). These can be controlled using `$TORCHRUNX_LOG_LEVEL` (default: `INFO`).
+Also, logs from all agents and workers are written to a directory (by the current timestamp) in `$TORCHRUNX_LOG_DIR` (default: `./torchrunx_logs`). These can be controlled using `$TORCHRUNX_LOG_LEVEL` (default: `INFO`). File logging can be disabled by setting `$TORCHRUNX_LOG_FILE` to `""`.
 
 ## Customization
 
