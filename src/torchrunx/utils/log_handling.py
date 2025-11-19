@@ -107,6 +107,8 @@ def default_handlers(hostnames: list[str], workers_per_host: list[int]) -> list[
             )
             raise ValueError(msg)
 
-        handlers += file_handlers(hostnames, workers_per_host, log_dir=Path(log_dir), log_level=file_log_level)
+        handlers += file_handlers(
+            hostnames, workers_per_host, log_dir=Path(log_dir), log_level=file_log_level
+        )
 
     return handlers
