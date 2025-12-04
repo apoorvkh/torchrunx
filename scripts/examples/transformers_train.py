@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.9"
+# requires-python = ">=3.10"
 # dependencies = [
 #     "datasets",
 #     "tensorboard",
@@ -32,6 +32,7 @@ from transformers import (
 import torchrunx
 
 logging.basicConfig(level=logging.INFO)
+
 
 @dataclass
 class ModelConfig:

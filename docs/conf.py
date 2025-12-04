@@ -38,7 +38,7 @@ maximum_signature_line_length = 90
 autodoc_member_order = "bysource"
 
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3.9', None),
+    'python': ('https://docs.python.org/3.10', None),
 }
 
 from docs.linkcode_github import generate_linkcode_resolve_fn

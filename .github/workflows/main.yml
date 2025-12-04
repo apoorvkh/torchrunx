@@ -50,7 +50,7 @@ jobs:
       - name: "Get (Python, PyTorch) versions"
         id: get-versions
         run: |
-          MIN_PYTHON_VERSION=3.9
+          MIN_PYTHON_VERSION=3.10
           MIN_PYTORCH_VERSION=2.0
 
           # Get PyTorch versions from PyPI
