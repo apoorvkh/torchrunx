@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Literal
 
 import cloudpickle
 import torch.distributed as dist
-from typing_extensions import Self
 
 from .utils.errors import ExceptionFromWorker
 from .utils.log_streaming import log_records_to_socket, redirect_stdio_to_logger
@@ -46,7 +45,7 @@ class WorkerArgs:
         return cloudpickle.dumps(asdict(self))
 
     @classmethod
-    def from_bytes(cls, b: bytes) -> Self:
+    def from_bytes(cls, b: bytes) -> WorkerArgs:
         """Deserialize the bytes back into a WorkerArgs object."""
         return cls(**cloudpickle.loads(b))
 

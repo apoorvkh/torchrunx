@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 import cloudpickle
 import torch.distributed as dist
-from typing_extensions import Self
 
 from .errors import AgentFailedError, ExceptionFromWorker, WorkerFailedError
 
@@ -150,7 +149,7 @@ class AgentStatus(Generic[FunctionR]):
     )  # indexed by local rank
 
     @classmethod
-    def from_result(cls, result: RunProcsResult | None) -> Self:
+    def from_result(cls, result: RunProcsResult | None) -> AgentStatus[FunctionR]:
         """Convert RunProcsResult (from polling worker process context) to AgentStatus."""
         if result is None:
             return cls(state="running")
@@ -160,7 +159,7 @@ class AgentStatus(Generic[FunctionR]):
 
         return_values = [result.return_values[key] for key in sorted(result.return_values.keys())]
 
-        failed = any(isinstance(v, (ExceptionFromWorker, WorkerFailedError)) for v in return_values)
+        failed = any(isinstance(v, ExceptionFromWorker | WorkerFailedError) for v in return_values)
         state = "failed" if failed else "done"
 
         return cls(

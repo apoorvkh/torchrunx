@@ -23,7 +23,6 @@ from threading import Thread
 from typing import TYPE_CHECKING
 
 import cloudpickle
-from typing_extensions import Self
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -98,7 +97,7 @@ class LoggingServerArgs:
         return cloudpickle.dumps(self)
 
     @classmethod
-    def from_bytes(cls, serialized: bytes) -> Self:
+    def from_bytes(cls, serialized: bytes) -> LoggingServerArgs:
         """Deserialize bytes to :class:`LoggingServerArgs`."""
         return cloudpickle.loads(serialized)
 
@@ -171,7 +170,9 @@ class WorkerLogRecord(logging.LogRecord):
     local_rank: int | None
 
     @classmethod
-    def from_record(cls, record: logging.LogRecord, hostname: str, local_rank: int | None) -> Self:
+    def from_record(
+        cls, record: logging.LogRecord, hostname: str, local_rank: int | None
+    ) -> WorkerLogRecord:
         record.hostname = hostname
         record.local_rank = local_rank
         record.__class__ = cls

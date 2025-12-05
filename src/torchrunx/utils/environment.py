@@ -74,7 +74,7 @@ def slurm_hosts() -> list[str]:
         msg = "Not in a SLURM job"
         raise RuntimeError(msg)
 
-    return subprocess.check_output(["scontrol", "show", "hostnames"]).decode().strip().split("\n")  # noqa: S607
+    return subprocess.check_output(["scontrol", "show", "hostnames"]).decode().strip().split("\n")  # noqa: S603, S607
 
 
 def get_cpus_per_host(

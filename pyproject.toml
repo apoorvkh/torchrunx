@@ -21,7 +21,6 @@ dependencies = [
   # torch.distributed depends on numpy
   # torch<=2.2 needs numpy<2
   "numpy>=1.20",
-  "typing-extensions>=4.9.0",
 ]
 [dependency-groups]
 dev = ["ruff==0.9.5", "pyright[nodejs]==1.1.393", "pytest==8.3.4"]

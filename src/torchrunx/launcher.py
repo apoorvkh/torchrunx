@@ -13,10 +13,9 @@ import typing
 from dataclasses import dataclass, field
 from functools import partial
 from multiprocessing import Event, get_context
-from typing import Generic, TypeVar
+from typing import Generic, ParamSpec, TypeVar
 
 import torch.distributed as dist
-from typing_extensions import ParamSpec, Self
 
 from .utils.comm import (
     LauncherAgentGroup,
@@ -80,7 +79,7 @@ class Launcher:
     def set_logging_handlers(
         self,
         handler_factory: typing.Callable[[], list[logging.Handler]] | typing.Literal["auto"] | None,
-    ) -> Self:
+    ) -> Launcher:
         """Provide a ``handler_factory`` function to customize processing of agent/worker logs.
 
         Parameters:
@@ -277,7 +276,9 @@ class LaunchResult(Generic[FunctionR]):
     results: dict[str, list[FunctionR]]  # [hostname][local_rank] -> FunctionR
 
     @classmethod
-    def from_returns(cls, hostnames: list[str], return_values: list[list[FunctionR]]) -> Self:  # noqa: D102
+    def from_returns(  # noqa: D102
+        cls, hostnames: list[str], return_values: list[list[FunctionR]]
+    ) -> LaunchResult[FunctionR]:
         return cls(results=dict(zip(hostnames, return_values, strict=True)))
 
     def index(self, hostname: str, locak_rank: int) -> FunctionR:
