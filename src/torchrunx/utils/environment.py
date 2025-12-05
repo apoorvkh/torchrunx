@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
-from typing_extensions import TypeAlias
+from typing import Literal, TypeAlias
 
 __all__ = [
     "auto_hosts",
@@ -48,7 +46,9 @@ def resolve_environment(
     elif workers_per_host == "gpu":
         gpus_per_host: list[int] = get_gpus_per_host(hostnames, ssh_config_file=ssh_config_file)
         if any(g == 0 for g in gpus_per_host):
-            hosts_without_gpus = [h for h, g in zip(hostnames, gpus_per_host) if g == 0]
+            hosts_without_gpus = [
+                h for h, g in zip(hostnames, gpus_per_host, strict=True) if g == 0
+            ]
             msg = f'workers_per_host="gpu", but no GPUs detected on: {hosts_without_gpus}.'
             raise RuntimeError(msg)
         workers_per_host = gpus_per_host

@@ -7,8 +7,9 @@ import logging
 import os
 import sys
 import traceback
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import cloudpickle
 import torch.distributed as dist

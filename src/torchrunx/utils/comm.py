@@ -13,9 +13,10 @@ __all__ = [
 
 import datetime
 import socket
+from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 import cloudpickle
 import torch.distributed as dist
