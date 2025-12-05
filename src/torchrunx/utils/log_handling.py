@@ -12,9 +12,12 @@ __all__ = [
 import datetime
 import logging
 import os
-from collections.abc import Callable
 from logging import LogRecord
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_handler_filter(

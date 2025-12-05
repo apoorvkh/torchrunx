@@ -4,10 +4,12 @@ from __future__ import annotations
 
 __all__ = ["add_torchrunx_argument_group", "launcher_from_args"]
 
-from argparse import ArgumentParser, Namespace
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from torchrunx import DEFAULT_ENV_VARS_FOR_COPY, Launcher
+
+if TYPE_CHECKING:
+    from argparse import ArgumentParser, Namespace
 
 
 def add_torchrunx_argument_group(parser: ArgumentParser) -> None:

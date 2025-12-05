@@ -7,9 +7,8 @@ import logging
 import os
 import sys
 import traceback
-from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 import cloudpickle
 import torch.distributed as dist
@@ -17,6 +16,9 @@ from typing_extensions import Self
 
 from .utils.errors import ExceptionFromWorker
 from .utils.log_streaming import log_records_to_socket, redirect_stdio_to_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 __all__ = ["WorkerArgs", "worker_entrypoint"]
 
@@ -49,7 +51,7 @@ class WorkerArgs:
         return cls(**cloudpickle.loads(b))
 
 
-def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorker:
+def worker_entrypoint(serialized_worker_args: bytes) -> object | ExceptionFromWorker:
     """Function called by spawned worker processes.
 
     Workers first prepare a process group (for communicating with all other workers).
@@ -102,7 +104,7 @@ def worker_entrypoint(serialized_worker_args: bytes) -> Any | ExceptionFromWorke
 
     try:
         return worker_args.function()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         return ExceptionFromWorker(exception=e)
     finally:

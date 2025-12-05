@@ -41,19 +41,10 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "TC003",   # no type checking blocks for stdlib
   "D104",    # package docstrings
-  "ANN401",  # self / cls / Any annotations
-  "BLE001",  # blind exceptions
-  "TD",      # todo syntax
-  "FIX002",  # existing todos
   "PLR0913", # too many arguments
   "DTZ005",  # datetime timezone
-  "S301",    # bandit: pickle
-  "S603",
-  "S607",    # bandit: subprocess
-  "COM812",
-  "ISC001",  # conflict with formatter
+  "COM812",  # conflict with formatter
   "G004"  # f-string in logging
 ]
 [tool.ruff.lint.per-file-ignores]

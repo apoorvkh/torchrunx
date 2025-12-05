@@ -15,16 +15,19 @@ import pickle
 import signal
 import struct
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass
 from logging import Handler, Logger
 from logging.handlers import SocketHandler
-from multiprocessing.synchronize import Event as EventClass
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from threading import Thread
+from typing import TYPE_CHECKING
 
 import cloudpickle
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from multiprocessing.synchronize import Event as EventClass
 
 ## Launcher utilities
 
@@ -51,7 +54,7 @@ class _LogRecordSocketReceiver(ThreadingTCPServer):
                     chunk = self.connection.recv(slen)
                     while len(chunk) < slen:
                         chunk = chunk + self.connection.recv(slen - len(chunk))
-                    obj = pickle.loads(chunk)
+                    obj = pickle.loads(chunk)  # noqa: S301
 
                     ## Transform log record
 

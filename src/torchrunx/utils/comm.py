@@ -13,7 +13,6 @@ __all__ = [
 
 import datetime
 import socket
-from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
@@ -25,6 +24,8 @@ from typing_extensions import Self
 from .errors import AgentFailedError, ExceptionFromWorker, WorkerFailedError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from torch.distributed.elastic.multiprocessing.api import RunProcsResult
 
 
