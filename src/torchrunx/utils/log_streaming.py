@@ -20,7 +20,7 @@ from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from threading import Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 import cloudpickle
 
@@ -135,21 +135,23 @@ def redirect_stdio_to_logger(logger: Logger) -> None:
 
     def redirect_fd_to_logger(read_fd: int, level: int, chunk_size: int = 4096) -> None:
         buffer = b""
-        while True:
-            chunk = os.read(read_fd, chunk_size)
-            if not chunk:
-                break
-            buffer += chunk
-            while b"\n" in buffer:
-                line, buffer = buffer.split(b"\n", 1)
-                logger.log(level, line.decode(errors="replace").rstrip())
+        try:
+            while True:
+                chunk = os.read(read_fd, chunk_size)
+                if not chunk:
+                    break
+                buffer += chunk
+                newline_pos = buffer.find(b"\n")
+                while newline_pos != -1:
+                    logger.log(level, buffer[:newline_pos].decode(errors="replace").rstrip())
+                    buffer = buffer[newline_pos + 1 :]
+                    newline_pos = buffer.find(b"\n")
+        except OSError:
+            pass
         if buffer:
             logger.log(level, buffer.decode(errors="replace").rstrip())
 
-    def redirect_stream(
-        stream: sys.stdout | sys.stderr,  # pyright: ignore[reportInvalidTypeForm]
-        level: int,
-    ) -> None:
+    def redirect_stream(stream: TextIO, level: int) -> None:
         read_fd, write_fd = os.pipe()
         Thread(
             target=redirect_fd_to_logger,
