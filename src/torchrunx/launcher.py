@@ -33,7 +33,7 @@ from .utils.log_streaming import LoggingServerArgs, start_logging_server
 
 DEFAULT_ENV_VARS_FOR_COPY = (
     "PATH",
-    "LD_LIBRARY",
+    "LD_LIBRARY*",
     "LIBRARY_PATH",
     "PYTHON*",
     "CUDA*",
