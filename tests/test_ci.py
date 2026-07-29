@@ -1,15 +1,18 @@
 import datetime
 import os
+import subprocess
 import tempfile
 import time
 from pathlib import Path
 from typing import NoReturn
+from unittest import mock
 
 import pytest
 import torch
 import torch.distributed as dist
 
 import torchrunx as trx
+from torchrunx.utils.environment import execute_command
 
 
 def test_simple_localhost() -> None:
@@ -103,6 +106,35 @@ def test_error() -> None:
         )
 
     assert "abcdefg" in str(excinfo.value)
+
+
+def test_execute_command_inherits_output_when_not_returned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = mock.Mock()
+    popen = mock.Mock(return_value=process)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+
+    result = execute_command("echo output", "localhost")
+
+    assert result == ("", "")
+    assert popen.call_args.kwargs["stdout"] is None
+    assert popen.call_args.kwargs["stderr"] is None
+    process.communicate.assert_not_called()
+
+
+def test_execute_command_captures_requested_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    process = mock.Mock()
+    process.communicate.return_value = ("stdout", "stderr")
+    popen = mock.Mock(return_value=process)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+
+    result = execute_command("echo output", "localhost", return_stdout_stderr=True)
+
+    assert result == ("stdout", "stderr")
+    assert popen.call_args.kwargs["stdout"] == subprocess.PIPE
+    assert popen.call_args.kwargs["stderr"] == subprocess.PIPE
+    process.communicate.assert_called_once_with()
 
 
 if __name__ == "__main__":

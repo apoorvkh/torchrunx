@@ -178,12 +178,13 @@ def execute_command(
     if is_localhost:
         # S602: subprocess.Popen is called with shell=True (https://docs.python.org/3.10/library/subprocess.html#security-considerations)
         # Made sure to shlex.quote arguments in build_command to prevent shell injection
+        output_target = subprocess.PIPE if return_stdout_stderr else None
         process = subprocess.Popen(  # noqa: S602
             command,
             shell=True,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=output_target,
+            stderr=output_target,
         )
 
         if return_stdout_stderr:
