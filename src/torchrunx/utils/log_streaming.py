@@ -20,7 +20,7 @@ from logging import Handler, Logger
 from logging.handlers import SocketHandler
 from socketserver import StreamRequestHandler, ThreadingTCPServer
 from threading import Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 
 import cloudpickle
 
@@ -133,33 +133,37 @@ def redirect_stdio_to_logger(logger: Logger) -> None:
     """Redirect stderr/stdout: send output to logger at every flush."""
     logging.captureWarnings(capture=True)
 
-    def redirect_fd_to_logger(read_fd: int, level: int) -> None:
-        for line in os.fdopen(read_fd):
-            logger.log(level, line.rstrip())
+    def redirect_fd_to_logger(read_fd: int, level: int, chunk_size: int = 4096) -> None:
+        buffer = b""
+        try:
+            while True:
+                chunk = os.read(read_fd, chunk_size)
+                if not chunk:
+                    break
+                buffer += chunk
+                newline_pos = buffer.find(b"\n")
+                while newline_pos != -1:
+                    logger.log(level, buffer[:newline_pos].decode(errors="replace").rstrip())
+                    buffer = buffer[newline_pos + 1 :]
+                    newline_pos = buffer.find(b"\n")
+        except OSError:
+            pass
+        if buffer:
+            logger.log(level, buffer.decode(errors="replace").rstrip())
 
-    # create (r, w) pipe and start logging all outputs from r
-    read_out_fd, write_out_fd = os.pipe()
-    Thread(
-        target=redirect_fd_to_logger,
-        kwargs={"read_fd": read_out_fd, "level": logging.INFO},
-        daemon=True,
-    ).start()
-    # flush buffer before redirecting stdout
-    sys.stdout.flush()
-    # pipe: r <-> stdout instead of r <-> w
-    os.dup2(write_out_fd, sys.stdout.fileno())  # set stdout fd to pipe
-    os.close(write_out_fd)
+    def redirect_stream(stream: TextIO, level: int) -> None:
+        read_fd, write_fd = os.pipe()
+        Thread(
+            target=redirect_fd_to_logger,
+            kwargs={"read_fd": read_fd, "level": level},
+            daemon=True,
+        ).start()
+        stream.flush()
+        os.dup2(write_fd, stream.fileno())
+        os.close(write_fd)
 
-    # repeat for stderr
-    read_err_fd, write_err_fd = os.pipe()
-    Thread(
-        target=redirect_fd_to_logger,
-        kwargs={"read_fd": read_err_fd, "level": logging.ERROR},
-        daemon=True,
-    ).start()
-    sys.stderr.flush()
-    os.dup2(write_err_fd, sys.stderr.fileno())
-    os.close(write_err_fd)
+    redirect_stream(sys.stdout, logging.INFO)
+    redirect_stream(sys.stderr, logging.ERROR)
 
 
 @dataclass
